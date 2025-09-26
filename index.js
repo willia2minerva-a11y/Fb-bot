@@ -8,7 +8,7 @@ const axios = require("axios");
 const app = express();
 app.use(bodyParser.json());
 
-// المتغيرات البيئية
+// قراءة المتغيرات البيئية
 const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_TOKEN;
 const VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN;
 const ADMIN_PSID = process.env.ADMIN_PSID;
@@ -18,16 +18,39 @@ const APP_SECRET = process.env.FB_APP_SECRET;
 const required = ["FB_PAGE_TOKEN", "FB_VERIFY_TOKEN", "FB_APP_SECRET", "ADMIN_PSID"];
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length > 0) {
-  console.error("❌ المتغيرات التالية ناقصة أو غير مضبوطة:", missing.join(", "));
+  console.error("❌ المتغيرات التالية ناقصة:", missing.join(", "));
   process.exit(1);
 }
 
 // ملف بيانات اللاعبين
 const DATA_FILE = path.join(__dirname, "players.json");
-if (!fs.existsSync(DATA_FILE)) fs.writeJsonSync(DATA_FILE, { players: [] });
+try {
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeJsonSync(DATA_FILE, { players: [] });
+    console.log("📝 players.json تم إنشاؤه بنجاح.");
+  }
+} catch (err) {
+  console.error("⚠️ خطأ أثناء إنشاء players.json:", err.message);
+}
 
-const getPlayers = () => fs.readJsonSync(DATA_FILE).players;
-const savePlayers = (players) => fs.writeJsonSync(DATA_FILE, { players });
+// دوال إدارة اللاعبين
+const getPlayers = () => {
+  try {
+    return fs.readJsonSync(DATA_FILE).players;
+  } catch (err) {
+    console.error("⚠️ خطأ في قراءة players.json:", err.message);
+    return [];
+  }
+};
+
+const savePlayers = (players) => {
+  try {
+    fs.writeJsonSync(DATA_FILE, { players });
+  } catch (err) {
+    console.error("⚠️ خطأ في حفظ players.json:", err.message);
+  }
+};
+
 const isAuthorized = (psid) => getPlayers().find((p) => p.id === psid && p.allowed);
 
 const addPlayer = (psid, name) => {
@@ -44,17 +67,14 @@ const addPlayer = (psid, name) => {
   }
 };
 
-// دالة إرسال رسالة إلى لاعب
+// دالة إرسال رسالة
 const sendMessage = (psid, message) => {
   axios
-    .post(
-      `https://graph.facebook.com/v15.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
-      {
-        recipient: { id: psid },
-        message: { text: message },
-      }
-    )
-    .catch((err) => console.error(err.response?.data || err.message));
+    .post(`https://graph.facebook.com/v15.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
+      recipient: { id: psid },
+      message: { text: message },
+    })
+    .catch((err) => console.error("⚠️ خطأ إرسال:", err.response?.data || err.message));
 };
 
 // Webhook لتأكيد الربط مع فيسبوك
@@ -100,7 +120,7 @@ app.post("/webhook", (req, res) => {
           return;
         }
 
-        // التحقق من صلاحية اللاعب
+        // تحقق من صلاحية اللاعب
         if (!isAuthorized(psid)) {
           sendMessage(psid, "⛔ لم يتم منحك الصلاحية بعد للعب. انتظر الموافقة.");
           return;
@@ -117,7 +137,7 @@ app.post("/webhook", (req, res) => {
           );
         } else if (text === "!ترتيب") {
           const players = getPlayers();
-          sendMessage(psid, `📊 عدد اللاعبين: ${players.length}\n(نظام الترتيب سيتطور لاحقًا)`);
+          sendMessage(psid, `📊 عدد اللاعبين: ${players.length}\n(نظام الترتيب لاحقًا)`);
         } else if (text === "!خريطة") {
           sendMessage(
             psid,
@@ -135,6 +155,6 @@ app.post("/webhook", (req, res) => {
   }
 });
 
-// تشغيل الخادم على البورت الذي تحدده Render
+// تشغيل الخادم
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
