@@ -1,15 +1,14 @@
 {
   "name": "fb-bot",
   "version": "1.0.0",
+  "description": "Facebook Messenger bot game",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.7.2",
+    "express": "^4.18.2",
     "body-parser": "^1.20.2",
-    "express": "^4.19.2",
-    "fs-extra": "^11.2.0"
+    "axios": "^1.6.0"
   }
 }
