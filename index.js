@@ -1,198 +1,144 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
+import express from "express";
+import bodyParser from "body-parser";
+import axios from "axios";
+import fs from "fs-extra";
 
 const app = express();
 app.use(bodyParser.json());
 
-// ✅ المتغيرات البيئية
 const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_TOKEN;
 const VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN;
-const APP_SECRET = process.env.FB_APP_SECRET;
-const ADMIN_PSID = process.env.ADMIN_PSID;
+const ADMIN_PSID = process.env.ADMIN_PSID || "123456789"; // ضع ID حقك هنا أو في Railway
 
-// ⚠️ لو ناقص متغير، فقط اطبع تحذير (لا تخرج)
-if (!PAGE_ACCESS_TOKEN || !VERIFY_TOKEN || !APP_SECRET || !ADMIN_PSID) {
-  console.warn("⚠️ بعض المتغيرات البيئية ناقصة. تأكد من ضبطها في Render.");
+const PLAYERS_FILE = "./players.json";
+
+// ✅ تحميل اللاعبين من ملف
+function loadPlayers() {
+  try {
+    return fs.readJsonSync(PLAYERS_FILE);
+  } catch {
+    return {};
+  }
 }
 
-// 📂 ملف بيانات اللاعبين
-const DATA_FILE = path.join(__dirname, "players.json");
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeJsonSync(DATA_FILE, { players: [] });
+// ✅ حفظ اللاعبين
+function savePlayers(players) {
+  fs.writeJsonSync(PLAYERS_FILE, players, { spaces: 2 });
 }
 
-const getPlayers = () => fs.readJsonSync(DATA_FILE).players;
-const savePlayers = (players) => fs.writeJsonSync(DATA_FILE, { players });
-const isAuthorized = (psid) =>
-  getPlayers().find((p) => p.id === psid && p.allowed);
-
-const addPlayer = (psid, name) => {
-  const players = getPlayers();
-  if (!players.find((p) => p.id === psid)) {
-    players.push({
-      id: psid,
+// ✅ إضافة لاعب جديد
+function addPlayer(psid, name = "مغامر") {
+  const players = loadPlayers();
+  if (!players[psid]) {
+    players[psid] = {
       name,
-      allowed: false,
-      stats: { level: 1, hp: 100, attack: 10 },
-      resources: {}
-    });
+      level: 1,
+      health: 100,
+      attack: 10,
+      resources: 0,
+      authorized: psid === ADMIN_PSID // المدير مفعّل تلقائي
+    };
     savePlayers(players);
   }
-};
+  return players[psid];
+}
 
-// 📩 إرسال رسالة
-const sendMessage = (psid, message) => {
-  axios
-    .post(
-      `https://graph.facebook.com/v15.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
-      {
-        recipient: { id: psid },
-        message: { text: message }
-      }
-    )
-    .catch((err) => console.error("❌ Error sending:", err.response?.data || err.message));
-};
-
-// 🌐 Webhook للتأكيد
+// ✅ Webhook للتحقق
 app.get("/webhook", (req, res) => {
-  if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
-    return res.send(req.query["hub.challenge"]);
-  } else {
-    return res.sendStatus(403);
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode && token) {
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("✅ WEBHOOK_VERIFIED");
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
   }
 });
 
-// 📩 استقبال الرسائل
+// ✅ استقبال الرسائل
 app.post("/webhook", (req, res) => {
   const body = req.body;
 
   if (body.object === "page") {
     body.entry.forEach((entry) => {
-      const event = entry.messaging[0];
-      const psid = event.sender.id;
+      const webhook_event = entry.messaging[0];
+      const sender_psid = webhook_event.sender.id;
 
-      if (event.message && event.message.text) {
-        const text = event.message.text.trim();
-        addPlayer(psid, `Player_${psid}`);
-
-        // 🛠️ أوامر المدير
-        if (psid === ADMIN_PSID && text.startsWith("!اعطاء_صلاحية")) {
-          const parts = text.split(" ");
-          if (parts.length === 2) {
-            const targetId = parts[1];
-            const players = getPlayers();
-            const player = players.find((p) => p.id === targetId);
-            if (player) {
-              player.allowed = true;
-              savePlayers(players);
-              sendMessage(psid, `✅ تم منح الصلاحية لـ ${targetId}`);
-              sendMessage(targetId, "🎮 لقد تم منحك صلاحية اللعب!");
-            } else {
-              sendMessage(psid, "❌ لا يوجد لاعب بهذا المعرف.");
-            }
-          } else {
-            sendMessage(psid, "استخدم: !اعطاء_صلاحية <psid>");
-          }
-          return;
-        }
-
-        // ⛔ منع غير المصرح لهم
-        if (!isAuthorized(psid)) {
-          sendMessage(psid, "⛔ لم يتم منحك الصلاحية بعد للعب. انتظر الموافقة.");
-          return;
-        }
-
-        // 🎮 أوامر اللعبة
-        if (text === "!مغارة") {
-          sendMessage(psid, "⚔️ أنت تواجه وحشًا بسيطًا! قوة الوحش: 50");
-        } else if (text === "!بروفايل") {
-          const player = getPlayers().find((p) => p.id === psid);
-          sendMessage(
-            psid,
-            `👤 الاسم: ${player.name}\n🏆 المستوى: ${player.stats.level}\n❤️ الصحة: ${player.stats.hp}\n⚔️ الهجوم: ${player.stats.attack}`
-          );
-        } else if (text === "!ترتيب") {
-          const players = getPlayers();
-          sendMessage(
-            psid,
-            `📊 عدد اللاعبين: ${players.length}\nتأكد من تطوير نظام الترتيب لاحقًا`
-          );
-        } else if (text === "!خريطة") {
-          sendMessage(
-            psid,
-            "🗺️ المناطق المتاحة:\n1- الثلوج ❄️\n2- السهوب 🌾\n3- الصحراء 🏜️\n4- الغابات 🌲"
-          );
-        } else {
-          sendMessage(
-            psid,
-            "❓ أمر غير معروف. استخدم !مغارة، !بروفايل، !ترتيب، أو !خريطة"
-          );
-        }
+      if (webhook_event.message) {
+        handleMessage(sender_psid, webhook_event.message);
       }
     });
-
-    return res.status(200).send("EVENT_RECEIVED");
+    res.status(200).send("EVENT_RECEIVED");
   } else {
-    return res.sendStatus(404);
+    res.sendStatus(404);
   }
 });
 
-// 🚀 تشغيل السيرفر
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));            const players = getPlayers();
-            const player = players.find((p) => p.id === targetId);
-            if (player) {
-              player.allowed = true;
-              savePlayers(players);
-              sendMessage(psid, `✅ تم منح الصلاحية لـ ${targetId}`);
-              sendMessage(targetId, "🎮 لقد تم منحك صلاحية اللعب!");
-            } else {
-              sendMessage(psid, "❌ لا يوجد لاعب بهذا المعرف.");
-            }
-          } else {
-            sendMessage(psid, "استخدم: !اعطاء_صلاحية <psid>");
-          }
-          return;
-        }
+// ✅ معالجة الرسائل
+function handleMessage(sender_psid, received_message) {
+  const players = loadPlayers();
+  let player = players[sender_psid] || addPlayer(sender_psid);
 
-        // تحقق من صلاحية اللاعب
-        if (!isAuthorized(psid)) {
-          sendMessage(psid, "⛔ لم يتم منحك الصلاحية بعد للعب. انتظر الموافقة.");
-          return;
-        }
-
-        // أوامر اللعبة
-        if (text === "!مغارة") {
-          sendMessage(psid, "⚔️ أنت تواجه وحشًا بسيطًا! قوة الوحش: 50");
-        } else if (text === "!بروفايل") {
-          const player = getPlayers().find((p) => p.id === psid);
-          sendMessage(
-            psid,
-            `👤 الاسم: ${player.name}\n🏆 المستوى: ${player.stats.level}\n❤️ الصحة: ${player.stats.hp}\n⚔️ الهجوم: ${player.stats.attack}`
-          );
-        } else if (text === "!ترتيب") {
-          const players = getPlayers();
-          sendMessage(psid, `📊 عدد اللاعبين: ${players.length}\n(نظام الترتيب لاحقًا)`);
-        } else if (text === "!خريطة") {
-          sendMessage(
-            psid,
-            "🗺️ المناطق المتاحة:\n1- الثلوج ❄️\n2- السهوب 🌾\n3- الصحراء 🏜️\n4- الغابات 🌲"
-          );
-        } else {
-          sendMessage(psid, "❓ أمر غير معروف. استخدم !مغارة، !بروفايل، !ترتيب، أو !خريطة");
-        }
-      }
-    });
-
-    return res.status(200).send("EVENT_RECEIVED");
-  } else {
-    return res.sendStatus(404);
+  if (!player.authorized && sender_psid !== ADMIN_PSID) {
+    return callSendAPI(sender_psid, { text: "❌ لست مصرح لك باللعب، اطلب من المدير الإذن." });
   }
-});
 
-// تشغيل الخادم
+  const text = received_message.text?.trim();
+
+  if (!text) return;
+
+  if (text === "!مغارة") {
+    player.health -= 10;
+    player.resources += 5;
+    callSendAPI(sender_psid, {
+      text: `👹 واجهت وحشًا! -10 صحة. +5 موارد. \nالصحة: ${player.health}, الموارد: ${player.resources}`
+    });
+  } else if (text === "!بروفايل") {
+    callSendAPI(sender_psid, {
+      text: `📜 بروفايلك:\nالاسم: ${player.name}\nالمستوى: ${player.level}\nالصحة: ${player.health}\nالهجوم: ${player.attack}\nالموارد: ${player.resources}`
+    });
+  } else if (text === "!ترتيب") {
+    const count = Object.keys(players).length;
+    callSendAPI(sender_psid, { text: `👥 عدد اللاعبين: ${count}` });
+  } else if (text === "!خريطة") {
+    callSendAPI(sender_psid, {
+      text: "🗺️ المناطق المتاحة: \n- الثلوج ❄️\n- السهوب 🌾\n- الصحراء 🏜️\n- الغابات 🌳"
+    });
+  } else if (text.startsWith("!authorize") && sender_psid === ADMIN_PSID) {
+    const target = text.split(" ")[1];
+    if (players[target]) {
+      players[target].authorized = true;
+      savePlayers(players);
+      callSendAPI(sender_psid, { text: `✅ تم منح الإذن لـ ${players[target].name}` });
+    } else {
+      callSendAPI(sender_psid, { text: "❌ اللاعب غير موجود." });
+    }
+  } else {
+    callSendAPI(sender_psid, { text: "⚔️ الأوامر: !مغارة, !بروفايل, !ترتيب, !خريطة" });
+  }
+
+  players[sender_psid] = player;
+  savePlayers(players);
+}
+
+// ✅ إرسال رسالة
+function callSendAPI(sender_psid, response) {
+  axios({
+    method: "POST",
+    url: `https://graph.facebook.com/v12.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+    data: {
+      recipient: { id: sender_psid },
+      message: response,
+    },
+  })
+    .then(() => console.log("✅ رسالة أرسلت"))
+    .catch((err) => console.error("❌ خطأ:", err.response?.data || err.message));
+}
+
+// ✅ تشغيل السيرفر
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Bot is running on port ${PORT}`));
