@@ -5,6 +5,12 @@ const axios = require('axios');
 const app = express();
 app.use(bodyParser.json());
 
+// التحقق من المتغيرات البيئية
+if (!process.env.FB_PAGE_TOKEN || !process.env.FB_VERIFY_TOKEN || !process.env.FB_APP_SECRET) {
+    console.error('❌ Missing environment variables. Please check Render settings.');
+    process.exit(1);
+}
+
 const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_TOKEN;
 const VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN;
 
@@ -43,5 +49,6 @@ app.post('/webhook', async (req, res) => {
     }
 });
 
+// استخدام البورت الذي يحدده Render
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
