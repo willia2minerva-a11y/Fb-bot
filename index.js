@@ -1,117 +1,153 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const fs = require("fs");
+const mongoose = require("mongoose"); // أضفنا هذه المكتبة
 
-const app = express().use(bodyParser.json());
+const app = express();
+app.use(bodyParser.json());
 
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "test_token";
+// ======================\
+// التحقق من المتغيرات البيئية
+// ======================\
+const PAGE_ACCESS_TOKEN = process.env.FB_PAGE_TOKEN;
+const VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN;
+const ADMIN_PSID = process.env.ADMIN_PSID;
+const MONGO_URI = process.env.MONGO_URI; // متغير رابط قاعدة البيانات
 
-// تحميل بيانات اللاعبين
-const playersFile = "./players.json";
-function loadPlayers() {
-  if (!fs.existsSync(playersFile)) return {};
-  return JSON.parse(fs.readFileSync(playersFile));
+// نتأكد أن كل المتغيرات موجودة
+if (!PAGE_ACCESS_TOKEN || !VERIFY_TOKEN || !MONGO_URI || !ADMIN_PSID) {
+  console.error("❌ تأكد من وجود كل المتغيرات البيئية: FB_PAGE_TOKEN, FB_VERIFY_TOKEN, ADMIN_PSID, MONGO_URI");
+  process.exit(1);
 }
-function savePlayers(players) {
-  fs.writeFileSync(playersFile, JSON.stringify(players, null, 2));
-}
 
-// ✅ Webhook verification
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
+// ======================\
+// الاتصال بقاعدة البيانات
+// ======================\
+mongoose.connect(MONGO_URI)
+  .then(() => console.log("✅ تم الاتصال بقاعدة البيانات بنجاح"))
+  .catch(err => {
+    console.error("❌ فشل الاتصال بقاعدة البيانات:", err);
+    process.exit(1);
+  });
 
-  if (mode && token === VERIFY_TOKEN) {
-    console.log("WEBHOOK_VERIFIED");
-    res.status(200).send(challenge);
-  } else {
-    res.sendStatus(403);
-  }
+// ======================\
+// تعريف شكل بيانات اللاعب في قاعدة البيانات
+// ======================\
+const playerSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true }, // معرف اللاعب
+  name: String,
+  allowed: { type: Boolean, default: false }, // هل مسموح له باللعب
+  stats: {
+    level: { type: Number, default: 1 },
+    hp: { type: Number, default: 100 },
+    attack: { type: Number, default: 10 },
+  },
+  resources: {
+    wood: { type: Number, default: 0 },
+    stone: { type: Number, default: 0 },
+    iron: { type: Number, default: 0 },
+  },
 });
 
-// ✅ Handle messages
-app.post("/webhook", (req, res) => {
+const Player = mongoose.model("Player", playerSchema);
+
+// ======================\
+// إرسال رسالة (تبقى كما هي)
+// ======================\
+const sendMessage = (psid, message) => {
+  axios.post(
+    `https://graph.facebook.com/v15.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+    { recipient: { id: psid }, message: { text: message } }
+  ).catch((err) => console.error("Error sending message:", err.response?.data || err.message));
+};
+
+// ======================\
+// Webhook
+// ======================\
+app.get("/webhook", (req, res) => {
+  if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
+    return res.send(req.query["hub.challenge"]);
+  }
+  res.sendStatus(403);
+});
+
+// نستخدم async لأننا سنتعامل مع قاعدة البيانات التي تحتاج وقتًا للرد
+app.post("/webhook", async (req, res) => {
   const body = req.body;
 
   if (body.object === "page") {
-    body.entry.forEach(entry => {
-      const webhook_event = entry.messaging[0];
-      const sender_psid = webhook_event.sender.id;
+    for (const entry of body.entry) {
+      const event = entry.messaging[0];
+      const psid = event.sender.id;
+      const text = event.message?.text?.trim();
 
-      if (webhook_event.message) {
-        handleMessage(sender_psid, webhook_event.message);
+      if (!text) continue; // تجاهل الرسائل التي ليست نصية
+
+      try {
+        // نبحث عن اللاعب، إذا لم يكن موجودًا، ننشئ واحدًا جديدًا
+        let player = await Player.findOne({ id: psid });
+        if (!player) {
+          player = await Player.create({ id: psid, name: `Player_${psid}` });
+        }
+
+        // 🔹 أوامر المدير
+        if (psid === ADMIN_PSID && text.startsWith("!اعطاء_صلاحية")) {
+          const targetId = text.split(" ")[1];
+          if (!targetId) {
+             sendMessage(psid, "استخدم: !اعطاء_صلاحية <psid>");
+             continue;
+          }
+          const playerToAuthorize = await Player.findOneAndUpdate(
+            { id: targetId },
+            { allowed: true },
+            { new: true } // لإرجاع اللاعب بعد التحديث
+          );
+
+          if (playerToAuthorize) {
+            sendMessage(psid, `✅ تم منح الصلاحية لـ ${playerToAuthorize.name}`);
+            sendMessage(targetId, "🎮 لقد تم منحك صلاحية اللعب!");
+          } else {
+            sendMessage(psid, "❌ لا يوجد لاعب بهذا المعرف.");
+          }
+          continue; // ننتقل للحدث التالي
+        }
+
+        // 🔹 منع غير المصرح لهم
+        if (!player.allowed) {
+          sendMessage(psid, "⛔ لم يتم منحك الصلاحية بعد للعب. اطلب من المدير إضافتك.");
+          continue;
+        }
+
+        // 🔹 أوامر اللعبة
+        let replyMessage = ""; // رسالة الرد
+        switch (text) {
+          case "!مغارة":
+            player.stats.hp -= 10;
+            replyMessage = `⚔️ دخلت المغارة وواجهت وحشًا! صحتك الآن: ${player.stats.hp}`;
+            break;
+          case "!بروفايل":
+            replyMessage = `👤 الاسم: ${player.name}\n🏆 المستوى: ${player.stats.level}\n❤️ الصحة: ${player.stats.hp}\n⚔️ الهجوم: ${player.stats.attack}`;
+            break;
+          // ... يمكنك إضافة باقي الأوامر هنا بنفس الطريقة
+          default:
+            replyMessage = "❓ أمر غير معروف. الأوامر المتاحة: !مغارة, !بروفايل";
+        }
+        
+        await player.save(); // نحفظ أي تغييرات على اللاعب في قاعدة البيانات
+        sendMessage(psid, replyMessage);
+
+      } catch (error) {
+        console.error("Error processing webhook:", error);
       }
-    });
+    }
     res.status(200).send("EVENT_RECEIVED");
   } else {
     res.sendStatus(404);
   }
 });
 
-function handleMessage(sender_psid, received_message) {
-  let response;
-  let players = loadPlayers();
-
-  // لو اللاعب مش موجود، نضيفه
-  if (!players[sender_psid]) {
-    players[sender_psid] = {
-      name: `Player-${sender_psid.substring(0, 5)}`,
-      level: 1,
-      health: 100,
-      attack: 10,
-      resources: 0
-    };
-    savePlayers(players);
-  }
-  const player = players[sender_psid];
-
-  if (received_message.text) {
-    const msg = received_message.text.trim();
-
-    if (msg === "!مغارة") {
-      let monsterHealth = 30;
-      if (player.attack >= monsterHealth) {
-        player.resources += 10;
-        response = { text: `⚔️ ${player.name} هزم الوحش وربح 10 موارد! 🎉` };
-      } else {
-        player.health -= 20;
-        response = { text: `💀 ${player.name} خسر المعركة! -20 صحة.` };
-      }
-      savePlayers(players);
-    } else if (msg === "!بروفايل") {
-      response = {
-        text: `👤 الاسم: ${player.name}\n⭐ المستوى: ${player.level}\n❤️ الصحة: ${player.health}\n⚔️ الهجوم: ${player.attack}\n💎 الموارد: ${player.resources}`
-      };
-    } else if (msg === "!ترتيب") {
-      const count = Object.keys(players).length;
-      response = { text: `📊 عدد اللاعبين الحاليين: ${count}` };
-    } else if (msg === "!خريطة") {
-      response = { text: "🗺️ المناطق: الثلوج ❄️، السهوب 🌾، الصحراء 🏜️، الغابات 🌳" };
-    } else {
-      response = { text: "❓ الأوامر المتاحة: !مغارة ، !بروفايل ، !ترتيب ، !خريطة" };
-    }
-  }
-
-  callSendAPI(sender_psid, response);
-}
-
-function callSendAPI(sender_psid, response) {
-  const request_body = {
-    recipient: { id: sender_psid },
-    message: response
-  };
-
-  axios.post(
-    `https://graph.facebook.com/v15.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
-    request_body
-  )
-  .then(() => console.log("✅ Message sent!"))
-  .catch(err => console.error("❌ Unable to send message:", err.response?.data || err));
-}
-
-// ✅ Use Heroku port
+// ======================\
+// تشغيل السيرفر (تبقى كما هي)
+// ======================\
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server is listening on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
