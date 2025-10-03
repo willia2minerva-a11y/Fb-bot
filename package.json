@@ -1,0 +1,13 @@
+{
+  "name": "text-adventure-game",
+  "version": "1.0.0",
+  "description": "A modular text-based adventure game.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
