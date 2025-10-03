@@ -1,0 +1,30 @@
+# render.yaml
+services:
+  - type: web
+    name: mughera-gold-bot
+    env: node
+    plan: free
+    region: frankfurt  # أو أي region قريب منك
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        sync: false
+      - key: PAGE_ACCESS_TOKEN
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: ADMIN_PSTD
+        sync: false
+
+# إعدادات البيانات (إذا تحتاج MongoDB في رندر)
+# databases:
+#   - name: mughera-gold-db
+#     plan: free
+#     databaseName: mughera-gold
+#     version: "6"
