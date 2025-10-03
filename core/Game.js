@@ -1,38 +1,102 @@
-import { Player } from './Player.js';
-import { CommandHandler } from './CommandHandler.js';
-import { BattleSystem } from '../systems/battle/BattleSystem.js';
-import { QuestSystem } from '../systems/quests/QuestSystem.js';
-import { CraftingSystem } from '../systems/crafting/CraftingSystem.js';
-import { WorldMap } from '../systems/world/WorldMap.js';
+import Player from './Player.js';
+import CommandHandler from './CommandHandler.js';
 import { TimeSystem } from '../systems/time/TimeSystem.js';
-import { locations } from '../data/locations.js';
-import { npcs } from '../data/npcs.js';
-import { items } from '../data/items.js';
 
-export class Game {
+export default class Game {
   constructor() {
-    this.player = new Player();
-    this.commandHandler = new CommandHandler(this.player, this);
-    this.questSystem = new QuestSystem(this.player);
-    this.battleSystem = new BattleSystem(this.player);
-    this.craftingSystem = new CraftingSystem(this.player);
-    this.worldMap = new WorldMap(locations);
+    this.commandHandler = new CommandHandler();
     this.timeSystem = new TimeSystem();
-    this.npcs = npcs;
-    this.items = items;
     this.isRunning = false;
-    this.currency = 0; // الذهب (غولد)
+    this.startedAt = null;
+    
+    // تهيئة تحديث الوقت التلقائي
+    this.setupTimeUpdates();
+    
+    console.log('🎮 لعبة مغارة غولد تم تهيئتها');
+  }
+
+  async handleMessage(sender, message) {
+    try {
+      // تحديث وقت اللعبة
+      this.timeSystem.update();
+      
+      const response = await this.commandHandler.process(sender, message);
+      return response;
+    } catch (error) {
+      console.error('❌ خطأ في معالجة الرسالة:', error);
+      return '⚠️ حدث خطأ غير متوقع في اللعبة. حاول مرة أخرى.';
+    }
+  }
+
+  setupTimeUpdates() {
+    // تحديث وقت اللعبة كل دقيقة
+    setInterval(() => {
+      this.timeSystem.update();
+    }, 60000); // كل دقيقة حقيقية
+
+    // حفظ إحصائيات اللعبة كل 5 دقائق
+    setInterval(() => {
+      this.saveGameStats();
+    }, 5 * 60 * 1000);
+  }
+
+  async saveGameStats() {
+    try {
+      const playerCount = await Player.countDocuments();
+      const totalBattles = await Player.aggregate([
+        { $group: { _id: null, total: { $sum: '$stats.battlesWon' } } }
+      ]);
+      
+      console.log(`📊 إحصائيات اللعبة: ${playerCount} لاعب, ${totalBattles[0]?.total || 0} معركة`);
+    } catch (error) {
+      console.error('❌ خطأ في حفظ إحصائيات اللعبة:', error);
+    }
+  }
+
+  async getGameStats() {
+    try {
+      const totalPlayers = await Player.countDocuments();
+      const activePlayers = await Player.countDocuments({
+        lastAction: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      });
+      
+      const topPlayers = await Player.find()
+        .sort({ level: -1, exp: -1 })
+        .limit(5)
+        .select('name level exp stats.battlesWon');
+
+      return {
+        totalPlayers,
+        activePlayers,
+        topPlayers,
+        gameTime: this.timeSystem.getCurrentTime(),
+        uptime: this.startedAt ? Date.now() - this.startedAt : 0
+      };
+    } catch (error) {
+      console.error('❌ خطأ في جلب إحصائيات اللعبة:', error);
+      return null;
+    }
   }
 
   start() {
     this.isRunning = true;
-    console.log('أهلاً بك في مغارة غولد! مغامرتك تبدأ الآن 🌟');
-    // يمكنك هنا عرض أوامر البداية أو قصة قصيرة
-    // استقبال الأوامر من اللاعب
+    this.startedAt = Date.now();
+    console.log('🚀 لعبة مغارة غولد بدأت التشغيل!');
   }
 
-  // مثال لدالة تفاعل مع الأحداث
-  onEvent(event) {
-    // تنفيذ منطق مخصص حسب الحدث
+  stop() {
+    this.isRunning = false;
+    console.log('🛑 لعبة مغارة غولد توقفت عن التشغيل');
   }
-}
+
+  // دالة للمساعدة في التطوير
+  async resetPlayer(userId) {
+    try {
+      await Player.findOneAndDelete({ userId });
+      return '✅ تم إعادة تعيين اللاعب';
+    } catch (error) {
+      console.error('❌ خطأ في إعادة تعيين اللاعب:', error);
+      return '❌ فشل في إعادة تعيين اللاعب';
+    }
+  }
+        }
