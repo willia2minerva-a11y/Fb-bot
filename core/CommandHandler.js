@@ -1,9 +1,9 @@
-import { BattleSystem } from './systems/battle/BattleSystem.js';
-import { TravelSystem } from './systems/world/TravelSystem.js';
-import { WorldMap } from './systems/world/WorldMap.js';
-import { GatheringSystem } from './systems/gathering/GatheringSystem.js';
-import { CraftingSystem } from './systems/crafting/CraftingSystem.js';
-import { ProfileSystem } from './systems/profile/ProfileSystem.js';
+import { BattleSystem } from '../systems/battle/BattleSystem.js';
+import { TravelSystem } from '../systems/world/TravelSystem.js';
+import { WorldMap } from '../systems/world/WorldMap.js';
+import { GatheringSystem } from '../systems/gathering/GatheringSystem.js';
+import { CraftingSystem } from '../systems/crafting/CraftingSystem.js';
+import { ProfileSystem } from '../systems/profile/ProfileSystem.js';
 import Player from './Player.js';
 
 export default class CommandHandler {
@@ -263,4 +263,4 @@ export default class CommandHandler {
   async handleUnknown(command, player) {
     return `❓ **أمر غير معروف**: "${command}"\n\nاكتب "مساعدة" لرؤية الأوامر المتاحة.`;
   }
-}
+        }
