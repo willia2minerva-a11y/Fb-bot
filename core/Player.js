@@ -22,6 +22,23 @@ const inventoryItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const playerSchema = new mongoose.Schema({
+  // تأكد من إضافة هذه الدوال في playerSchema.methods:
+
+playerSchema.methods.isApproved = function() {
+    return this.registrationStatus === 'completed';
+};
+
+playerSchema.methods.isPending = function() {
+    return this.registrationStatus === 'pending';
+};
+
+playerSchema.methods.isApprovedButNotCompleted = function() {
+    return this.registrationStatus === 'approved';
+};
+
+playerSchema.methods.getRegistrationStatus = function() {
+    return this.registrationStatus;
+};
   userId: {
     type: String,
     required: true,
