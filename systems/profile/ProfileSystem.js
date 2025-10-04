@@ -1,4 +1,4 @@
-import Player from '../../models/Player.js';
+import Player from '../core/Player.js';
 import { ProfileCardGenerator } from '../../utils/ProfileCardGenerator.js';
 import 'dotenv/config'; 
 
