@@ -1,67 +1,39 @@
-export const weapons = [
-  // --- الأسلحة الضعيفة إلى المتوسطة ---
-  {
-    id: "copper_shortsword",
-    name: "سيف النحاس",
-    type: "weapon",
-    damage: 6,
-    obtain: "صناعي",
-    craft: { materials: [{ item: "Copper Bar", quantity: 7 }] },
-    tier: "weak"
+export const items = {
+  // مواد أساسية
+  wood: {
+    id: 'wood',
+    name: 'خشب',
+    type: 'resource',
+    description: 'خشب عادي يمكن استخدامه في الصناعة.'
   },
-  {
-    id: "iron_shortsword",
-    name: "سيف الحديد",
-    type: "weapon",
-    damage: 7,
-    obtain: "صناعي",
-    craft: { materials: [{ item: "Iron Bar", quantity: 7 }] },
-    tier: "weak"
+  stone: {
+    id: 'stone',
+    name: 'حجر',
+    type: 'resource',
+    description: 'حجر صلب يمكن استخدامه في البناء.'
   },
-  {
-    id: "lead_shortsword",
-    name: "سيف الرصاص",
-    type: "weapon",
-    damage: 8,
-    obtain: "صناعي",
-    craft: { materials: [{ item: "Lead Bar", quantity: 7 }] },
-    tier: "weak"
+  herb: {
+    id: 'herb',
+    name: 'عشب طبي',
+    type: 'resource',
+    description: 'عشب يستخدم في صناعة الأدوية.'
   },
-  {
-    id: "silver_shortsword",
-    name: "سيف الفضة",
-    type: "weapon",
-    damage: 9,
-    obtain: "صناعي",
-    craft: { materials: [{ item: "Silver Bar", quantity: 7 }] },
-    tier: "weak"
+  
+  // أسلوبة بسيطة
+  wooden_sword: {
+    id: 'wooden_sword',
+    name: 'سيف خشبي',
+    type: 'weapon',
+    description: 'سيف مصنوع من الخشب، ضعيف لكنه أفضل من لا شيء.',
+    damage: 5
   },
-  {
-    id: "gold_shortsword",
-    name: "سيف الذهب",
-    type: "weapon",
-    damage: 10,
-    obtain: "صناعي",
-    craft: { materials: [{ item: "Gold Bar", quantity: 7 }] },
-    tier: "weak"
-  },
-  {
-    id: "platinum_shortsword",
-    name: "سيف البلاتين",
-    type: "weapon",
-    damage: 11,
-    obtain: "صناعي",
-    craft: { materials: [{ item: "Platinum Bar", quantity: 7 }] },
-    tier: "weak"
-  },
-  {
-    id: "muramasa",
-    name: "موراماسا",
-    type: "weapon",
-    damage: 45,
-    obtain: "تجدها في صندوق المعبد القديم",
-    special: "سريع ويحتوي على تأثير سحري",
-    tier: "mid"
-  },
-  // ... (تابع بقية الأسلحة كما في الردود السابقة)
-];
+  
+  // أدوات
+  basic_pickaxe: {
+    id: 'basic_pickaxe',
+    name: 'فأس أساسي',
+    type: 'tool',
+    description: 'فأس بسيط لجمع الموارد.',
+    efficiency: 1
+  }
+};
