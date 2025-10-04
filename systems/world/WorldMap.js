@@ -1,37 +1,45 @@
 export class WorldMap {
-  constructor(travelSystem) {
-    this.travelSystem = travelSystem;
-  }
+    constructor(travelSystem) {
+        this.travelSystem = travelSystem;
+        console.log('🗺️ الخريطة تم تهيئتها');
+    }
 
-  showMap(player) {
-    const currentLocation = this.travelSystem.getCurrentLocation(player);
-    const availableLocations = this.travelSystem.getAvailableLocations(player);
+    showMap(player) {
+        // 🛠️ إصلاح: استخدام getCurrentLocation إذا كان موجوداً، وإلا استخدام currentLocation مباشرة
+        const currentLocation = player.getCurrentLocation ? player.getCurrentLocation() : (player.currentLocation || 'القرية');
+        
+        return `🗺️ **خريطة مغارة غولد**
 
-    let mapText = `🗺️ **خريطة مغارة غولد**\n\n`;
-    
-    availableLocations.forEach(location => {
-      const indicator = location.id === currentLocation.id ? '📍 ' : '• ';
-      mapText += `${indicator}**${location.name}**\n`;
-      mapText += `   📍 ${location.description}\n`;
-      mapText += `   ⚡ المستوى المطلوب: ${location.requiredLevel}\n\n`;
-    });
+📍 **المواقع المتاحة:**
+• 🏠 القرية (منطقة آمنة) - البداية والتجارة
+• 🌲 الغابة الخضراء (مستوى خطر: منخفض) - خشب، أعشاب
+• ⛰️ جبال الظلام (مستوى خطر: متوسط) - حجارة، معادن  
+• 🐉 كهوف التنين (مستوى خطر: عالي) - كنوز، كريستالات
 
-    mapText += `أنت حالياً في: **${currentLocation.name}**`;
-    return mapText;
-  }
+أنت في: **${currentLocation}**
 
-  showLocationDetails(locationId) {
-    const location = this.travelSystem.locations.find(loc => loc.id === locationId);
-    if (!location) return "❌ المكان غير موجود.";
+💡 **للانتقال:** استخدم أمر "انتقل [اسم المكان]"`;
+    }
 
-    let details = `🏞️ **${location.name}**\n\n`;
-    details += `📝 ${location.description}\n\n`;
-    details += `📊 **المعلومات:**\n`;
-    details += `• 🎯 المستوى المطلوب: ${location.requiredLevel}\n`;
-    details += `• ⚔️ مستوى الخطر: ${location.dangerLevel}/5\n`;
-    details += `• 🌿 الموارد: ${location.resources?.join(', ') || 'غير معروفة'}\n`;
-    details += `• 🐉 الوحوش: ${location.monsters?.join(', ') || 'غير معروفة'}\n`;
+    // 🆕 دالة مساعدة للحصول على مواقع اللعبة
+    getLocations() {
+        return {
+            'القرية': { danger: 0, resources: ['wood', 'herbs'], safeZone: true },
+            'الغابة الخضراء': { danger: 1, resources: ['wood', 'herbs', 'berries'], safeZone: false },
+            'جبال الظلام': { danger: 2, resources: ['ore', 'gems', 'crystals'], safeZone: false },
+            'كهوف التنين': { danger: 3, resources: ['dragon_scale', 'ancient_artifacts'], safeZone: false }
+        };
+    }
 
-    return details;
-  }
+    // 🆕 التحقق مما إذا كان الموقع موجوداً
+    isValidLocation(location) {
+        const locations = this.getLocations();
+        return locations.hasOwnProperty(location);
+    }
+
+    // 🆕 الحصول على معلومات موقع معين
+    getLocationInfo(location) {
+        const locations = this.getLocations();
+        return locations[location] || null;
+    }
 }
