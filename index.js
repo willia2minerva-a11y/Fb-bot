@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import { FacebookBot, FacebookEvent } from 'messaging-api-facebook';
-import express from 'express';
+import { Bot, Events } from 'fb-bot';
 import CommandHandler from './core/CommandHandler.js';
 import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js';
 import fs from 'fs';
@@ -10,20 +9,14 @@ import fs from 'fs';
 const MONGODB_URI = process.env.MONGODB_URI;
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const PORT = process.env.PORT || 3000;
 
 if (!MONGODB_URI || !PAGE_ACCESS_TOKEN) {
   console.error('❌ خطأ: متغيرات البيئة MONGODB_URI و PAGE_ACCESS_TOKEN مطلوبة');
   process.exit(1);
 }
 
-// تهيئة Express
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 // تهيئة البوت
-const bot = new FacebookBot({
+const bot = new Bot({
   accessToken: PAGE_ACCESS_TOKEN,
   verifyToken: VERIFY_TOKEN,
 });
@@ -47,16 +40,18 @@ async function connectDatabase() {
 
 // تنظيف الملفات المؤقتة القديمة
 function startCleanupInterval() {
+  // تنظيف الملفات المؤقتة كل ساعة
   setInterval(() => {
     cardGenerator.cleanupOldFiles();
-  }, 3600000); // ساعة واحدة
+  }, 3600000); // 3600000 مللي ثانية = ساعة واحدة
+  
   console.log('🧹 تم تفعيل نظام تنظيف الملفات المؤقتة');
 }
 
 // إرسال رسالة نصية
 async function sendTextMessage(senderId, text) {
   try {
-    await bot.sendText(senderId, text);
+    await bot.sendMessage(senderId, { text });
     console.log(`✅ تم إرسال رسالة نصية إلى ${senderId}`);
   } catch (error) {
     console.error('❌ خطأ في إرسال الرسالة النصية:', error);
@@ -66,19 +61,28 @@ async function sendTextMessage(senderId, text) {
 // إرسال صورة
 async function sendImageMessage(senderId, imagePath, caption = '') {
   try {
-    // قراءة ملف الصورة كـ buffer
-    const imageBuffer = fs.readFileSync(imagePath);
+    // قراءة ملف الصورة
+    const imageStream = fs.createReadStream(imagePath);
     
-    await bot.sendImage(senderId, imageBuffer, { caption });
+    await bot.sendMessage(senderId, {
+      attachment: {
+        type: 'image',
+        payload: { source: imageStream }
+      }
+    });
+    
     console.log(`✅ تم إرسال صورة إلى ${senderId}`);
+    
+    // إذا كان هناك نص وصفي، أرسله كرسالة منفصلة
+    if (caption) {
+      await sendTextMessage(senderId, caption);
+    }
     
     // حذف الملف المؤقت بعد الإرسال
     setTimeout(() => {
       try {
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-          console.log(`🧹 تم حذف الملف المؤقت: ${imagePath}`);
-        }
+        fs.unlinkSync(imagePath);
+        console.log(`🧹 تم حذف الملف المؤقت: ${imagePath}`);
       } catch (deleteError) {
         console.error('❌ خطأ في حذف الملف المؤقت:', deleteError);
       }
@@ -105,7 +109,7 @@ async function handleMessage(senderId, message) {
     
     const sender = {
       id: senderId,
-      name: `مغامر-${senderId.slice(-6)}`
+      name: `مغامر-${senderId.slice(-6)}` // اسم افتراضي بناءً على ID
     };
     
     const response = await commandHandler.process(sender, message);
@@ -132,57 +136,30 @@ async function handleMessage(senderId, message) {
   }
 }
 
-// مسار التحقق (لـ webhook)
-app.get('/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+// معالجة حدث الرسائل
+bot.on(Events.MESSAGE, async (event) => {
+  const { sender, message } = event;
+  
+  // تجاهل الرسائل الفارغة
+  if (!message || !message.text) {
+    return;
+  }
+  
+  await handleMessage(sender.id, message.text);
+});
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ تم التحقق من webhook بنجاح');
-    res.status(200).send(challenge);
-  } else {
-    console.log('❌ فشل التحقق من webhook');
-    res.sendStatus(403);
+// معالجة حدث النقر على زر البدء
+bot.on(Events.POSTBACK, async (event) => {
+  const { sender, postback } = event;
+  
+  if (postback.payload === 'GET_STARTED') {
+    await handleMessage(sender.id, 'بدء');
   }
 });
 
-// مسار استقبال الرسائل
-app.post('/webhook', async (req, res) => {
-  try {
-    const { body } = req;
-
-    // التأكد من أن هذا طلب من فيسبوك
-    if (body.object === 'page') {
-      // معالجة كل إدخال
-      for (const entry of body.entry) {
-        for (const event of entry.messaging) {
-          if (event.message && event.message.text) {
-            await handleMessage(event.sender.id, event.message.text);
-          }
-          
-          // معالجة حدث البدء
-          if (event.postback && event.postback.payload === 'GET_STARTED') {
-            await handleMessage(event.sender.id, 'بدء');
-          }
-        }
-      }
-    }
-
-    res.status(200).send('EVENT_RECEIVED');
-  } catch (error) {
-    console.error('❌ خطأ في معالجة webhook:', error);
-    res.sendStatus(500);
-  }
-});
-
-// مسار الصحة (health check)
-app.get('/', (req, res) => {
-  res.status(200).json({ 
-    status: '✅ البوت يعمل',
-    name: 'مغارة غولد بوت',
-    version: '1.0.0'
-  });
+// معالجة الأخطاء
+bot.on(Events.ERROR, (error) => {
+  console.error('❌ خطأ في البوت:', error);
 });
 
 // معالجة الأخطاء غير الملتقطة
@@ -210,12 +187,12 @@ async function main() {
     commandHandler = new CommandHandler();
     console.log('✅ تم تهيئة معالج الأوامر');
     
-    // بدء الخادم
-    app.listen(PORT, () => {
-      console.log(`✅ البوت يعمل على المنفذ ${PORT}`);
-      console.log('📱 جاهز لاستقبال الرسائل عبر webhook...');
-      console.log(`🔗 تأكد من ضبط webhook على: https://your-domain.com/webhook`);
-    });
+    // بدء استقبال الرسائل
+    const port = process.env.PORT || 3000;
+    bot.start(port);
+    
+    console.log(`✅ البوت يعمل على المنفذ ${port}`);
+    console.log('📱 جاهز لاستقبال الرسائل...');
     
   } catch (error) {
     console.error('❌ فشل في بدء تشغيل البوت:', error);
