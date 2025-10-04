@@ -1,112 +1,71 @@
 export class ProfileSystem {
   getPlayerStatus(player) {
-    const expNeeded = player.level * 100;
-    const expProgress = Math.floor((player.exp / expNeeded) * 100);
+    const expProgress = player.experience || 0;
+    const requiredExp = player.level * 100;
+    const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
+    
+    const attackDamage = player.getAttackDamage ? player.getAttackDamage() : 10;
+    const defense = player.level * 2;
 
     return `📊 **حالة ${player.name}**
 ──────────────
 ❤️  الصحة: ${player.health}/${player.maxHealth}
-💧  المانا: ${player.mana}/${player.maxMana}
 ✨  المستوى: ${player.level}
-⭐  الخبرة: ${player.exp}/${expNeeded} (${expProgress}%)
+⭐  الخبرة: ${expProgress}/${requiredExp} (${expPercentage}%)
 💰  الذهب: ${player.gold}
-⚔️  الهجوم: ${player.attack}
-🛡️  الدفاع: ${player.defense}
+⚔️  الهجوم: ${attackDamage}
+🛡️  الدفاع: ${defense}
 📍  الموقع: ${player.currentLocation}
-🎒  الأغراض: ${player.inventory.length} نوع`;
+🎒  الأغراض: ${player.inventory ? player.inventory.length : 0} نوع`;
   }
 
   getPlayerProfile(player) {
-    const expNeeded = player.level * 100;
-    const expProgress = Math.floor((player.exp / expNeeded) * 100);
-    const equippedWeapon = player.equipment.weapon ? 
-      player.inventory.find(item => item.itemId === player.equipment.weapon)?.name : 'لا يوجد';
+    const expProgress = player.experience || 0;
+    const requiredExp = player.level * 100;
+    const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
+    
+    const monstersKilled = player.stats?.monstersKilled || 0;
+    const questsCompleted = player.stats?.questsCompleted || 0;
+    const resourcesGathered = player.stats?.resourcesGathered || 0;
+    const battlesWon = player.stats?.battlesWon || 0;
+
+    const weapon = player.equipment?.weapon ? player.equipment.weapon : 'لا يوجد';
 
     return `📋 **بروفايل ${player.name}**
 ────────────────
 ✨ المستوى: ${player.level} 
-⭐ الخبرة: ${player.exp}/${expNeeded} (${expProgress}%)
+⭐ الخبرة: ${expProgress}/${requiredExp} (${expPercentage}%)
 ❤️ الصحة: ${player.health}/${player.maxHealth}
-💧 المانا: ${player.mana}/${player.maxMana}
 💰 الذهب: ${player.gold}
-⚔️ السلاح: ${equippedWeapon}
+⚔️ السلاح: ${weapon}
 
 🎯 **الإحصائيات:**
-• ⚔️ المعارك: ${player.stats.battlesWon} فوز
-• 🐉 الوحوش: ${player.stats.monstersKilled} قتيل
-• 📜 المهام: ${player.stats.questsCompleted} مكتمل
-• 🌿 الموارد: ${player.stats.resourcesCollected} مجمع
+• ⚔️ المعارك: ${battlesWon} فوز
+• 🐉 الوحوش: ${monstersKilled} قتيل
+• 📜 المهام: ${questsCompleted} مكتمل
+• 🌿 الموارد: ${resourcesGathered} مجمع
 
 📍 **الموقع الحالي:** ${player.currentLocation}`;
   }
 
   getPlayerInventory(player) {
-    if (player.inventory.length === 0) {
-      return `🎒 **حقيبتك فارغة**\n\nاذهب وجمع بعض الموارد باستخدام أمر \`تجميع\``;
+    if (!player.inventory || player.inventory.length === 0) {
+      return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
     }
-
-    // تجميع العناصر حسب النوع
-    const itemsByType = {};
+    
+    let text = `🎒 **حقيبة ${player.name}**\n\n`;
     player.inventory.forEach(item => {
-      if (!itemsByType[item.type]) itemsByType[item.type] = [];
-      itemsByType[item.type].push(item);
+      text += `• ${item.name} ×${item.quantity}\n`;
     });
-
-    let inventoryText = `🎒 **حقيبة ${player.name}**\n\n`;
     
-    Object.entries(itemsByType).forEach(([type, items]) => {
-      const typeName = this.getTypeName(type);
-      inventoryText += `**${typeName}:**\n`;
-      items.forEach(item => {
-        inventoryText += `  • ${item.name} ×${item.quantity}`;
-        if (item.rarity && item.rarity !== 'عادي') {
-          inventoryText += ` (${item.rarity})`;
-        }
-        inventoryText += '\n';
-      });
-      inventoryText += '\n';
-    });
-
-    inventoryText += `💰 **الذهب: ${player.gold} غولد**`;
-    
-    return inventoryText;
-  }
-
-  getPlayerSkills(player) {
-    if (player.skills.length === 0) {
-      return `🔮 **لا تمتلك أي مهارات بعد**\n\nيمكنك تعلم مهارات جديدة من المدرب في القرية.`;
+    // إضافة المعدات إذا كانت موجودة
+    if (player.equipment) {
+      text += `\n⚔️ **المعدات:**\n`;
+      text += `• سلاح: ${player.equipment.weapon || 'لا يوجد'}\n`;
+      text += `• درع: ${player.equipment.armor || 'لا يوجد'}\n`;
+      text += `• أداة: ${player.equipment.tool || 'لا يوجد'}\n`;
     }
-
-    let skillsText = `🔮 **مهارات ${player.name}**\n\n`;
     
-    player.skills.forEach((skill, index) => {
-      skillsText += `${index + 1}. **${skill.name}** (مستوى ${skill.level})\n`;
-      skillsText += `   📊 القوة: ${skill.power} | 💧 كلفة المانا: ${skill.manaCost}\n`;
-      skillsText += `   🎯 النوع: ${this.getSkillTypeText(skill.type)}\n\n`;
-    });
-
-    return skillsText;
+    return text;
   }
-
-  getTypeName(type) {
-    const types = {
-      'weapon': '⚔️ الأسلحة',
-      'armor': '🛡️ الدروع',
-      'resource': '🌿 الموارد',
-      'potion': '🧪 الجرعات',
-      'magic': '🔮 السحر',
-      'quest_reward': '🎁 مكافآت المهام'
-    };
-    return types[type] || type;
-  }
-
-  getSkillTypeText(type) {
-    const types = {
-      'offensive': 'هجومي ⚔️',
-      'defensive': 'دفاعي 🛡️',
-      'healing': 'علاجي 💚',
-      'support': 'مساعد 🔰'
-    };
-    return types[type] || type;
-  }
-  }
+}
