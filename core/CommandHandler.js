@@ -5,7 +5,7 @@ import { GatheringSystem } from '../systems/gathering/GatheringSystem.js';
 import { CraftingSystem } from '../systems/crafting/CraftingSystem.js';
 import { ProfileSystem } from '../systems/profile/ProfileSystem.js';
 import Player from './Player.js';
-import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js'; // 🆕 إضافة استيراد مولد البطاقة
+import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js'; 
 
 export default class CommandHandler {
   constructor() {
@@ -19,7 +19,7 @@ export default class CommandHandler {
       this.gatheringSystem = new GatheringSystem();
       this.craftingSystem = new CraftingSystem();
       this.profileSystem = new ProfileSystem();
-      this.cardGenerator = new ProfileCardGenerator(); // 🆕 تهيئة مولد البطاقة
+      this.cardGenerator = new ProfileCardGenerator(); 
 
       // الأوامر الأساسية
       this.commands = {
@@ -32,7 +32,10 @@ export default class CommandHandler {
         'تجميع': this.handleGather.bind(this),
         'مغامرة': this.handleAdventure.bind(this),
         'هجوم': this.handleAttack.bind(this),
-        'هروب': this.handleEscape.bind(this)
+        'هروب': this.handleEscape.bind(this),
+        
+        // 🆕 إضافة أمر تغيير الاسم
+        'تغيير_اسم': this.handleChangeName.bind(this)
       };
 
       console.log('✅ CommandHandler تم تهيئته بنجاح');
@@ -42,9 +45,14 @@ export default class CommandHandler {
     }
   }
 
+  // 🆕 تم تعديل دالة process لتمرير الحجج ومعرف المرسل
   async process(sender, message) {
     const { id, name } = sender;
-    const command = message.trim().toLowerCase();
+    
+    // 🆕 تقسيم الرسالة إلى أمر وحجج
+    const parts = message.trim().split(/\s+/);
+    const command = parts[0].toLowerCase();
+    const args = parts.slice(1);
 
     console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
@@ -67,13 +75,17 @@ export default class CommandHandler {
       console.log(`🔍 البحث عن الأمر: "${command}"`);
       if (this.commands[command]) {
         console.log(`✅ تم العثور على الأمر، تنفيذه...`);
-        const result = await this.commands[command](player);
+        
+        // 🆕 تمرير player, args, و senderId (وهو id) لجميع الدوال
+        const result = await this.commands[command](player, args, id);
 
         // لا نقوم بحفظ اللاعب هنا، لأن بعض الأوامر مثل "هجوم" أو "تجميع"
         // تقوم بحفظه بعد كل إجراء. هذا يمنع الحفظ المتكرر.
-        if (typeof result === 'string') {
-          await player.save();
-          console.log('✅ تم حفظ بيانات اللاعب');
+        // يجب أن تحتوي الأوامر التي تعدل بيانات اللاعب (مثل changeName) على save()
+        // لكننا سنسمح لـ changeName بتمرير النتيجة ليتم حفظها في النهاية
+        if (typeof result === 'string' || (result && result.message)) {
+            await player.save();
+            console.log('✅ تم حفظ بيانات اللاعب');
         }
 
         return result;
@@ -116,7 +128,8 @@ export default class CommandHandler {
   async handleStatus(player) {
     try {
       console.log('📊 تنفيذ أمر الحالة...');
-      return this.profileSystem.getPlayerStatus(player);
+      // ⚠️ يجب أن تتأكد أن getPlayerStatus تستقبل لاعب فقط ولا تحتاج args/senderId
+      return this.profileSystem.getPlayerStatus(player); 
     } catch (error) {
       console.error('❌ خطأ في handleStatus:', error);
       return `📊 **حالة ${player.name}**
@@ -131,7 +144,7 @@ export default class CommandHandler {
   async handleProfile(player) {
     try {
       console.log('📋 تنفيذ أمر البروفايل...');
-      // 🆕 الكود الجديد لإنشاء وإرسال الصورة
+      
       const imagePath = await this.cardGenerator.generateCard(player);
 
       return {
@@ -149,6 +162,7 @@ export default class CommandHandler {
   async handleHelp(player) {
     try {
       console.log('🆘 تنفيذ أمر المساعدة...');
+      // 🆕 إضافة أمر المدير إلى قائمة المساعدة
       return `🆘 **أوامر مغارة غولد**
 
 🎯 **الأساسية:**
@@ -167,7 +181,10 @@ export default class CommandHandler {
 
 ⚔️ **القتال:**
 هجوم - الهجوم في المعركة
-هروب - الهروب من المعركة`;
+هروب - الهروب من المعركة
+
+👑 **أوامر المدير:**
+تغيير_اسم [الاسم الجديد أو [المعرف] [الاسم الجديد]] - تغيير اسم اللاعب.`;
     } catch (error) {
       console.error('❌ خطأ في handleHelp:', error);
       throw error;
@@ -179,6 +196,9 @@ export default class CommandHandler {
       console.log('🗺️ تنفيذ أمر الخريطة...');
       const result = this.worldMap.showMap(player);
       console.log('✅ نتيجة الخريطة:', result);
+      // يجب أن يتم حفظ اللاعب هنا إذا كان showMap يقوم بتغيير بياناته
+      // بما أن الكود الأصلي كان يحتوي على save() في دالة process
+      // سنعتمد على دالة process في الحفظ.
       return result;
     } catch (error) {
       console.error('❌ خطأ في handleMap:', error);
@@ -198,6 +218,7 @@ export default class CommandHandler {
       console.log('✅ نتيجة التجميع:', result);
 
       if (result.error) return result.error;
+      // إذا كان result هو كائن به message، ستقوم دالة process بالحفظ
       return result.message;
     } catch (error) {
       console.error('❌ خطأ في handleGather:', error);
@@ -222,7 +243,8 @@ export default class CommandHandler {
   async handleInventory(player) {
     try {
       console.log('🎒 تنفيذ أمر الحقيبة...');
-      const result = this.profileSystem.getPlayerInventory(player);
+      // ⚠️ يجب أن تتأكد أن getPlayerInventory تستقبل لاعب فقط ولا تحتاج args/senderId
+      const result = this.profileSystem.getPlayerInventory(player); 
       console.log('✅ نتيجة الحقيبة:', result);
       return result;
     } catch (error) {
@@ -269,7 +291,23 @@ export default class CommandHandler {
     }
   }
 
+  // --------------------------------------------------
+  // 🆕 دالة معالجة الأمر الجديد: تغيير الاسم
+  // --------------------------------------------------
+  // هذه الدالة تتلقى player, args, و senderId (معرف المرسل)
+  async handleChangeName(player, args, senderId) {
+      // تفويض المهمة إلى دالة changeName الموجودة في ProfileSystem
+      try {
+          const result = await this.profileSystem.changeName(player, args, senderId);
+          // لا حاجة لـ player.save() هنا لأن دالة process ستقوم بذلك
+          return result;
+      } catch (error) {
+          console.error('❌ خطأ في handleChangeName:', error);
+          return '❌ حدث خطأ أثناء محاولة تغيير الاسم.';
+      }
+  }
+
   async handleUnknown(command, player) {
     return `❓ **أمر غير معروف**: "${command}"\n\nاكتب "مساعدة" لرؤية الأوامر المتاحة.`;
   }
-                    }
+    }
