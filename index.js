@@ -4,7 +4,7 @@ import express from 'express';
 import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
-import path from 'path'; // 🆕 إضافة مكتبة path
+import path from 'path';
 import CommandHandler from './core/CommandHandler.js';
 import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js'; 
 
@@ -30,11 +30,30 @@ const cardGenerator = new ProfileCardGenerator();
 // تهيئة معالج الأوامر
 let commandHandler;
 
-// الاتصال بقاعدة البيانات
+// الاتصال بقاعدة البيانات مع إصلاح الفهرس
 async function connectDatabase() {
   try {
     await mongoose.connect(MONGODB_URI);
     console.log('✅ تم الاتصال بقاعدة البيانات');
+
+    // 🛠️ إصلاح: معالجة أخطاء الفهرس
+    try {
+      const collections = await mongoose.connection.db.listCollections().toArray();
+      const playersCollection = collections.find(col => col.name === 'players');
+      
+      if (playersCollection) {
+        const indexes = await mongoose.connection.db.collection('players').indexes();
+        const psidIndex = indexes.find(index => index.name === 'psid_1');
+        
+        if (psidIndex) {
+          await mongoose.connection.db.collection('players').dropIndex('psid_1');
+          console.log('✅ تم إسقاط الفهرس psid_1 المسبب للمشكلة');
+        }
+      }
+    } catch (indexError) {
+      console.log('ℹ️ الفهرس psid_1 غير موجود أو لا يمكن إسقاطه:', indexError.message);
+    }
+
   } catch (error) {
     console.error('❌ فشل في الاتصال بقاعدة البيانات:', error);
     process.exit(1);
@@ -65,7 +84,7 @@ async function sendTextMessage(senderId, text) {
   }
 }
 
-// 🆕 إرسال صورة باستخدام رفع الملف المحلي
+// إرسال صورة
 async function sendImageMessage(senderId, imagePath, caption = '') {
   try {
     if (!fs.existsSync(imagePath)) {
@@ -74,26 +93,22 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
 
     const formData = new FormData();
     
-    // إضافة الملف للقراءة كـ stream
     formData.append('filedata', fs.createReadStream(imagePath), {
       filename: path.basename(imagePath),
       contentType: 'image/png',
     });
     
-    // تحديد المرسل إليه
     formData.append('recipient', JSON.stringify({ id: senderId }));
     
-    // تعيين نوع الملف كصورة ورفعها للحصول على attachment_id
     formData.append('message', JSON.stringify({
       attachment: {
         type: 'image',
         payload: {
-          is_reusable: true, // يمكن إعادة استخدام هذه الصورة لاحقاً
+          is_reusable: true,
         }
       }
     }));
 
-    // إرسال طلب POST
     await axios.post(
       'https://graph.facebook.com/v19.0/me/messages',
       formData,
@@ -109,12 +124,10 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
 
   } catch (error) {
     console.error('❌ خطأ في إرسال الصورة:', error.response?.data || error.message);
-    // إرسال رسالة نصية كبديل في حال فشل إرسال الصورة
     if (caption) {
       await sendTextMessage(senderId, caption + '\n\n(❌ فشل تحميل الصورة)');
     }
   } finally {
-    // يجب محاولة حذف الملف دائماً سواء نجح الإرسال أم فشل
     if (fs.existsSync(imagePath)) {
       try {
         fs.unlinkSync(imagePath);
@@ -233,7 +246,6 @@ async function main() {
     app.listen(PORT, () => {
       console.log(`✅ البوت يعمل على المنفذ ${PORT}`);
       console.log('📱 جاهز لاستقبال الرسائل عبر webhook...');
-      console.log(`🔗 تأكد من ضبط webhook على: https://your-domain.com/webhook`);
     });
     
   } catch (error) {
