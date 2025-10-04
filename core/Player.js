@@ -22,23 +22,6 @@ const inventoryItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const playerSchema = new mongoose.Schema({
-  // تأكد من إضافة هذه الدوال في playerSchema.methods:
-
-playerSchema.methods.isApproved = function() {
-    return this.registrationStatus === 'completed';
-};
-
-playerSchema.methods.isPending = function() {
-    return this.registrationStatus === 'pending';
-};
-
-playerSchema.methods.isApprovedButNotCompleted = function() {
-    return this.registrationStatus === 'approved';
-};
-
-playerSchema.methods.getRegistrationStatus = function() {
-    return this.registrationStatus;
-};
   userId: {
     type: String,
     required: true,
@@ -160,7 +143,8 @@ playerSchema.pre('save', function(next) {
   next();
 });
 
-// 🆕 دوال جديدة لنظام التسجيل
+// ========== دوال المثيل (Instance Methods) ==========
+
 playerSchema.methods.isApproved = function() {
   return this.registrationStatus === 'completed';
 };
@@ -173,7 +157,10 @@ playerSchema.methods.isApprovedButNotCompleted = function() {
   return this.registrationStatus === 'approved';
 };
 
-// الدوال الحالية (باقي دوال المثيل)
+playerSchema.methods.getRegistrationStatus = function() {
+  return this.registrationStatus;
+};
+
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
   if (!this.inventory) {
     this.inventory = [];
@@ -385,7 +372,8 @@ playerSchema.methods.restoreMana = function(amount) {
   this.mana = Math.min((this.mana || 0) + amount, this.maxMana || 50);
 };
 
-// 🆕 تعديل دالة الإنشاء لدعم نظام التسجيل
+// ========== دوال ثابتة (Static Methods) ==========
+
 playerSchema.statics.createNew = async function(userId, name) {
   try {
     const player = new this({
@@ -460,20 +448,20 @@ playerSchema.statics.findByUserId = async function(userId) {
 playerSchema.statics.getTopPlayers = async function(limit = 10) {
   return await this.find({ 
     banned: false,
-    registrationStatus: 'completed' // 🆕 فقط اللاعبين المكتملين
+    registrationStatus: 'completed'
   })
     .sort({ level: -1, experience: -1, gold: -1 })
     .limit(limit);
 };
 
-// 🆕 دالة للحصول على اللاعبين المنتظرين
 playerSchema.statics.getPendingPlayers = async function() {
   return await this.find({ 
     registrationStatus: 'pending' 
   }).select('userId name createdAt');
 };
 
-// دوال افتراضية
+// ========== دوال افتراضية (Virtuals) ==========
+
 playerSchema.virtual('requiredExp').get(function() {
   return (this.level || 1) * 100;
 });
@@ -494,6 +482,7 @@ playerSchema.virtual('inventoryTypes').get(function() {
   return this.inventory.length;
 });
 
-// التصدير
+// ========== التصدير ==========
+
 const Player = mongoose.model('Player', playerSchema);
 export default Player;
