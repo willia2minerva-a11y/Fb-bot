@@ -9,17 +9,18 @@ const BASE_DIR = path.resolve();
 
 export class ProfileCardGenerator {
   constructor() {
-    // محاولة تسجيل الخط العربي باستخدام الاسم الجديد
+    // تسجيل خط Cinzel الذي تم رفعه
     try {
+      // 🆕 تم تحديث المسار واسم الخط إلى Cinzel بناءً على طلبك
       const fontPath = path.join(BASE_DIR, 'assets', 'Cinzel-VariableFont_wght.ttf');
       if (fs.existsSync(fontPath)) {
-        registerFont(fontPath, { family: 'Cinzel' }); // استخدم اسم الخط المناسب
+        registerFont(fontPath, { family: 'Cinzel' });
         console.log('✅ تم تسجيل الخط "Cinzel" بنجاح.');
       } else {
-        console.log('⚠️ لم يتم العثور على ملف الخط في المسار المحدد: assets/Cinzel-VariableFont_wght.ttf');
+        console.log('⚠️ لم يتم العثور على ملف الخط Cinzel في المسار المحدد. سيتم استخدام خط افتراضي.');
       }
     } catch (error) {
-      console.log('⚠️ خطأ في تسجيل الخط، سيتم استخدام الخط الافتراضي:', error.message);
+      console.log('⚠️ خطأ في تسجيل الخط:', error.message);
     }
   }
 
@@ -39,13 +40,8 @@ export class ProfileCardGenerator {
 
   // تحديد نوع البطاقة بناءً على الجنس
   determineGender(name) {
-    const femaleIndicators = ['ة', 'اء', 'ى', 'آء', 'ه'];
-    const lastChar = name.trim().slice(-1);
-    
-    if (femaleIndicators.includes(lastChar)) {
-      return 'female';
-    }
-    return 'male';
+    // هنا يمكن استخدام منطق للأسماء اللاتينية أو الافتراض على male
+    return 'male'; 
   }
 
   async generateCard(player) {
@@ -74,7 +70,7 @@ export class ProfileCardGenerator {
       ctx.textAlign = 'left';
       ctx.fillStyle = '#2c3e50';
       
-      // 🆕 استخدام الخط الجديد الذي قمت بتحديده
+      // استخدام خط Cinzel
       const fontFamily = 'Cinzel, Arial, sans-serif';
 
       this.drawText(ctx, player.name, 120, 80, '32px', fontFamily, '#e74c3c');
@@ -93,6 +89,7 @@ export class ProfileCardGenerator {
       const tempDir = path.join(BASE_DIR, 'temp'); 
       filePath = path.join(tempDir, fileName);
 
+      // التأكد من وجود مجلد temp وإمكانية الكتابة فيه
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true });
         console.log(`✅ تم إنشاء مجلد temp.`);
@@ -104,7 +101,7 @@ export class ProfileCardGenerator {
 
     } catch (error) {
       console.error('❌ خطأ في generateCard (تتبع الأخطاء):', error.message);
-      throw new Error(`فشل حاسم في إنشاء البطاقة. (السبب: ${error.message}). يرجى التحقق من مجلد assets/images/`);
+      throw new Error(`فشل حاسم في إنشاء البطاقة. (السبب: ${error.message}). يرجى التحقق من مسارات القوالب.`);
     }
   }
 
@@ -127,6 +124,7 @@ export class ProfileCardGenerator {
     return colors[tier] || '#2c3e50';
   }
 
+  // 🆕 تم تحسين دالة التنظيف
   cleanupOldFiles(maxAge = 3600000) { 
     try {
       const tempDir = path.join(BASE_DIR, 'temp'); 
@@ -139,13 +137,15 @@ export class ProfileCardGenerator {
         const filePath = path.join(tempDir, file);
         const stats = fs.statSync(filePath);
         
-        if (now - stats.mtimeMs > maxAge) {
+        // التحقق من أن الملف صورة مؤقتة وقديم بما فيه الكفاية
+        if (file.startsWith('profile_') && now - stats.mtimeMs > maxAge) {
           fs.unlinkSync(filePath);
-          console.log(`🧹 تم حذف الملف المؤقت: ${file}`);
+          console.log(`🧹 تم حذف الملف المؤقت القديم: ${file}`);
         }
       });
     } catch (error) {
+      // لا ترمي خطأ لكي لا يتوقف البوت بالكامل
       console.error('❌ خطأ في تنظيف الملفات المؤقتة:', error);
     }
   }
-  }
+    }
