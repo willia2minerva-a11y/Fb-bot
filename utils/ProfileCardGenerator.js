@@ -8,19 +8,32 @@ const __dirname = path.dirname(__filename);
 
 export class ProfileCardGenerator {
     constructor() {
+        this.fontFamily = 'Arial'; // خط افتراضي
+        
         try {
-            // المسار الصحيح للخطوط
-            const fontPath = path.join(process.cwd(), 'assets', 'fonts', 'Cinzel-VariableFont_wght.ttf');
-            registerFont(fontPath, { family: 'Cinzel' });
-            console.log('✅ تم تسجيل خط Cinzel بنجاح.');
+            // إنشاء مجلد الخطوط إذا لم يكن موجوداً
+            const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
+            const fontPath = path.join(fontsDir, 'Cinzel-VariableFont_wght.ttf');
+            
+            // التحقق من وجود المجلد والملف
+            try {
+                await fs.mkdir(fontsDir, { recursive: true });
+                
+                if (fs.existsSync(fontPath)) {
+                    registerFont(fontPath, { family: 'Cinzel' });
+                    this.fontFamily = 'Cinzel';
+                    console.log('✅ تم تسجيل خط Cinzel بنجاح.');
+                } else {
+                    console.warn('⚠️ خط Cinzel غير موجود، سيتم استخدام الخط الافتراضي');
+                }
+            } catch (error) {
+                console.warn('⚠️ لا يمكن الوصول إلى مجلد الخطوط، استخدام الخط الافتراضي');
+            }
         } catch (error) {
             console.error('❌ فشل تسجيل خط Cinzel:', error.message);
         }
     }
 
-    /**
-     * ينشئ بطاقة بروفايل اللاعب كصورة
-     */
     async generateCard(player) {
         const width = 800;
         const height = 400;
@@ -29,17 +42,34 @@ export class ProfileCardGenerator {
         const context = canvas.getContext('2d');
 
         try {
-            // تحديد خلفية بناءً على الجنس
-            let backgroundFileName = 'profile_card_male.png'; // افتراضي
-            if (player.gender && player.gender.toLowerCase() === 'female') {
-                backgroundFileName = 'profile_card_female.png';
+            // استخدام خلفية افتراضية إذا لم توجد الصور
+            let background;
+            try {
+                let backgroundFileName = 'profile_card_male.png';
+                if (player.gender && player.gender.toLowerCase() === 'female') {
+                    backgroundFileName = 'profile_card_female.png';
+                }
+                
+                const backgroundPath = path.join(process.cwd(), 'assets', 'images', backgroundFileName);
+                background = await loadImage(backgroundPath);
+            } catch (error) {
+                // خلفية افتراضية إذا لم توجد الصور
+                context.fillStyle = '#1a365d';
+                context.fillRect(0, 0, width, height);
+                
+                // إضافة تدرج لوني
+                const gradient = context.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#2d3748');
+                gradient.addColorStop(1, '#4a5568');
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, width, height);
+                
+                console.log('🎨 استخدام خلفية افتراضية');
             }
-            
-            const backgroundPath = path.join(process.cwd(), 'assets', 'images', backgroundFileName);
-            
-            // تحميل الخلفية
-            const background = await loadImage(backgroundPath);
-            context.drawImage(background, 0, 0, width, height);
+
+            if (background) {
+                context.drawImage(background, 0, 0, width, height);
+            }
             
             // إعدادات النص
             context.shadowColor = 'rgba(0,0,0,0.6)';
@@ -47,19 +77,18 @@ export class ProfileCardGenerator {
             context.fillStyle = '#FFFFFF';
 
             // اسم اللاعب
-            context.font = 'bold 50px "Cinzel", sans-serif';
+            context.font = `bold 50px "${this.fontFamily}"`;
             context.textAlign = 'center';
             context.fillText(player.name || "مقاتل مجهول", width / 2, 70);
 
             // المستوى
-            context.font = '30px "Cinzel", sans-serif';
+            context.font = `30px "${this.fontFamily}"`;
             context.fillText(`المستوى: ${player.level || 1}`, width / 2, 120);
             
-            // الإحصائيات مع ظل أقل
+            // الإحصائيات
             context.shadowBlur = 4;
-            context.font = '24px "Cinzel", sans-serif';
+            context.font = `24px "${this.fontFamily}"`;
             
-            // حسابات الخبرة
             const expProgress = player.experience || 0;
             const requiredExp = (player.level || 1) * 100;
             const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
@@ -95,7 +124,6 @@ export class ProfileCardGenerator {
         }
     }
 
-    // تنظيف الملفات القديمة
     async cleanupOldFiles() {
         try {
             const tempDir = path.join(process.cwd(), 'temp');
@@ -118,4 +146,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);
         }
     }
-                                             }
+                                  }
