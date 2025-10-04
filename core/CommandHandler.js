@@ -218,8 +218,8 @@ export default class CommandHandler {
       console.log('✅ تنفيذ أمر الموافقة على اللاعب...');
       
       // التحقق من صلاحية المدير
-      const ADMIN_ID = process.env.ADMIN_ID;
-      if (senderId !== ADMIN_ID) {
+      const ADMIN_PSID = process.env.ADMIN_PSID;
+      if (senderId !== ADMIN_PSID) {
         return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
       }
 
