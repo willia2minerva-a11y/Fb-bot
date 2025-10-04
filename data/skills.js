@@ -1,6 +1,20 @@
-export const skills = [
-  { id: 'power_strike', name: 'ضربة قوية', type: 'offensive', power: 8, manaCost: 5 },
-  { id: 'magic_blast', name: 'انفجار سحري', type: 'offensive', power: 12, manaCost: 10 },
-  { id: 'shield_wall', name: 'جدار الحماية', type: 'defensive', defense: 10, manaCost: 7 },
-  { id: 'heal', name: 'تعويذة علاجية', type: 'healing', heal: 20, manaCost: 6 },
-];
+export const skills = {
+  gathering: {
+    id: 'gathering',
+    name: 'جمع الموارد',
+    description: 'يزيد من سرعة وكفاءة جمع الموارد.',
+    levels: [
+      { level: 1, requiredExp: 0, effect: { speed: 1 } },
+      { level: 2, requiredExp: 100, effect: { speed: 1.1 } }
+    ]
+  },
+  combat: {
+    id: 'combat',
+    name: 'القتال',
+    description: 'يزيد من قوة هجماتك في المعارك.',
+    levels: [
+      { level: 1, requiredExp: 0, effect: { damage: 1 } },
+      { level: 2, requiredExp: 100, effect: { damage: 1.1 } }
+    ]
+  }
+};
