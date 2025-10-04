@@ -14,6 +14,7 @@ export default class CommandHandler {
         console.log('🔄 تهيئة CommandHandler...');
 
         try {
+            // تهيئة الأنظمة الأساسية
             this.battleSystem = new BattleSystem();
             this.travelSystem = new TravelSystem();
             this.worldMap = new WorldMap(this.travelSystem);
@@ -24,28 +25,51 @@ export default class CommandHandler {
             this.autoResponseSystem = new AutoResponseSystem();
             this.cardGenerator = new ProfileCardGenerator(); 
 
-            // 🆕 الأوامر الجديدة
+            // 🛠️ إصلاح: تعريف جميع الدوال قبل الربط
+            this.handleStart = this.handleStart.bind(this);
+            this.handleGetId = this.handleGetId.bind(this);
+            this.handleGenderMale = this.handleGenderMale.bind(this);
+            this.handleGenderFemale = this.handleGenderFemale.bind(this);
+            this.handleSetName = this.handleSetName.bind(this);
+            this.handleAdminCommands = this.handleAdminCommands.bind(this);
+            this.handleApprovePlayer = this.handleApprovePlayer.bind(this);
+            this.handleAddResponse = this.handleAddResponse.bind(this);
+            this.handleRemoveResponse = this.handleRemoveResponse.bind(this);
+            this.handleShowResponses = this.handleShowResponses.bind(this);
+            this.handleStatus = this.handleStatus.bind(this);
+            this.handleProfile = this.handleProfile.bind(this);
+            this.handleHelp = this.handleHelp.bind(this);
+            this.handleInventory = this.handleInventory.bind(this);
+            this.handleMap = this.handleMap.bind(this);
+            this.handleGather = this.handleGather.bind(this);
+            this.handleAdventure = this.handleAdventure.bind(this);
+            this.handleAttack = this.handleAttack.bind(this);
+            this.handleEscape = this.handleEscape.bind(this);
+            this.handleChangeName = this.handleChangeName.bind(this);
+            this.handleUnknown = this.handleUnknown.bind(this);
+
+            // تعريف الأوامر بعد ربط الدوال
             this.commands = {
-                'بدء': this.handleStart.bind(this),
-                'معرفي': this.handleGetId.bind(this),
-                'ذكر': this.handleGenderMale.bind(this),
-                'أنثى': this.handleGenderFemale.bind(this),
-                'اسمي': this.handleSetName.bind(this),
-                'مدير': this.handleAdminCommands.bind(this),
-                'موافقة_لاعب': this.handleApprovePlayer.bind(this),
-                'اضف_رد': this.handleAddResponse.bind(this),
-                'ازل_رد': this.handleRemoveResponse.bind(this),
-                'عرض_الردود': this.handleShowResponses.bind(this),
-                'حالتي': this.handleStatus.bind(this),
-                'بروفايلي': this.handleProfile.bind(this),
-                'مساعدة': this.handleHelp.bind(this),
-                'حقيبتي': this.handleInventory.bind(this),
-                'خريطة': this.handleMap.bind(this),
-                'تجميع': this.handleGather.bind(this),
-                'مغامرة': this.handleAdventure.bind(this),
-                'هجوم': this.handleAttack.bind(this),
-                'هروب': this.handleEscape.bind(this),
-                'تغيير_اسم': this.handleChangeName.bind(this)
+                'بدء': this.handleStart,
+                'معرفي': this.handleGetId,
+                'ذكر': this.handleGenderMale,
+                'أنثى': this.handleGenderFemale,
+                'اسمي': this.handleSetName,
+                'مدير': this.handleAdminCommands,
+                'موافقة_لاعب': this.handleApprovePlayer,
+                'اضف_رد': this.handleAddResponse,
+                'ازل_رد': this.handleRemoveResponse,
+                'عرض_الردود': this.handleShowResponses,
+                'حالتي': this.handleStatus,
+                'بروفايلي': this.handleProfile,
+                'مساعدة': this.handleHelp,
+                'حقيبتي': this.handleInventory,
+                'خريطة': this.handleMap,
+                'تجميع': this.handleGather,
+                'مغامرة': this.handleAdventure,
+                'هجوم': this.handleAttack,
+                'هروب': this.handleEscape,
+                'تغيير_اسم': this.handleChangeName
             };
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
@@ -57,6 +81,7 @@ export default class CommandHandler {
         }
     }
 
+    // ... باقي الدوال بنفس المحتوى السابق بدون تغيير
     async process(sender, message) {
         const { id, name } = sender;
         const parts = message.trim().split(/\s+/);
@@ -65,7 +90,7 @@ export default class CommandHandler {
 
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
-        // 🆕 التحقق من الردود التلقائية أولاً
+        // التحقق من الردود التلقائية أولاً
         const autoResponse = this.autoResponseSystem.findAutoResponse(message);
         if (autoResponse) {
             console.log(`🤖 رد تلقائي على: "${message}"`);
@@ -123,7 +148,90 @@ export default class CommandHandler {
         }
     }
 
-    // 🆕 أمر عرض أوامر المدير
+    async handleStart(player) {
+        try {
+            console.log('🎮 تنفيذ أمر البدء...');
+            
+            if (player.isPending()) {
+                return this.registrationSystem.startRegistration(player.userId, player.name);
+            } else if (player.isApprovedButNotCompleted()) {
+                const step = this.registrationSystem.getRegistrationStep(player.userId);
+                if (step && step.step === 'gender_selection') {
+                    return `👋 **مرحباً ${player.name}!**
+
+الرجاء اختيار جنسك:
+• اكتب "ذكر" 👦
+• اكتب "أنثى" 👧`;
+                } else if (step && step.step === 'name_selection') {
+                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
+
+اكتب "اسمي [الاسم]" بين 3 إلى 9 أحرف إنجليزية
+مثال: اسمي John`;
+                }
+            }
+
+            return `🎮 **مرحباً ${player.name} في مغارة غولد!**
+
+📍 موقعك الحالي: ${player.currentLocation}
+✨ مستواك: ${player.level}
+💰 ذهبك: ${player.gold} غولد
+❤️ صحتك: ${player.health}/${player.maxHealth}
+
+اكتب "مساعدة" لرؤية الأوامر المتاحة.`;
+        } catch (error) {
+            console.error('❌ خطأ في handleStart:', error);
+            throw error;
+        }
+    }
+
+    async handleGetId(player) {
+        try {
+            console.log('🆔 تنفيذ أمر المعرف...');
+            return `🆔 **معرفك هو:** \`${player.userId}\`
+
+📨 **يرجى إرسال هذا المعرف إلى المدير للحصول على الموافقة.**
+
+بعد الموافقة، ستتم مطالبتك باختيار الجنس والاسم.`;
+        } catch (error) {
+            console.error('❌ خطأ في handleGetId:', error);
+            return '❌ حدث خطأ في جلب المعرف.';
+        }
+    }
+
+    async handleGenderMale(player) {
+        try {
+            console.log('👦 تنفيذ أمر اختيار الجنس ذكر...');
+            return await this.registrationSystem.setGender(player.userId, 'male');
+        } catch (error) {
+            console.error('❌ خطأ في handleGenderMale:', error);
+            return '❌ حدث خطأ في اختيار الجنس.';
+        }
+    }
+
+    async handleGenderFemale(player) {
+        try {
+            console.log('👧 تنفيذ أمر اختيار الجنس أنثى...');
+            return await this.registrationSystem.setGender(player.userId, 'female');
+        } catch (error) {
+            console.error('❌ خطأ في handleGenderFemale:', error);
+            return '❌ حدث خطأ في اختيار الجنس.';
+        }
+    }
+
+    async handleSetName(player, args) {
+        try {
+            console.log('📝 تنفيذ أمر تعيين الاسم...');
+            const name = args.join(' ');
+            if (!name) {
+                return '❌ يرجى تحديد اسم. مثال: اسمي John';
+            }
+            return await this.registrationSystem.setName(player.userId, name);
+        } catch (error) {
+            console.error('❌ خطأ في handleSetName:', error);
+            return '❌ حدث خطأ في تعيين الاسم.';
+        }
+    }
+
     async handleAdminCommands(player, args, senderId) {
         try {
             const ADMIN_PSID = process.env.ADMIN_PSID;
@@ -156,7 +264,37 @@ export default class CommandHandler {
         }
     }
 
-    // 🆕 أمر إضافة رد تلقائي
+    async handleApprovePlayer(player, args, senderId) {
+        try {
+            const ADMIN_PSID = process.env.ADMIN_PSID;
+            
+            if (senderId !== ADMIN_PSID) {
+                return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
+            }
+
+            if (args.length === 0) {
+                const pendingPlayers = await this.registrationSystem.getPendingPlayers();
+                if (pendingPlayers.length === 0) {
+                    return '✅ لا يوجد لاعبين بانتظار الموافقة.';
+                }
+
+                let message = '⏳ **اللاعبين المنتظرين للموافقة:**\n\n';
+                pendingPlayers.forEach((p, index) => {
+                    message += `${index + 1}. ${p.name} - \`${p.userId}\` - ${new Date(p.createdAt).toLocaleDateString('ar-SA')}\n`;
+                });
+                
+                message += '\nللموافقة، اكتب: موافقة_لاعب [المعرف]';
+                return message;
+            }
+
+            const targetUserId = args[0];
+            return await this.registrationSystem.approvePlayer(targetUserId, senderId);
+        } catch (error) {
+            console.error('❌ خطأ في handleApprovePlayer:', error);
+            return '❌ حدث خطأ في الموافقة على اللاعب.';
+        }
+    }
+
     async handleAddResponse(player, args, senderId) {
         try {
             const ADMIN_PSID = process.env.ADMIN_PSID;
@@ -186,7 +324,6 @@ export default class CommandHandler {
         }
     }
 
-    // 🆕 أمر إزالة رد تلقائي
     async handleRemoveResponse(player, args, senderId) {
         try {
             const ADMIN_PSID = process.env.ADMIN_PSID;
@@ -216,7 +353,6 @@ export default class CommandHandler {
         }
     }
 
-    // 🆕 أمر عرض جميع الردود التلقائية
     async handleShowResponses(player, args, senderId) {
         try {
             const ADMIN_PSID = process.env.ADMIN_PSID;
@@ -249,7 +385,47 @@ export default class CommandHandler {
         }
     }
 
-    // تحديث أمر المساعدة
+    async handleStatus(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('📊 تنفيذ أمر الحالة...');
+            return this.profileSystem.getPlayerStatus(player); 
+        } catch (error) {
+            console.error('❌ خطأ في handleStatus:', error);
+            return `📊 **حالة ${player.name}**
+
+✨ المستوى: ${player.level}
+💰 الذهب: ${player.gold} غولد
+❤️ الصحة: ${player.health}/${player.maxHealth}
+📍 الموقع: ${player.currentLocation}`;
+        }
+    }
+
+    async handleProfile(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('📋 تنفيذ أمر البروفايل...');
+            
+            const imagePath = await this.cardGenerator.generateCard(player);
+
+            return {
+                type: 'image',
+                path: imagePath,
+                caption: `📋 هذه بطاقة بروفايلك يا ${player.name}!`
+            };
+            
+        } catch (error) {
+            console.error('❌ خطأ في handleProfile:', error);
+            return '❌ حدث خطأ أثناء إنشاء بطاقة البروفايل.';
+        }
+    }
+
     async handleHelp(player, args, senderId) {
         try {
             const ADMIN_PSID = process.env.ADMIN_PSID;
@@ -294,37 +470,121 @@ export default class CommandHandler {
         }
     }
 
-    // باقي الدوال بدون تغيير (handleStart, handleGetId, etc.)
-    // ... [نفس الدوال السابقة بدون تغيير]
-    
-    async handleApprovePlayer(player, args, senderId) {
+    async handleInventory(player) {
         try {
-            const ADMIN_PSID = process.env.ADMIN_PSID;
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
             
-            if (senderId !== ADMIN_PSID) {
-                return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
-            }
-
-            if (args.length === 0) {
-                const pendingPlayers = await this.registrationSystem.getPendingPlayers();
-                if (pendingPlayers.length === 0) {
-                    return '✅ لا يوجد لاعبين بانتظار الموافقة.';
-                }
-
-                let message = '⏳ **اللاعبين المنتظرين للموافقة:**\n\n';
-                pendingPlayers.forEach((p, index) => {
-                    message += `${index + 1}. ${p.name} - \`${p.userId}\` - ${new Date(p.createdAt).toLocaleDateString('ar-SA')}\n`;
-                });
-                
-                message += '\nللموافقة، اكتب: موافقة_لاعب [المعرف]';
-                return message;
-            }
-
-            const targetUserId = args[0];
-            return await this.registrationSystem.approvePlayer(targetUserId, senderId);
+            console.log('🎒 تنفيذ أمر الحقيبة...');
+            const result = this.profileSystem.getPlayerInventory(player); 
+            console.log('✅ نتيجة الحقيبة:', result);
+            return result;
         } catch (error) {
-            console.error('❌ خطأ في handleApprovePlayer:', error);
-            return '❌ حدث خطأ في الموافقة على اللاعب.';
+            console.error('❌ خطأ في handleInventory:', error);
+
+            if (player.inventory.length === 0) {
+                return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
+            }
+
+            let text = `🎒 **حقيبة ${player.name}**\n\n`;
+            player.inventory.forEach(item => {
+                text += `• ${item.name} ×${item.quantity}\n`;
+            });
+            return text;
+        }
+    }
+
+    async handleMap(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('🗺️ تنفيذ أمر الخريطة...');
+            const result = this.worldMap.showMap(player);
+            console.log('✅ نتيجة الخريطة:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ خطأ في handleMap:', error);
+            return `🗺️ **خريطة مغارة غولد**
+
+• القرية
+• الغابة الخضراء
+
+أنت في: ${player.currentLocation}`;
+        }
+    }
+
+    async handleGather(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('🌿 تنفيذ أمر التجميع...');
+            const result = this.gatheringSystem.gatherResources(player, player.currentLocation);
+            console.log('✅ نتيجة التجميع:', result);
+
+            if (result.error) return result.error;
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleGather:', error);
+            return '❌ حدث خطأ أثناء جمع الموارد. حاول مرة أخرى.';
+        }
+    }
+
+    async handleAdventure(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('⚔️ تنفيذ أمر المغامرة...');
+            const result = this.battleSystem.startBattle(player, player.currentLocation);
+            console.log('✅ نتيجة المغامرة:', result);
+
+            if (result.error) return result.error;
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleAdventure:', error);
+            return '❌ حدث خطأ أثناء بدء المغامرة. حاول مرة أخرى.';
+        }
+    }
+
+    async handleAttack(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('🎯 تنفيذ أمر الهجوم...');
+            const result = this.battleSystem.attack(player);
+            console.log('✅ نتيجة الهجوم:', result);
+
+            if (result.error) return result.error;
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleAttack:', error);
+            return '❌ حدث خطأ أثناء الهجوم. حاول مرة أخرى.';
+        }
+    }
+
+    async handleEscape(player) {
+        try {
+            if (!player.isApproved()) {
+                return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
+            }
+            
+            console.log('🏃‍♂️ تنفيذ أمر الهروب...');
+            const result = this.battleSystem.escape(player);
+            console.log('✅ نتيجة الهروب:', result);
+
+            if (result.error) return result.error;
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleEscape:', error);
+            return '❌ حدث خطأ أثناء الهروب. حاول مرة أخرى.';
         }
     }
 
@@ -353,4 +613,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ **أمر غير معروف**: "${command}"\n\nاكتب "مساعدة" لرؤية الأوامر المتاحة.`;
     }
-                    }
+        }
