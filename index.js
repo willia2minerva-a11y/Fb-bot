@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import { FacebookBot } from 'messaging-api-facebook';
+import { MessengerClient } from 'messenger-api-helper'; // تم تغيير الحزمة
 import express from 'express';
 import CommandHandler from './core/CommandHandler.js';
 import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js';
@@ -22,8 +22,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// تهيئة البوت
-const bot = FacebookBot.connect(PAGE_ACCESS_TOKEN);
+// تهيئة البوت باستخدام MessengerClient
+const client = new MessengerClient({
+  accessToken: PAGE_ACCESS_TOKEN,
+});
 
 // تهيئة نظام البطاقات
 const cardGenerator = new ProfileCardGenerator();
@@ -53,7 +55,7 @@ function startCleanupInterval() {
 // إرسال رسالة نصية
 async function sendTextMessage(senderId, text) {
   try {
-    await bot.sendText(senderId, text);
+    await client.sendText(senderId, text); // تم تعديل الأمر
     console.log(`✅ تم إرسال رسالة نصية إلى ${senderId}`);
   } catch (error) {
     console.error('❌ خطأ في إرسال الرسالة النصية:', error);
@@ -63,8 +65,10 @@ async function sendTextMessage(senderId, text) {
 // إرسال صورة
 async function sendImageMessage(senderId, imagePath, caption = '') {
   try {
-    // إرسال الصورة مع النص
-    await bot.sendImage(senderId, imagePath, { caption });
+    await client.sendAttachment(senderId, 'image', imagePath, { // تم تعديل الأمر
+      isReusable: true,
+      caption: caption,
+    });
     console.log(`✅ تم إرسال صورة إلى ${senderId}`);
     
     // حذف الملف المؤقت بعد الإرسال
@@ -147,16 +151,13 @@ app.post('/webhook', async (req, res) => {
   try {
     const { body } = req;
 
-    // التأكد من أن هذا طلب من فيسبوك
     if (body.object === 'page') {
-      // معالجة كل إدخال
       for (const entry of body.entry) {
         for (const event of entry.messaging) {
           if (event.message && event.message.text) {
             await handleMessage(event.sender.id, event.message.text);
           }
           
-          // معالجة حدث البدء
           if (event.postback && event.postback.payload === 'GET_STARTED') {
             await handleMessage(event.sender.id, 'بدء');
           }
@@ -195,17 +196,12 @@ async function main() {
   console.log('🚀 بدء تشغيل بوت مغارة غولد...');
   
   try {
-    // الاتصال بقاعدة البيانات
     await connectDatabase();
-    
-    // تفعيل نظام التنظيف التلقائي
     startCleanupInterval();
     
-    // تهيئة معالج الأوامر
     commandHandler = new CommandHandler();
     console.log('✅ تم تهيئة معالج الأوامر');
     
-    // بدء الخادم
     app.listen(PORT, () => {
       console.log(`✅ البوت يعمل على المنفذ ${PORT}`);
       console.log('📱 جاهز لاستقبال الرسائل عبر webhook...');
