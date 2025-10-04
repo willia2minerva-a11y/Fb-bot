@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 import 'dotenv/config';
 import express from 'express';
 import axios from 'axios';
-import CommandHandler from './core/CommandHandler.js';
-import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js';
+import FormData from 'form-data';
 import fs from 'fs';
+import path from 'path'; // 🆕 إضافة مكتبة path
+import CommandHandler from './core/CommandHandler.js';
+import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js'; 
 
 // تحميل متغيرات البيئة
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -23,7 +25,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // تهيئة نظام البطاقات
-const cardGenerator = new ProfileCardGenerator();
+const cardGenerator = new ProfileCardGenerator(); 
 
 // تهيئة معالج الأوامر
 let commandHandler;
@@ -53,12 +55,8 @@ async function sendTextMessage(senderId, text) {
     await axios.post(
       `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
       {
-        recipient: {
-          id: senderId
-        },
-        message: {
-          text: text
-        }
+        recipient: { id: senderId },
+        message: { text: text }
       }
     );
     console.log(`✅ تم إرسال رسالة نصية إلى ${senderId}`);
@@ -67,60 +65,66 @@ async function sendTextMessage(senderId, text) {
   }
 }
 
-// إرسال صورة باستخدام Axios
+// 🆕 إرسال صورة باستخدام رفع الملف المحلي
 async function sendImageMessage(senderId, imagePath, caption = '') {
   try {
+    if (!fs.existsSync(imagePath)) {
+      throw new Error(`الملف غير موجود في المسار: ${imagePath}`);
+    }
+
     const formData = new FormData();
+    
+    // إضافة الملف للقراءة كـ stream
+    formData.append('filedata', fs.createReadStream(imagePath), {
+      filename: path.basename(imagePath),
+      contentType: 'image/png',
+    });
+    
+    // تحديد المرسل إليه
     formData.append('recipient', JSON.stringify({ id: senderId }));
+    
+    // تعيين نوع الملف كصورة ورفعها للحصول على attachment_id
     formData.append('message', JSON.stringify({
       attachment: {
         type: 'image',
         payload: {
-          is_reusable: true,
-          url: 'https://cdn-static.example.com/your-image.jpg' // يجب تغيير هذا إلى رابط مباشر للصورة
+          is_reusable: true, // يمكن إعادة استخدام هذه الصورة لاحقاً
         }
       }
     }));
 
-    // الطريقة الأكثر تعقيداً هي رفع الصورة مباشرة، لكن الطريقة الأسهل هي توفير رابط مباشر
-    // سنستخدم طريقة الرابط لتجنب التعقيد
-    
-    // إذا كان البوت سيرفع الصورة، يجب استخدام Stream أو Buffer
-    // هذا الكود هو مجرد مثال، قد يتطلب تعديلًا بناءً على كيفية التعامل مع الملفات
-    
-    // ملاحظة: لإرسال صورة، يجب أن يكون لديك رابط URL عام لها. لا يمكنك إرسال ملف محلي
-    
+    // إرسال طلب POST
     await axios.post(
-      `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+      'https://graph.facebook.com/v19.0/me/messages',
       formData,
       {
+        params: { access_token: PAGE_ACCESS_TOKEN },
         headers: {
-          'Content-Type': `multipart/form-data; boundary=${formData._boundary}`,
+          ...formData.getHeaders(),
         },
       }
     );
 
-    console.log(`✅ تم إرسال صورة إلى ${senderId}`);
-    
-    setTimeout(() => {
+    console.log(`✅ تم إرسال صورة البروفايل إلى ${senderId}`);
+
+  } catch (error) {
+    console.error('❌ خطأ في إرسال الصورة:', error.response?.data || error.message);
+    // إرسال رسالة نصية كبديل في حال فشل إرسال الصورة
+    if (caption) {
+      await sendTextMessage(senderId, caption + '\n\n(❌ فشل تحميل الصورة)');
+    }
+  } finally {
+    // يجب محاولة حذف الملف دائماً سواء نجح الإرسال أم فشل
+    if (fs.existsSync(imagePath)) {
       try {
-        if (fs.existsSync(imagePath)) {
-          fs.unlinkSync(imagePath);
-          console.log(`🧹 تم حذف الملف المؤقت: ${imagePath}`);
-        }
+        fs.unlinkSync(imagePath);
+        console.log(`🧹 تم حذف الملف المؤقت: ${imagePath}`);
       } catch (deleteError) {
         console.error('❌ خطأ في حذف الملف المؤقت:', deleteError);
       }
-    }, 5000);
-    
-  } catch (error) {
-    console.error('❌ خطأ في إرسال الصورة:', error.response?.data || error.message);
-    if (caption) {
-      await sendTextMessage(senderId, caption);
     }
   }
 }
-
 
 // معالجة الرسائل الواردة
 async function handleMessage(senderId, message) {
@@ -223,7 +227,7 @@ async function main() {
     await connectDatabase();
     startCleanupInterval();
     
-    commandHandler = new CommandHandler();
+    commandHandler = new CommandHandler(); 
     console.log('✅ تم تهيئة معالج الأوامر');
     
     app.listen(PORT, () => {
