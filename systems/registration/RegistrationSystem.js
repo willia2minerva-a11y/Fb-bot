@@ -1,175 +1,257 @@
 import Player from '../../core/Player.js';
 
 export class RegistrationSystem {
-  constructor() {
-    this.registrationSteps = new Map();
-    console.log('✅ نظام التسجيل تم تهيئته');
-  }
+    constructor() {
+        this.registrationSteps = new Map();
+        console.log('✅ نظام التسجيل تم تهيئته');
+    }
 
-  // بدء عملية التسجيل
-  async startRegistration(userId, userName) {
-    try {
-      let player = await Player.findOne({ userId });
-      
-      if (!player) {
-        player = await Player.createNew(userId, `مغامر-${userId.slice(-6)}`);
-      }
+    // بدء عملية التسجيل
+    async startRegistration(userId, userName) {
+        try {
+            let player = await Player.findOne({ userId });
+            
+            if (!player) {
+                player = await Player.createNew(userId, `مغامر-${userId.slice(-6)}`);
+            }
 
-      this.registrationSteps.set(userId, {
-        step: 'waiting_approval',
-        player: player
-      });
+            // إذا كان مكتملاً بالفعل، لا نعيد التسجيل
+            if (player.registrationStatus === 'completed') {
+                return {
+                    success: true,
+                    message: `🎮 **مرحباً بعودتك ${player.name}!**`,
+                    step: 'completed'
+                };
+            }
 
-      return {
-        success: true,
-        message: `🎮 **مرحباً في مغارة غولد!**
+            this.registrationSteps.set(userId, {
+                step: 'waiting_approval',
+                player: player
+            });
+
+            return {
+                success: true,
+                message: `🎮 **مرحباً في مغارة غولد!**
 
 ⏳ حسابك قيد الانتظار للموافقة.
 
 يرجى استخدام أمر "معرفي" للحصول على معرفك وإرساله إلى المدير للحصول على الموافقة.`,
-        step: 'waiting_approval'
-      };
-    } catch (error) {
-      console.error('❌ خطأ في بدء التسجيل:', error);
-      return { success: false, message: '❌ حدث خطأ في بدء التسجيل.' };
+                step: 'waiting_approval'
+            };
+        } catch (error) {
+            console.error('❌ خطأ في بدء التسجيل:', error);
+            return { success: false, message: '❌ حدث خطأ في بدء التسجيل.' };
+        }
     }
-  }
 
-  // الموافقة على اللاعب من المدير
-  async approvePlayer(targetUserId, adminId) {
-    try {
-      const player = await Player.findOne({ userId: targetUserId });
-      
-      if (!player) {
-        return { success: false, message: '❌ لم يتم العثور على اللاعب.' };
-      }
-
-      if (player.registrationStatus === 'approved') {
-        return { success: false, message: '✅ هذا اللاعب موافق عليه مسبقاً.' };
-      }
-
-      player.registrationStatus = 'approved';
-      player.approvedAt = new Date();
-      player.approvedBy = adminId;
-      await player.save();
-
-      this.registrationSteps.set(targetUserId, {
-        step: 'gender_selection',
-        player: player
-      });
-
-      return { 
-        success: true, 
-        message: `✅ تمت الموافقة على اللاعب ${player.name} (${targetUserId}) بنجاح.\n\nسيتم الآن مطالبتهم باختيار الجنس.` 
-      };
-    } catch (error) {
-      console.error('❌ خطأ في الموافقة على اللاعب:', error);
-      return { success: false, message: '❌ حدث خطأ في الموافقة على اللاعب.' };
+    // الحصول على حالة التسجيل الحالية
+    async getRegistrationStatus(userId) {
+        try {
+            const player = await Player.findOne({ userId });
+            if (!player) return 'not_found';
+            
+            return player.registrationStatus;
+        } catch (error) {
+            console.error('❌ خطأ في جلب حالة التسجيل:', error);
+            return 'error';
+        }
     }
-  }
 
-  // اختيار الجنس
-  async setGender(userId, gender) {
-    try {
-      const player = await Player.findOne({ userId });
-      
-      if (!player) {
-        return { success: false, message: '❌ لم يتم العثور على اللاعب.' };
-      }
+    // الموافقة على اللاعب من المدير
+    async approvePlayer(targetUserId, adminId) {
+        try {
+            const player = await Player.findOne({ userId: targetUserId });
+            
+            if (!player) {
+                return { success: false, message: '❌ لم يتم العثور على اللاعب.' };
+            }
 
-      if (player.registrationStatus !== 'approved') {
-        return { success: false, message: '❌ لم يتم الموافقة على حسابك بعد.' };
-      }
+            if (player.registrationStatus === 'completed') {
+                return { success: false, message: '✅ هذا اللاعب مسجل مسبقاً.' };
+            }
 
-      if (!['male', 'female'].includes(gender)) {
-        return { success: false, message: '❌ الجنس غير صحيح. يرجى اختيار "ذكر" أو "أنثى".' };
-      }
+            if (player.registrationStatus === 'approved') {
+                // إذا كان موافقاً عليه مسبقاً ولكن لم يكمل
+                this.registrationSteps.set(targetUserId, {
+                    step: 'gender_selection',
+                    player: player
+                });
+                
+                return { 
+                    success: true, 
+                    message: `👋 تمت إعادة تفعيل اللاعب ${player.name}\n\nالرجاء اختيار الجنس:` 
+                };
+            }
 
-      player.gender = gender;
-      this.registrationSteps.set(userId, {
-        step: 'name_selection',
-        player: player
-      });
+            // الموافقة الأولى
+            player.registrationStatus = 'approved';
+            player.approvedAt = new Date();
+            player.approvedBy = adminId;
+            await player.save();
 
-      await player.save();
+            this.registrationSteps.set(targetUserId, {
+                step: 'gender_selection',
+                player: player
+            });
 
-      return {
-        success: true,
-        message: `✅ تم اختيار الجنس: ${gender === 'male' ? '👦 ذكر' : '👧 أنثى'}\n\nالآن يرجى اختيار اسم إنجليزي بين 3 إلى 9 أحرف:\n\nاكتب "اسمي [الاسم]" مثال: اسمي John`,
-        step: 'name_selection'
-      };
-    } catch (error) {
-      console.error('❌ خطأ في تعيين الجنس:', error);
-      return { success: false, message: '❌ حدث خطأ في تعيين الجنس.' };
+            return { 
+                success: true, 
+                message: `✅ تمت الموافقة على اللاعب ${player.name} بنجاح.\n\nسيتم الآن مطالبتهم باختيار الجنس.` 
+            };
+        } catch (error) {
+            console.error('❌ خطأ في الموافقة على اللاعب:', error);
+            return { success: false, message: '❌ حدث خطأ في الموافقة على اللاعب.' };
+        }
     }
-  }
 
-  // اختيار الاسم
-  async setName(userId, name) {
-    try {
-      const player = await Player.findOne({ userId });
-      
-      if (!player) {
-        return { success: false, message: '❌ لم يتم العثور على اللاعب.' };
-      }
+    // اختيار الجنس
+    async setGender(userId, gender) {
+        try {
+            const player = await Player.findOne({ userId });
+            
+            if (!player) {
+                return { success: false, message: '❌ لم يتم العثور على اللاعب.' };
+            }
 
-      if (player.registrationStatus !== 'approved') {
-        return { success: false, message: '❌ لم يتم الموافقة على حسابك بعد.' };
-      }
+            if (player.registrationStatus !== 'approved' && player.registrationStatus !== 'completed') {
+                return { success: false, message: '❌ لم يتم الموافقة على حسابك بعد.' };
+            }
 
-      // التحقق من صحة الاسم
-      if (!name || name.length < 3 || name.length > 9) {
-        return { success: false, message: '❌ الاسم يجب أن يكون بين 3 إلى 9 أحرف إنجليزية.' };
-      }
+            if (!['male', 'female'].includes(gender)) {
+                return { success: false, message: '❌ الجنس غير صحيح. يرجى اختيار "ذكر" أو "أنثى".' };
+            }
 
-      if (!/^[a-zA-Z]+$/.test(name)) {
-        return { success: false, message: '❌ الاسم يجب أن يحتوي على أحرف إنجليزية فقط.' };
-      }
+            player.gender = gender;
+            
+            // إذا كان مكتملاً، نحدث فقط الجنس
+            if (player.registrationStatus === 'completed') {
+                await player.save();
+                return {
+                    success: true,
+                    message: `✅ تم تحديث الجنس إلى: ${gender === 'male' ? '👦 ذكر' : '👧 أنثى'}`
+                };
+            }
 
-      // التحقق من عدم استخدام الاسم مسبقاً
-      const existingPlayer = await Player.findOne({ 
-        name: new RegExp(`^${name}$`, 'i'),
-        userId: { $ne: userId }
-      });
+            // إذا كان موافقاً عليه، ننتقل لخطوة الاسم
+            player.registrationStatus = 'approved';
+            this.registrationSteps.set(userId, {
+                step: 'name_selection',
+                player: player
+            });
 
-      if (existingPlayer) {
-        return { success: false, message: '❌ هذا الاسم مستخدم مسبقاً. يرجى اختيار اسم آخر.' };
-      }
+            await player.save();
 
-      player.name = name;
-      player.registrationStatus = 'completed';
-      player.playerId = `P${Date.now().toString().slice(-6)}`;
-      await player.save();
-
-      this.registrationSteps.delete(userId);
-
-      return {
-        success: true,
-        message: `🎉 **مبروك! تم إنشاء حسابك بنجاح**\n\n👤 الاسم: ${name}\n🆔 المعرف: ${player.playerId}\n👦 الجنس: ${player.gender === 'male' ? 'ذكر' : 'أنثى'}\n\nاكتب "بدء" لبدء اللعبة!`,
-        step: 'completed'
-      };
-    } catch (error) {
-      console.error('❌ خطأ في تعيين الاسم:', error);
-      return { success: false, message: '❌ حدث خطأ في تعيين الاسم.' };
+            return {
+                success: true,
+                message: `✅ تم اختيار الجنس: ${gender === 'male' ? '👦 ذكر' : '👧 أنثى'}\n\nالآن يرجى اختيار اسم إنجليزي بين 3 إلى 9 أحرف:\n\nاكتب "اسمي [الاسم]" مثال: اسمي John`,
+                step: 'name_selection'
+            };
+        } catch (error) {
+            console.error('❌ خطأ في تعيين الجنس:', error);
+            return { success: false, message: '❌ حدث خطأ في تعيين الجنس.' };
+        }
     }
-  }
 
-  // الحصول على حالة التسجيل
-  getRegistrationStep(userId) {
-    return this.registrationSteps.get(userId);
-  }
+    // اختيار الاسم
+    async setName(userId, name) {
+        try {
+            const player = await Player.findOne({ userId });
+            
+            if (!player) {
+                return { success: false, message: '❌ لم يتم العثور على اللاعب.' };
+            }
 
-  // الحصول على قائمة اللاعبين المنتظرين
-  async getPendingPlayers() {
-    try {
-      const players = await Player.find({ 
-        registrationStatus: 'pending' 
-      }).select('userId name createdAt');
-      
-      return players;
-    } catch (error) {
-      console.error('❌ خطأ في جلب اللاعبين المنتظرين:', error);
-      return [];
+            if (player.registrationStatus !== 'approved' && player.registrationStatus !== 'completed') {
+                return { success: false, message: '❌ لم يتم الموافقة على حسابك بعد.' };
+            }
+
+            // التحقق من صحة الاسم
+            if (!name || name.length < 3 || name.length > 9) {
+                return { success: false, message: '❌ الاسم يجب أن يكون بين 3 إلى 9 أحرف إنجليزية.' };
+            }
+
+            if (!/^[a-zA-Z]+$/.test(name)) {
+                return { success: false, message: '❌ الاسم يجب أن يحتوي على أحرف إنجليزية فقط.' };
+            }
+
+            // التحقق من عدم استخدام الاسم مسبقاً
+            const existingPlayer = await Player.findOne({ 
+                name: new RegExp(`^${name}$`, 'i'),
+                userId: { $ne: userId }
+            });
+
+            if (existingPlayer) {
+                return { success: false, message: '❌ هذا الاسم مستخدم مسبقاً. يرجى اختيار اسم آخر.' };
+            }
+
+            const oldName = player.name;
+            player.name = name;
+            
+            // إذا كان مكتملاً، نحدث فقط الاسم
+            if (player.registrationStatus === 'completed') {
+                await player.save();
+                return {
+                    success: true,
+                    message: `✅ تم تحديث الاسم من ${oldName} إلى ${name}`
+                };
+            }
+
+            // إكمال التسجيل
+            player.registrationStatus = 'completed';
+            player.playerId = `P${Date.now().toString().slice(-6)}`;
+            await player.save();
+
+            this.registrationSteps.delete(userId);
+
+            return {
+                success: true,
+                message: `🎉 **مبروك! تم إنشاء حسابك بنجاح**\n\n👤 الاسم: ${name}\n🆔 المعرف: ${player.playerId}\n👦 الجنس: ${player.gender === 'male' ? 'ذكر' : 'أنثى'}\n\nاكتب "بدء" لبدء اللعبة!`,
+                step: 'completed'
+            };
+        } catch (error) {
+            console.error('❌ خطأ في تعيين الاسم:', error);
+            return { success: false, message: '❌ حدث خطأ في تعيين الاسم.' };
+        }
     }
-  }
-}
+
+    // الحصول على خطوة التسجيل الحالية
+    getRegistrationStep(userId) {
+        return this.registrationSteps.get(userId);
+    }
+
+    // الحصول على قائمة اللاعبين المنتظرين
+    async getPendingPlayers() {
+        try {
+            const players = await Player.find({ 
+                registrationStatus: 'pending' 
+            }).select('userId name createdAt registrationStatus');
+            
+            return players;
+        } catch (error) {
+            console.error('❌ خطأ في جلب اللاعبين المنتظرين:', error);
+            return [];
+        }
+    }
+
+    // إعادة تعيين التسجيل (للتجربة)
+    async resetRegistration(userId) {
+        try {
+            const player = await Player.findOne({ userId });
+            if (player) {
+                player.registrationStatus = 'pending';
+                player.gender = null;
+                player.playerId = null;
+                player.approvedAt = null;
+                player.approvedBy = null;
+                await player.save();
+                
+                this.registrationSteps.delete(userId);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('❌ خطأ في إعادة تعيين التسجيل:', error);
+            return false;
+        }
+    }
+          }
