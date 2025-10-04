@@ -182,6 +182,7 @@ export default class CommandHandler {
                 'مغامرة': this.handleAdventure,
                 'هجوم': this.handleAttack,
                 'هروب': this.handleEscape,
+                'اصلاح_تسجيل': this.handleFixRegistration.bind(this),
                 'تغيير_اسم': this.handleChangeName
             };
 
@@ -193,7 +194,36 @@ export default class CommandHandler {
             throw error;
         }
     }
+   
 
+// وأضف الدالة:
+async handleFixRegistration(player, args, senderId) {
+    try {
+        const ADMIN_PSID = process.env.ADMIN_PSID;
+        
+        if (senderId !== ADMIN_PSID) {
+            return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
+        }
+
+        let targetUserId = senderId;
+        if (args.length > 0) {
+            targetUserId = args[0];
+        }
+
+        const success = await this.registrationSystem.resetRegistration(targetUserId);
+        
+        if (success) {
+            return `✅ **تم إصلاح التسجيل للمستخدم ${targetUserId}**
+            
+🔄 تم إعادة تعيين حالة التسجيل. يمكن للمستخدم الآن البدء من جديد بأمر "بدء".`;
+        } else {
+            return `❌ لم يتم العثور على لاعب بالمعرف: ${targetUserId}`;
+        }
+    } catch (error) {
+        console.error('❌ خطأ في handleFixRegistration:', error);
+        return '❌ حدث خطأ في إصلاح التسجيل.';
+    }
+}
     // في دالة process، عدّل جزء التحقق من التسجيل:
 
 async process(sender, message) {
@@ -314,7 +344,7 @@ async process(sender, message) {
         console.error('❌ خطأ في معالجة الأمر:', error);
         return `❌ حدث خطأ أثناء معالجة طلبك: ${error.message}`;
     }
-                     }
+ }
 
     // جميع دوال المعالجة تبقى كما هي...
     async handleStart(player) {
