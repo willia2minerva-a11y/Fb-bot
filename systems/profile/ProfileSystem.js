@@ -1,20 +1,14 @@
-// ⚠️ تم تعديل المسار لاستيراد Player.js من مجلد core/
 import Player from '../../core/Player.js';
-import 'dotenv/config'; 
-// إذا كنت تستخدم ProfileCardGenerator في هذا الملف، يجب أن يكون استيرادها موجودًا هنا.
-// سنفترض أن ProfileCardGenerator يتم استخدامه في CommandHandler فقط.
 
 export class ProfileSystem {
     
-    // دالة لعرض حالة اللاعب (Status)
     getPlayerStatus(player) {
         const expProgress = player.experience || 0;
         const requiredExp = player.level * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
         
-        // يجب أن تكون getAttackDamage دالة موجودة في نموذج اللاعب
         const attackDamage = player.getAttackDamage ? player.getAttackDamage() : 10;
-        const defense = player.level * 2;
+        const defense = player.getDefense ? player.getDefense() : 5;
 
         return `📊 **حالة ${player.name}**
 ──────────────
@@ -28,7 +22,6 @@ export class ProfileSystem {
 🎒  الأغراض: ${player.inventory ? player.inventory.length : 0} نوع`;
     }
 
-    // دالة لعرض بروفايل اللاعب (Text Profile)
     getPlayerProfile(player) {
         const expProgress = player.experience || 0;
         const requiredExp = player.level * 100;
@@ -58,7 +51,6 @@ export class ProfileSystem {
 📍 **الموقع الحالي:** ${player.currentLocation}`;
     }
 
-    // دالة لعرض حقيبة اللاعب (Inventory)
     getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
             return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
@@ -69,7 +61,6 @@ export class ProfileSystem {
             text += `• ${item.name} ×${item.quantity}\n`;
         });
         
-        // إضافة المعدات إذا كانت موجودة
         if (player.equipment) {
             text += `\n⚔️ **المعدات:**\n`;
             text += `• سلاح: ${player.equipment.weapon || 'لا يوجد'}\n`;
@@ -80,11 +71,9 @@ export class ProfileSystem {
         return text;
     }
     
-    // 🆕 دالة تغيير الاسم الجديدة (تُستخدم بواسطة أمر 'تغيير_اسم')
     async changeName(player, args, senderId) {
-        const ADMIN_ID = process.env.ADMIN_PSTD;
+        const ADMIN_ID = process.env.ADMIN_ID;
         
-        // 1. التحقق من صلاحية المدير
         if (senderId !== ADMIN_ID) {
             return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
         }
@@ -97,8 +86,6 @@ export class ProfileSystem {
 
         let targetPlayer = player;
         
-        // 2. التحقق مما إذا كان المدير يغير اسم لاعب آخر (الحجة الأولى هي ID طويل)
-        // إذا كان طول الحجة الأولى كبيراً ويحتوي على أرقام فقط، نفترض أنه ID
         if (args.length > 1 && args[0].length > 10 && !isNaN(args[0])) { 
             const targetId = args[0];
             targetPlayer = await Player.findOne({ userId: targetId });
@@ -113,10 +100,27 @@ export class ProfileSystem {
             return 'يرجى تحديد اسم جديد بعد المعرف (إذا كنت تغير اسم لاعب آخر).';
         }
 
-        // 3. تطبيق التغيير
+        // التحقق من صحة الاسم
+        if (newName.length < 3 || newName.length > 9) {
+            return '❌ الاسم يجب أن يكون بين 3 إلى 9 أحرف.';
+        }
+
+        if (!/^[a-zA-Z]+$/.test(newName)) {
+            return '❌ الاسم يجب أن يحتوي على أحرف إنجليزية فقط.';
+        }
+
+        // التحقق من عدم استخدام الاسم
+        const existingPlayer = await Player.findOne({ 
+            name: new RegExp(`^${newName}$`, 'i'),
+            userId: { $ne: targetPlayer.userId }
+        });
+
+        if (existingPlayer) {
+            return '❌ هذا الاسم مستخدم مسبقاً. يرجى اختيار اسم آخر.';
+        }
+
         const oldName = targetPlayer.name;
         targetPlayer.name = newName;
-        // لا نحفظ هنا، دالة CommandHandler.process ستقوم بذلك بشكل تلقائي
 
         console.log(`✅ تم تغيير اسم اللاعب ${oldName} إلى ${newName}`);
         
