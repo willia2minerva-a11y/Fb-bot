@@ -1,39 +1,31 @@
 {
   "name": "mughera-gold-bot",
   "version": "1.0.0",
-  "description": "بوت لعبة مغارة غولد - مغامرات تقمص أدوار",
-  "main": "index.js",
+  "description": "بوت لعبة مغارة غولد لبوت الفيسبوك",
   "type": "module",
+  "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "lint": "eslint .",
-    "setup": "npm install && node setup.js"
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "express": "^4.18.0",
-    "mongoose": "^7.0.0",
-    "node-cron": "^3.0.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^2.0.0",
-    "jest": "^29.0.0",
-    "eslint": "^8.0.0"
+    "mongoose": "^8.0.0",
+    "dotenv": "^16.3.1",
+    "fb-bot": "^1.0.0",
+    "canvas": "^2.11.2"
   },
   "keywords": [
-    "rpg",
     "bot",
-    "messenger",
     "game",
-    "arabic",
-    "adventure"
+    "facebook",
+    "messenger",
+    "rpg",
+    "arabic"
   ],
   "author": "Your Name",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   }
 }
