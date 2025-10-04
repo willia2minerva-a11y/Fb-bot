@@ -194,71 +194,127 @@ export default class CommandHandler {
         }
     }
 
-    async process(sender, message) {
-        const { id, name } = sender;
-        const parts = message.trim().split(/\s+/);
-        const command = parts[0].toLowerCase();
-        const args = parts.slice(1);
+    // في دالة process، عدّل جزء التحقق من التسجيل:
 
-        console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
+async process(sender, message) {
+    const { id, name } = sender;
+    const parts = message.trim().split(/\s+/);
+    const command = parts[0].toLowerCase();
+    const args = parts.slice(1);
 
-        // التحقق من الردود التلقائية أولاً
-        const autoResponse = this.autoResponseSystem.findAutoResponse(message);
-        if (autoResponse) {
-            console.log(`🤖 رد تلقائي على: "${message}"`);
-            return autoResponse;
+    console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
+    console.log(`🔍 حالة التسجيل للمستخدم: ${id}`);
+
+    // التحقق من الردود التلقائية أولاً
+    const autoResponse = this.autoResponseSystem.findAutoResponse(message);
+    if (autoResponse) {
+        console.log(`🤖 رد تلقائي على: "${message}"`);
+        return autoResponse;
+    }
+
+    try {
+        let player = await Player.findOne({ userId: id });
+
+        if (!player) {
+            player = await Player.createNew(id, name);
+            console.log(`🎮 تم إنشاء لاعب جديد: ${player.name} (${id})`);
         }
 
-        try {
-            let player = await Player.findOne({ userId: id });
+        console.log(`📊 حالة التسجيل الحالية: ${player.registrationStatus}`);
 
-            if (!player) {
-                player = await Player.createNew(id, name);
+        if (player.banned) {
+            return '❌ تم حظرك من اللعبة. لا يمكنك استخدام الأوامر.';
+        }
+
+        // 🛠️ إصلاح: التحقق من حالة التسجيل بشكل صحيح
+        const registrationStatus = player.registrationStatus;
+        
+        // إذا كان الأمر مسموحاً قبل الموافقة
+        if (this.allowedBeforeApproval.includes(command)) {
+            console.log(`✅ الأمر مسموح قبل التسجيل: ${command}`);
+            const result = await this.commands[command](player, args, id);
+            
+            if (typeof result === 'string') {
+                await player.save();
             }
 
-            if (player.banned) {
-                return '❌ تم حظرك من اللعبة. لا يمكنك استخدام الأوامر.';
-            }
+            return result;
+        }
 
-            // التحقق من حالة التسجيل
-            if (!this.allowedBeforeApproval.includes(command) && !player.isApproved()) {
-                if (player.isPending()) {
-                    return `⏳ **حسابك قيد الانتظار للموافقة**
+        // إذا لم يكمل التسجيل
+        if (registrationStatus !== 'completed') {
+            console.log(`⏳ اللاعب لم يكمل التسجيل بعد: ${registrationStatus}`);
+            
+            if (registrationStatus === 'pending') {
+                return `⏳ **حسابك قيد الانتظار للموافقة**
 
-يرجى استخدام أمر "معرفي" للحصول على معرفك وإرساله إلى المدير للحصول على الموافقة.`;
-                } else if (player.isApprovedButNotCompleted()) {
-                    const step = this.registrationSystem.getRegistrationStep(id);
-                    if (step && step.step === 'gender_selection') {
-                        return `👋 **مرحباً ${player.name}!**
+📝 **لإكمال التسجيل:**
+1. اكتب "معرفي" للحصول على معرفك
+2. أرسل المعرف للمدير
+3. انتظر الموافقة
 
-الرجاء اختيار جنسك:
+بعد الموافقة ستتم مطالبتك باختيار الجنس والاسم.`;
+            } 
+            else if (registrationStatus === 'approved') {
+                const step = this.registrationSystem.getRegistrationStep(id);
+                console.log(`🔍 خطوة التسجيل الحالية: ${step?.step}`);
+                
+                if (step && step.step === 'gender_selection') {
+                    return `👋 **مرحباً ${player.name}!**
+
+📝 **الخطوة التالية: اختيار الجنس**
+
+• اكتب "ذكر" 👦 للجنس الذكري
+• اكتب "أنثى" 👧 للجنس الأنثوي
+
+سيحدد هذا مظهر بطاقة بروفايلك في اللعبة.`;
+                } 
+                else if (step && step.step === 'name_selection') {
+                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
+
+⚡ **الشروط:**
+• بين 3 إلى 9 أحرف
+• أحرف إنجليزية فقط
+• غير مستخدم من قبل
+
+💡 **مثال:** اسمي John
+
+اكتب "اسمي [الاسم]" لاختيار اسمك.`;
+                }
+                else {
+                    // إذا لم تكن هناك خطوة محددة، نطلب اختيار الجنس
+                    this.registrationSystem.registrationSteps.set(id, {
+                        step: 'gender_selection',
+                        player: player
+                    });
+                    
+                    return `👋 **تمت الموافقة على حسابك!**
+
+📝 **الرجاء اختيار جنسك:**
 • اكتب "ذكر" 👦
 • اكتب "أنثى" 👧`;
-                    } else if (step && step.step === 'name_selection') {
-                        return `📝 **الآن يرجى اختيار اسم إنجليزي**
-
-اكتب "اسمي [الاسم]" بين 3 إلى 9 أحرف إنجليزية
-مثال: اسمي John`;
-                    }
                 }
             }
-
-            if (this.commands[command]) {
-                const result = await this.commands[command](player, args, id);
-                
-                if (typeof result === 'string') {
-                    await player.save();
-                }
-
-                return result;
-            } else {
-                return await this.handleUnknown(command, player);
-            }
-        } catch (error) {
-            console.error('❌ خطأ في معالجة الأمر:', error);
-            return `❌ حدث خطأ أثناء معالجة طلبك: ${error.message}`;
         }
+
+        // إذا كان مكتملاً، ننفذ الأمر بشكل طبيعي
+        console.log(`✅ اللاعب مكتمل التسجيل، معالجة الأمر: ${command}`);
+        if (this.commands[command]) {
+            const result = await this.commands[command](player, args, id);
+            
+            if (typeof result === 'string') {
+                await player.save();
+            }
+
+            return result;
+        } else {
+            return await this.handleUnknown(command, player);
+        }
+    } catch (error) {
+        console.error('❌ خطأ في معالجة الأمر:', error);
+        return `❌ حدث خطأ أثناء معالجة طلبك: ${error.message}`;
     }
+                     }
 
     // جميع دوال المعالجة تبقى كما هي...
     async handleStart(player) {
