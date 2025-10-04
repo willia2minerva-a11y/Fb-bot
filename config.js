@@ -54,10 +54,8 @@ export default {
     }
   },
   
-  // إعدادات التطوير
   development: {
     debug: true,
-    skipCooldowns: false,
-    adminUsers: ['ADMIN_USER_ID_1', 'ADMIN_USER_ID_2']
+    skipCooldowns: false
   }
 };
