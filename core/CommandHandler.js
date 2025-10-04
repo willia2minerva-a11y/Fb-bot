@@ -1,133 +1,19 @@
+import { BattleSystem } from '../systems/battle/BattleSystem.js';
+import { TravelSystem } from '../systems/world/TravelSystem.js';
+import { WorldMap } from '../systems/world/WorldMap.js';
+import { GatheringSystem } from '../systems/gathering/GatheringSystem.js';
+import { CraftingSystem } from '../systems/crafting/CraftingSystem.js';
+import { ProfileSystem } from '../systems/profile/ProfileSystem.js';
+import { RegistrationSystem } from '../systems/registration/RegistrationSystem.js';
+import { AutoResponseSystem } from '../systems/autoResponse/AutoResponseSystem.js';
 import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js'; 
-
-// استيراد الأنظمة مع معالجة الأخطاء
-let BattleSystem, TravelSystem, WorldMap, GatheringSystem, CraftingSystem, ProfileSystem, RegistrationSystem, AutoResponseSystem;
-
-try {
-    const battleModule = await import('../systems/battle/BattleSystem.js');
-    BattleSystem = battleModule.BattleSystem;
-} catch (error) {
-    console.log('⚠️ نظام المعارك غير موجود، سيتم استخدام نظام بديل');
-    BattleSystem = class {
-        constructor() { console.log('⚔️ نظام معارك بديل تم تهيئته'); }
-        startBattle() { return { error: null, message: '⚔️ نظام المعارك غير متاح حالياً' }; }
-        attack() { return { error: null, message: '🎯 نظام الهجوم غير متاح حالياً' }; }
-        escape() { return { error: null, message: '🏃‍♂️ نظام الهروب غير متاح حالياً' }; }
-    };
-}
-
-try {
-    const travelModule = await import('../systems/world/TravelSystem.js');
-    TravelSystem = travelModule.TravelSystem;
-} catch (error) {
-    console.log('⚠️ نظام السفر غير موجود، سيتم استخدام نظام بديل');
-    TravelSystem = class {
-        constructor() { console.log('🗺️ نظام سفر بديل تم تهيئته'); }
-    };
-}
-
-try {
-    const worldModule = await import('../systems/world/WorldMap.js');
-    WorldMap = worldModule.WorldMap;
-} catch (error) {
-    console.log('⚠️ نظام الخريطة غير موجود، سيتم استخدام نظام بديل');
-    WorldMap = class {
-        constructor() { console.log('🗺️ نظام خريطة بديل تم تهيئته'); }
-        showMap(player) { return `🗺️ أنت في: ${player.currentLocation}`; }
-    };
-}
-
-try {
-    const gatheringModule = await import('../systems/gathering/GatheringSystem.js');
-    GatheringSystem = gatheringModule.GatheringSystem;
-} catch (error) {
-    console.log('⚠️ نظام جمع الموارد غير موجود، سيتم استخدام نظام بديل');
-    GatheringSystem = class {
-        constructor() { console.log('🌿 نظام جمع موارد بديل تم تهيئته'); }
-        gatherResources() { return { error: null, message: '🌿 نظام جمع الموارد غير متاح حالياً' }; }
-    };
-}
-
-try {
-    const craftingModule = await import('../systems/crafting/CraftingSystem.js');
-    CraftingSystem = craftingModule.CraftingSystem;
-} catch (error) {
-    console.log('⚠️ نظام الصناعة غير موجود، سيتم استخدام نظام بديل');
-    CraftingSystem = class {
-        constructor() { console.log('🛠️ نظام صناعة بديل تم تهيئته'); }
-    };
-}
-
-try {
-    const profileModule = await import('../systems/profile/ProfileSystem.js');
-    ProfileSystem = profileModule.ProfileSystem;
-} catch (error) {
-    console.log('⚠️ نظام البروفايل غير موجود، سيتم استخدام نظام بديل');
-    ProfileSystem = class {
-        getPlayerStatus(player) { 
-            return `📊 حالة ${player.name}\nالمستوى: ${player.level}\nالذهب: ${player.gold}`; 
-        }
-        getPlayerInventory(player) { 
-            return `🎒 حقيبة ${player.name}\n${player.inventory?.length || 0} عنصر`; 
-        }
-        async changeName() { return '❌ نظام تغيير الأسماء غير متاح'; }
-    };
-}
-
-try {
-    const registrationModule = await import('../systems/registration/RegistrationSystem.js');
-    RegistrationSystem = registrationModule.RegistrationSystem;
-} catch (error) {
-    console.log('⚠️ نظام التسجيل غير موجود، سيتم استخدام نظام بديل');
-    RegistrationSystem = class {
-        constructor() { 
-            this.registrationSteps = new Map();
-            console.log('✅ نظام تسجيل بديل تم تهيئته');
-        }
-        async startRegistration() { 
-            return { success: true, message: '🎮 مرحباً! نظام التسجيل قيد التطوير', step: 'waiting_approval' };
-        }
-        async approvePlayer() { 
-            return { success: true, message: '✅ تمت الموافقة على اللاعب' };
-        }
-        async setGender() { 
-            return { success: true, message: '✅ تم اختيار الجنس' };
-        }
-        async setName() { 
-            return { success: true, message: '✅ تم تعيين الاسم' };
-        }
-        getRegistrationStep() { return null; }
-        async getPendingPlayers() { return []; }
-    };
-}
-
-try {
-    const autoResponseModule = await import('../systems/autoResponse/AutoResponseSystem.js');
-    AutoResponseSystem = autoResponseModule.AutoResponseSystem;
-} catch (error) {
-    console.log('⚠️ نظام الردود التلقائية غير موجود، سيتم استخدام نظام بديل');
-    AutoResponseSystem = class {
-        constructor() { 
-            this.responses = {
-                'مرحبا': '🎮 أهلاً بك في مغارة غولد!',
-                'شكرا': '😊 العفو!'
-            };
-            console.log('✅ نظام ردود تلقائية بديل تم تهيئته');
-        }
-        findAutoResponse(message) { return this.responses[message.toLowerCase()] || null; }
-        addResponse() { console.log('✅ تم إضافة رد تلقائي'); }
-        removeResponse() { return true; }
-        getAllResponses() { return this.responses; }
-    };
-}
 
 export default class CommandHandler {
     constructor() {
         console.log('🔄 تهيئة CommandHandler...');
 
         try {
-            // تهيئة الأنظمة
             this.battleSystem = new BattleSystem();
             this.travelSystem = new TravelSystem();
             this.worldMap = new WorldMap(this.travelSystem);
@@ -138,7 +24,7 @@ export default class CommandHandler {
             this.autoResponseSystem = new AutoResponseSystem();
             this.cardGenerator = new ProfileCardGenerator();
 
-            // تعريف الدوال أولاً
+            // 🛠️ إصلاح: تعريف جميع الدوال قبل الربط
             this.handleStart = this.handleStart.bind(this);
             this.handleGetId = this.handleGetId.bind(this);
             this.handleGenderMale = this.handleGenderMale.bind(this);
@@ -160,8 +46,9 @@ export default class CommandHandler {
             this.handleEscape = this.handleEscape.bind(this);
             this.handleChangeName = this.handleChangeName.bind(this);
             this.handleUnknown = this.handleUnknown.bind(this);
+            this.handleFixRegistration = this.handleFixRegistration.bind(this);
 
-            // تعريف الأوامر
+            // تعريف الأوامر بعد ربط الدوال
             this.commands = {
                 'بدء': this.handleStart,
                 'معرفي': this.handleGetId,
@@ -182,8 +69,8 @@ export default class CommandHandler {
                 'مغامرة': this.handleAdventure,
                 'هجوم': this.handleAttack,
                 'هروب': this.handleEscape,
-                'اصلاح_تسجيل': this.handleFixRegistration.bind(this),
-                'تغيير_اسم': this.handleChangeName
+                'تغيير_اسم': this.handleChangeName,
+                'اصلاح_تسجيل': this.handleFixRegistration
             };
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
@@ -194,89 +81,58 @@ export default class CommandHandler {
             throw error;
         }
     }
-   
 
-// وأضف الدالة:
-async handleFixRegistration(player, args, senderId) {
-    try {
-        const ADMIN_PSID = process.env.ADMIN_PSID;
-        
-        if (senderId !== ADMIN_PSID) {
-            return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
+    async process(sender, message) {
+        const { id, name } = sender;
+        const parts = message.trim().split(/\s+/);
+        const command = parts[0].toLowerCase();
+        const args = parts.slice(1);
+
+        console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
+        console.log(`🔍 حالة التسجيل للمستخدم: ${id}`);
+
+        // التحقق من الردود التلقائية أولاً
+        const autoResponse = this.autoResponseSystem.findAutoResponse(message);
+        if (autoResponse) {
+            console.log(`🤖 رد تلقائي على: "${message}"`);
+            return autoResponse;
         }
 
-        let targetUserId = senderId;
-        if (args.length > 0) {
-            targetUserId = args[0];
-        }
+        try {
+            let player = await Player.findOne({ userId: id });
 
-        const success = await this.registrationSystem.resetRegistration(targetUserId);
-        
-        if (success) {
-            return `✅ **تم إصلاح التسجيل للمستخدم ${targetUserId}**
-            
-🔄 تم إعادة تعيين حالة التسجيل. يمكن للمستخدم الآن البدء من جديد بأمر "بدء".`;
-        } else {
-            return `❌ لم يتم العثور على لاعب بالمعرف: ${targetUserId}`;
-        }
-    } catch (error) {
-        console.error('❌ خطأ في handleFixRegistration:', error);
-        return '❌ حدث خطأ في إصلاح التسجيل.';
-    }
-}
-    // في دالة process، عدّل جزء التحقق من التسجيل:
-
-async process(sender, message) {
-    const { id, name } = sender;
-    const parts = message.trim().split(/\s+/);
-    const command = parts[0].toLowerCase();
-    const args = parts.slice(1);
-
-    console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
-    console.log(`🔍 حالة التسجيل للمستخدم: ${id}`);
-
-    // التحقق من الردود التلقائية أولاً
-    const autoResponse = this.autoResponseSystem.findAutoResponse(message);
-    if (autoResponse) {
-        console.log(`🤖 رد تلقائي على: "${message}"`);
-        return autoResponse;
-    }
-
-    try {
-        let player = await Player.findOne({ userId: id });
-
-        if (!player) {
-            player = await Player.createNew(id, name);
-            console.log(`🎮 تم إنشاء لاعب جديد: ${player.name} (${id})`);
-        }
-
-        console.log(`📊 حالة التسجيل الحالية: ${player.registrationStatus}`);
-
-        if (player.banned) {
-            return '❌ تم حظرك من اللعبة. لا يمكنك استخدام الأوامر.';
-        }
-
-        // 🛠️ إصلاح: التحقق من حالة التسجيل بشكل صحيح
-        const registrationStatus = player.registrationStatus;
-        
-        // إذا كان الأمر مسموحاً قبل الموافقة
-        if (this.allowedBeforeApproval.includes(command)) {
-            console.log(`✅ الأمر مسموح قبل التسجيل: ${command}`);
-            const result = await this.commands[command](player, args, id);
-            
-            if (typeof result === 'string') {
-                await player.save();
+            if (!player) {
+                player = await Player.createNew(id, name);
+                console.log(`🎮 تم إنشاء لاعب جديد: ${player.name} (${id})`);
             }
 
-            return result;
-        }
+            console.log(`📊 حالة التسجيل الحالية: ${player.registrationStatus}`);
 
-        // إذا لم يكمل التسجيل
-        if (registrationStatus !== 'completed') {
-            console.log(`⏳ اللاعب لم يكمل التسجيل بعد: ${registrationStatus}`);
+            if (player.banned) {
+                return '❌ تم حظرك من اللعبة. لا يمكنك استخدام الأوامر.';
+            }
+
+            // 🛠️ إصلاح: التحقق من حالة التسجيل بشكل صحيح
+            const registrationStatus = player.registrationStatus;
             
-            if (registrationStatus === 'pending') {
-                return `⏳ **حسابك قيد الانتظار للموافقة**
+            // إذا كان الأمر مسموحاً قبل الموافقة
+            if (this.allowedBeforeApproval.includes(command)) {
+                console.log(`✅ الأمر مسموح قبل التسجيل: ${command}`);
+                const result = await this.commands[command](player, args, id);
+                
+                if (typeof result === 'string') {
+                    await player.save();
+                }
+
+                return result;
+            }
+
+            // إذا لم يكمل التسجيل
+            if (registrationStatus !== 'completed') {
+                console.log(`⏳ اللاعب لم يكمل التسجيل بعد: ${registrationStatus}`);
+                
+                if (registrationStatus === 'pending') {
+                    return `⏳ **حسابك قيد الانتظار للموافقة**
 
 📝 **لإكمال التسجيل:**
 1. اكتب "معرفي" للحصول على معرفك
@@ -284,13 +140,13 @@ async process(sender, message) {
 3. انتظر الموافقة
 
 بعد الموافقة ستتم مطالبتك باختيار الجنس والاسم.`;
-            } 
-            else if (registrationStatus === 'approved') {
-                const step = this.registrationSystem.getRegistrationStep(id);
-                console.log(`🔍 خطوة التسجيل الحالية: ${step?.step}`);
-                
-                if (step && step.step === 'gender_selection') {
-                    return `👋 **مرحباً ${player.name}!**
+                } 
+                else if (registrationStatus === 'approved') {
+                    const step = this.registrationSystem.getRegistrationStep(id);
+                    console.log(`🔍 خطوة التسجيل الحالية: ${step?.step}`);
+                    
+                    if (step && step.step === 'gender_selection') {
+                        return `👋 **مرحباً ${player.name}!**
 
 📝 **الخطوة التالية: اختيار الجنس**
 
@@ -298,9 +154,9 @@ async process(sender, message) {
 • اكتب "أنثى" 👧 للجنس الأنثوي
 
 سيحدد هذا مظهر بطاقة بروفايلك في اللعبة.`;
-                } 
-                else if (step && step.step === 'name_selection') {
-                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
+                    } 
+                    else if (step && step.step === 'name_selection') {
+                        return `📝 **الآن يرجى اختيار اسم إنجليزي**
 
 ⚡ **الشروط:**
 • بين 3 إلى 9 أحرف
@@ -310,45 +166,46 @@ async process(sender, message) {
 💡 **مثال:** اسمي John
 
 اكتب "اسمي [الاسم]" لاختيار اسمك.`;
-                }
-                else {
-                    // إذا لم تكن هناك خطوة محددة، نطلب اختيار الجنس
-                    this.registrationSystem.registrationSteps.set(id, {
-                        step: 'gender_selection',
-                        player: player
-                    });
-                    
-                    return `👋 **تمت الموافقة على حسابك!**
+                    }
+                    else {
+                        // إذا لم تكن هناك خطوة محددة، نطلب اختيار الجنس
+                        this.registrationSystem.registrationSteps.set(id, {
+                            step: 'gender_selection',
+                            player: player
+                        });
+                        
+                        return `👋 **تمت الموافقة على حسابك!**
 
 📝 **الرجاء اختيار جنسك:**
 • اكتب "ذكر" 👦
 • اكتب "أنثى" 👧`;
+                    }
                 }
             }
-        }
 
-        // إذا كان مكتملاً، ننفذ الأمر بشكل طبيعي
-        console.log(`✅ اللاعب مكتمل التسجيل، معالجة الأمر: ${command}`);
-        if (this.commands[command]) {
-            const result = await this.commands[command](player, args, id);
-            
-            if (typeof result === 'string') {
-                await player.save();
+            // إذا كان مكتملاً، ننفذ الأمر بشكل طبيعي
+            console.log(`✅ اللاعب مكتمل التسجيل، معالجة الأمر: ${command}`);
+            if (this.commands[command]) {
+                const result = await this.commands[command](player, args, id);
+                
+                if (typeof result === 'string') {
+                    await player.save();
+                }
+
+                return result;
+            } else {
+                return await this.handleUnknown(command, player);
             }
-
-            return result;
-        } else {
-            return await this.handleUnknown(command, player);
+        } catch (error) {
+            console.error('❌ خطأ في معالجة الأمر:', error);
+            return `❌ حدث خطأ أثناء معالجة طلبك: ${error.message}`;
         }
-    } catch (error) {
-        console.error('❌ خطأ في معالجة الأمر:', error);
-        return `❌ حدث خطأ أثناء معالجة طلبك: ${error.message}`;
     }
- }
 
-    // جميع دوال المعالجة تبقى كما هي...
     async handleStart(player) {
         try {
+            console.log('🎮 تنفيذ أمر البدء...');
+            
             if (player.isPending()) {
                 return this.registrationSystem.startRegistration(player.userId, player.name);
             } else if (player.isApprovedButNotCompleted()) {
@@ -377,44 +234,54 @@ async process(sender, message) {
 اكتب "مساعدة" لرؤية الأوامر المتاحة.`;
         } catch (error) {
             console.error('❌ خطأ في handleStart:', error);
-            return '❌ حدث خطأ في بدء اللعبة.';
+            throw error;
         }
     }
 
     async handleGetId(player) {
         try {
+            console.log('🆔 تنفيذ أمر المعرف...');
             return `🆔 **معرفك هو:** \`${player.userId}\`
 
-📨 **يرجى إرسال هذا المعرف إلى المدير للحصول على الموافقة.**`;
+📨 **يرجى إرسال هذا المعرف إلى المدير للحصول على الموافقة.**
+
+بعد الموافقة، ستتم مطالبتك باختيار الجنس والاسم.`;
         } catch (error) {
+            console.error('❌ خطأ في handleGetId:', error);
             return '❌ حدث خطأ في جلب المعرف.';
         }
     }
 
     async handleGenderMale(player) {
         try {
+            console.log('👦 تنفيذ أمر اختيار الجنس ذكر...');
             return await this.registrationSystem.setGender(player.userId, 'male');
         } catch (error) {
+            console.error('❌ خطأ في handleGenderMale:', error);
             return '❌ حدث خطأ في اختيار الجنس.';
         }
     }
 
     async handleGenderFemale(player) {
         try {
+            console.log('👧 تنفيذ أمر اختيار الجنس أنثى...');
             return await this.registrationSystem.setGender(player.userId, 'female');
         } catch (error) {
+            console.error('❌ خطأ في handleGenderFemale:', error);
             return '❌ حدث خطأ في اختيار الجنس.';
         }
     }
 
     async handleSetName(player, args) {
         try {
+            console.log('📝 تنفيذ أمر تعيين الاسم...');
             const name = args.join(' ');
             if (!name) {
                 return '❌ يرجى تحديد اسم. مثال: اسمي John';
             }
             return await this.registrationSystem.setName(player.userId, name);
         } catch (error) {
+            console.error('❌ خطأ في handleSetName:', error);
             return '❌ حدث خطأ في تعيين الاسم.';
         }
     }
@@ -434,6 +301,7 @@ async process(sender, message) {
 • موافقة_لاعب [المعرف] - الموافقة على لاعب محدد
 • تغيير_اسم [الاسم] - تغيير اسمك
 • تغيير_اسم [المعرف] [الاسم] - تغيير اسم لاعب آخر
+• اصلاح_تسجيل [المعرف] - إصلاح مشاكل التسجيل
 
 🤖 **إدارة الردود التلقائية:**
 • اضف_رد [المفتاح] [الرد] - إضافة رد تلقائي
@@ -441,16 +309,21 @@ async process(sender, message) {
 • عرض_الردود - عرض جميع الردود
 
 📊 **معلومات النظام:**
-• مدير - عرض هذه القائمة`;
+• مدير - عرض هذه القائمة
+
+💡 **مثال:**
+اضف_رد شكراً شكراً لك! أسعدني مساعدتك 😊`;
         } catch (error) {
+            console.error('❌ خطأ في handleAdminCommands:', error);
             return '❌ حدث خطأ في عرض أوامر المدير.';
         }
     }
 
     async handleApprovePlayer(player, args, senderId) {
         try {
-            const ADMIN_PSID = process.env.ADMIN_PSID;
+            console.log('✅ تنفيذ أمر الموافقة على اللاعب...');
             
+            const ADMIN_PSID = process.env.ADMIN_PSID;
             if (senderId !== ADMIN_PSID) {
                 return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
             }
@@ -463,7 +336,7 @@ async process(sender, message) {
 
                 let message = '⏳ **اللاعبين المنتظرين للموافقة:**\n\n';
                 pendingPlayers.forEach((p, index) => {
-                    message += `${index + 1}. ${p.name} - \`${p.userId}\`\n`;
+                    message += `${index + 1}. ${p.name} - \`${p.userId}\` - ${new Date(p.createdAt).toLocaleDateString('ar-SA')}\n`;
                 });
                 
                 message += '\nللموافقة، اكتب: موافقة_لاعب [المعرف]';
@@ -473,6 +346,7 @@ async process(sender, message) {
             const targetUserId = args[0];
             return await this.registrationSystem.approvePlayer(targetUserId, senderId);
         } catch (error) {
+            console.error('❌ خطأ في handleApprovePlayer:', error);
             return '❌ حدث خطأ في الموافقة على اللاعب.';
         }
     }
@@ -486,7 +360,7 @@ async process(sender, message) {
             }
 
             if (args.length < 2) {
-                return '❌ صيغة الأمر: اضف_رد [المفتاح] [الرد]';
+                return '❌ صيغة الأمر: اضف_رد [المفتاح] [الرد]\nمثال: اضف_رد شكراً شكراً لك! 😊';
             }
 
             const trigger = args[0];
@@ -497,8 +371,11 @@ async process(sender, message) {
             return `✅ **تم إضافة رد تلقائي بنجاح!**
 
 🔑 المفتاح: ${trigger}
-💬 الرد: ${response}`;
+💬 الرد: ${response}
+
+سيتم الآن الرد تلقائياً عندما يكتب أي لاعب: "${trigger}"`;
         } catch (error) {
+            console.error('❌ خطأ في handleAddResponse:', error);
             return '❌ حدث خطأ في إضافة الرد التلقائي.';
         }
     }
@@ -512,18 +389,22 @@ async process(sender, message) {
             }
 
             if (args.length === 0) {
-                return '❌ يرجى تحديد المفتاح المراد إزالته.';
+                return '❌ يرجى تحديد المفتاح المراد إزالته.\nمثال: ازل_رد شكراً';
             }
 
             const trigger = args[0];
             const success = this.autoResponseSystem.removeResponse(trigger);
 
             if (success) {
-                return `✅ **تم إزالة الرد التلقائي بنجاح!**`;
+                return `✅ **تم إزالة الرد التلقائي بنجاح!**
+
+🔑 المفتاح: ${trigger}
+❌ لم يعد النظام يرد على هذا النص تلقائياً.`;
             } else {
                 return `❌ لم يتم العثور على رد تلقائي للمفتاح: ${trigger}`;
             }
         } catch (error) {
+            console.error('❌ خطأ في handleRemoveResponse:', error);
             return '❌ حدث خطأ في إزالة الرد التلقائي.';
         }
     }
@@ -547,11 +428,15 @@ async process(sender, message) {
             
             responseKeys.forEach((key, index) => {
                 const response = responses[key];
-                message += `${index + 1}. 🔑 **${key}**\n   💬 ${response}\n\n`;
+                const preview = response.length > 50 ? response.substring(0, 50) + '...' : response;
+                message += `${index + 1}. 🔑 **${key}**\n   💬 ${preview}\n\n`;
             });
+
+            message += `📊 **الإجمالي:** ${responseKeys.length} رد تلقائي`;
 
             return message;
         } catch (error) {
+            console.error('❌ خطأ في handleShowResponses:', error);
             return '❌ حدث خطأ في عرض الردود التلقائية.';
         }
     }
@@ -562,12 +447,16 @@ async process(sender, message) {
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
+            console.log('📊 تنفيذ أمر الحالة...');
             return this.profileSystem.getPlayerStatus(player); 
         } catch (error) {
+            console.error('❌ خطأ في handleStatus:', error);
             return `📊 **حالة ${player.name}**
-المستوى: ${player.level}
-الذهب: ${player.gold}
-الصحة: ${player.health}/${player.maxHealth}`;
+
+✨ المستوى: ${player.level}
+💰 الذهب: ${player.gold} غولد
+❤️ الصحة: ${player.health}/${player.maxHealth}
+📍 الموقع: ${player.currentLocation}`;
         }
     }
 
@@ -576,6 +465,8 @@ async process(sender, message) {
             if (!player.isApproved()) {
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
+            
+            console.log('📋 تنفيذ أمر البروفايل...');
             
             const imagePath = await this.cardGenerator.generateCard(player);
 
@@ -586,6 +477,7 @@ async process(sender, message) {
             };
             
         } catch (error) {
+            console.error('❌ خطأ في handleProfile:', error);
             return '❌ حدث خطأ أثناء إنشاء بطاقة البروفايل.';
         }
     }
@@ -629,9 +521,8 @@ async process(sender, message) {
 
             return helpMessage;
         } catch (error) {
-            return `🆘 **أوامر مغارة غولد**
-بدء - بدء اللعبة
-مساعدة - عرض الأوامر`;
+            console.error('❌ خطأ في handleHelp:', error);
+            throw error;
         }
     }
 
@@ -641,10 +532,22 @@ async process(sender, message) {
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
-            return this.profileSystem.getPlayerInventory(player);
+            console.log('🎒 تنفيذ أمر الحقيبة...');
+            const result = this.profileSystem.getPlayerInventory(player); 
+            console.log('✅ نتيجة الحقيبة:', result);
+            return result;
         } catch (error) {
-            return `🎒 **حقيبة ${player.name}**
-${player.inventory?.length || 0} عنصر`;
+            console.error('❌ خطأ في handleInventory:', error);
+
+            if (player.inventory.length === 0) {
+                return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
+            }
+
+            let text = `🎒 **حقيبة ${player.name}**\n\n`;
+            player.inventory.forEach(item => {
+                text += `• ${item.name} ×${item.quantity}\n`;
+            });
+            return text;
         }
     }
 
@@ -654,9 +557,17 @@ ${player.inventory?.length || 0} عنصر`;
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
-            return this.worldMap.showMap(player);
+            console.log('🗺️ تنفيذ أمر الخريطة...');
+            const result = this.worldMap.showMap(player);
+            console.log('✅ نتيجة الخريطة:', result);
+            return result;
         } catch (error) {
+            console.error('❌ خطأ في handleMap:', error);
             return `🗺️ **خريطة مغارة غولد**
+
+• القرية
+• الغابة الخضراء
+
 أنت في: ${player.currentLocation}`;
         }
     }
@@ -667,10 +578,15 @@ ${player.inventory?.length || 0} عنصر`;
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
+            console.log('🌿 تنفيذ أمر التجميع...');
             const result = this.gatheringSystem.gatherResources(player, player.currentLocation);
+            console.log('✅ نتيجة التجميع:', result);
+
+            if (result.error) return result.error;
             return result.message;
         } catch (error) {
-            return '❌ حدث خطأ أثناء جمع الموارد.';
+            console.error('❌ خطأ في handleGather:', error);
+            return '❌ حدث خطأ أثناء جمع الموارد. حاول مرة أخرى.';
         }
     }
 
@@ -680,10 +596,15 @@ ${player.inventory?.length || 0} عنصر`;
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
+            console.log('⚔️ تنفيذ أمر المغامرة...');
             const result = this.battleSystem.startBattle(player, player.currentLocation);
+            console.log('✅ نتيجة المغامرة:', result);
+
+            if (result.error) return result.error;
             return result.message;
         } catch (error) {
-            return '❌ حدث خطأ أثناء بدء المغامرة.';
+            console.error('❌ خطأ في handleAdventure:', error);
+            return '❌ حدث خطأ أثناء بدء المغامرة. حاول مرة أخرى.';
         }
     }
 
@@ -693,10 +614,15 @@ ${player.inventory?.length || 0} عنصر`;
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
+            console.log('🎯 تنفيذ أمر الهجوم...');
             const result = this.battleSystem.attack(player);
+            console.log('✅ نتيجة الهجوم:', result);
+
+            if (result.error) return result.error;
             return result.message;
         } catch (error) {
-            return '❌ حدث خطأ أثناء الهجوم.';
+            console.error('❌ خطأ في handleAttack:', error);
+            return '❌ حدث خطأ أثناء الهجوم. حاول مرة أخرى.';
         }
     }
 
@@ -706,10 +632,15 @@ ${player.inventory?.length || 0} عنصر`;
                 return '❌ يجب إكمال التسجيل أولاً لاستخدام هذا الأمر.';
             }
             
+            console.log('🏃‍♂️ تنفيذ أمر الهروب...');
             const result = this.battleSystem.escape(player);
+            console.log('✅ نتيجة الهروب:', result);
+
+            if (result.error) return result.error;
             return result.message;
         } catch (error) {
-            return '❌ حدث خطأ أثناء الهروب.';
+            console.error('❌ خطأ في handleEscape:', error);
+            return '❌ حدث خطأ أثناء الهروب. حاول مرة أخرى.';
         }
     }
 
@@ -725,16 +656,46 @@ ${player.inventory?.length || 0} عنصر`;
             await player.save();
             
             if (typeof result === 'string' && result.includes('تم تحديث اسم اللاعب')) {
+                console.log('✅ تم تغيير الاسم بنجاح، سيتم الآن إرسال البطاقة المحدثة...');
                 return this.handleProfile(player);
             }
             
             return result;
         } catch (error) {
+            console.error('❌ خطأ في handleChangeName:', error);
             return '❌ حدث خطأ أثناء محاولة تغيير الاسم.';
+        }
+    }
+
+    async handleFixRegistration(player, args, senderId) {
+        try {
+            const ADMIN_PSID = process.env.ADMIN_PSID;
+            
+            if (senderId !== ADMIN_PSID) {
+                return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
+            }
+
+            let targetUserId = senderId;
+            if (args.length > 0) {
+                targetUserId = args[0];
+            }
+
+            const success = await this.registrationSystem.resetRegistration(targetUserId);
+            
+            if (success) {
+                return `✅ **تم إصلاح التسجيل للمستخدم ${targetUserId}**
+                
+🔄 تم إعادة تعيين حالة التسجيل. يمكن للمستخدم الآن البدء من جديد بأمر "بدء".`;
+            } else {
+                return `❌ لم يتم العثور على لاعب بالمعرف: ${targetUserId}`;
+            }
+        } catch (error) {
+            console.error('❌ خطأ في handleFixRegistration:', error);
+            return '❌ حدث خطأ في إصلاح التسجيل.';
         }
     }
 
     async handleUnknown(command, player) {
         return `❓ **أمر غير معروف**: "${command}"\n\nاكتب "مساعدة" لرؤية الأوامر المتاحة.`;
     }
-        }
+                }
