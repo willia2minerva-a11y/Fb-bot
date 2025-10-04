@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import { MessengerClient } from 'messenger-api-helper'; // تم تغيير الحزمة
+import pkg from 'messenger-api-helper'; // تم تعديل الاستيراد
+const { MessengerClient } = pkg; // تم إضافة هذا السطر
 import express from 'express';
 import CommandHandler from './core/CommandHandler.js';
 import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js';
@@ -55,7 +56,7 @@ function startCleanupInterval() {
 // إرسال رسالة نصية
 async function sendTextMessage(senderId, text) {
   try {
-    await client.sendText(senderId, text); // تم تعديل الأمر
+    await client.sendText(senderId, text);
     console.log(`✅ تم إرسال رسالة نصية إلى ${senderId}`);
   } catch (error) {
     console.error('❌ خطأ في إرسال الرسالة النصية:', error);
@@ -65,13 +66,12 @@ async function sendTextMessage(senderId, text) {
 // إرسال صورة
 async function sendImageMessage(senderId, imagePath, caption = '') {
   try {
-    await client.sendAttachment(senderId, 'image', imagePath, { // تم تعديل الأمر
+    await client.sendAttachment(senderId, 'image', imagePath, {
       isReusable: true,
       caption: caption,
     });
     console.log(`✅ تم إرسال صورة إلى ${senderId}`);
     
-    // حذف الملف المؤقت بعد الإرسال
     setTimeout(() => {
       try {
         if (fs.existsSync(imagePath)) {
@@ -86,7 +86,6 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
   } catch (error) {
     console.error('❌ خطأ في إرسال الصورة:', error);
     
-    // في حالة فشل إرسال الصورة، أرسل النص البديل
     if (caption) {
       await sendTextMessage(senderId, caption);
     }
@@ -109,15 +108,12 @@ async function handleMessage(senderId, message) {
     
     const response = await commandHandler.process(sender, message);
     
-    // إذا كان الرد عبارة عن صورة
     if (response && response.type === 'image') {
       await sendImageMessage(senderId, response.path, response.caption);
     } 
-    // إذا كان الرد نصاً عادياً
     else if (typeof response === 'string') {
       await sendTextMessage(senderId, response);
     }
-    // إذا كان الرد كائن به رسالة
     else if (response && response.message) {
       await sendTextMessage(senderId, response.message);
     }
