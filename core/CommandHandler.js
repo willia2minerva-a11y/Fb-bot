@@ -12,7 +12,6 @@ export default class CommandHandler {
     console.log('🔄 تهيئة CommandHandler...');
 
     try {
-      // تهيئة الأنظمة الأساسية
       this.battleSystem = new BattleSystem();
       this.travelSystem = new TravelSystem();
       this.worldMap = new WorldMap(this.travelSystem);
@@ -21,7 +20,6 @@ export default class CommandHandler {
       this.profileSystem = new ProfileSystem();
       this.cardGenerator = new ProfileCardGenerator(); 
 
-      // الأوامر الأساسية
       this.commands = {
         'بدء': this.handleStart.bind(this),
         'حالتي': this.handleStatus.bind(this),
@@ -33,8 +31,6 @@ export default class CommandHandler {
         'مغامرة': this.handleAdventure.bind(this),
         'هجوم': this.handleAttack.bind(this),
         'هروب': this.handleEscape.bind(this),
-        
-        // 🆕 إضافة أمر تغيير الاسم
         'تغيير_اسم': this.handleChangeName.bind(this)
       };
 
@@ -45,11 +41,8 @@ export default class CommandHandler {
     }
   }
 
-  // 🆕 تم تعديل دالة process لتمرير الحجج ومعرف المرسل
   async process(sender, message) {
     const { id, name } = sender;
-    
-    // 🆕 تقسيم الرسالة إلى أمر وحجج
     const parts = message.trim().split(/\s+/);
     const command = parts[0].toLowerCase();
     const args = parts.slice(1);
@@ -75,17 +68,14 @@ export default class CommandHandler {
       console.log(`🔍 البحث عن الأمر: "${command}"`);
       if (this.commands[command]) {
         console.log(`✅ تم العثور على الأمر، تنفيذه...`);
-        
-        // 🆕 تمرير player, args, و senderId (وهو id) لجميع الدوال
         const result = await this.commands[command](player, args, id);
-
-        // لا نقوم بحفظ اللاعب هنا، لأن بعض الأوامر مثل "هجوم" أو "تجميع"
-        // تقوم بحفظه بعد كل إجراء. هذا يمنع الحفظ المتكرر.
-        // يجب أن تحتوي الأوامر التي تعدل بيانات اللاعب (مثل changeName) على save()
-        // لكننا سنسمح لـ changeName بتمرير النتيجة ليتم حفظها في النهاية
-        if (typeof result === 'string' || (result && result.message)) {
-            await player.save();
-            console.log('✅ تم حفظ بيانات اللاعب');
+        
+        // This is a common pattern for commands that modify player data
+        // and need to save it. If the result is a string, it means we don't need
+        // to wait for a special response type (like an image) so we can save.
+        if (typeof result === 'string') {
+          await player.save();
+          console.log('✅ تم حفظ بيانات اللاعب');
         }
 
         return result;
@@ -93,7 +83,6 @@ export default class CommandHandler {
         console.log('❌ أمر غير معروف');
         return await this.handleUnknown(command, player);
       }
-
     } catch (error) {
       console.error('❌ خطأ تفصيلي في معالجة الأمر:');
       console.error('📝 رسالة الخطأ:', error.message);
@@ -128,7 +117,6 @@ export default class CommandHandler {
   async handleStatus(player) {
     try {
       console.log('📊 تنفيذ أمر الحالة...');
-      // ⚠️ يجب أن تتأكد أن getPlayerStatus تستقبل لاعب فقط ولا تحتاج args/senderId
       return this.profileSystem.getPlayerStatus(player); 
     } catch (error) {
       console.error('❌ خطأ في handleStatus:', error);
@@ -162,7 +150,6 @@ export default class CommandHandler {
   async handleHelp(player) {
     try {
       console.log('🆘 تنفيذ أمر المساعدة...');
-      // 🆕 إضافة أمر المدير إلى قائمة المساعدة
       return `🆘 **أوامر مغارة غولد**
 
 🎯 **الأساسية:**
@@ -196,9 +183,6 @@ export default class CommandHandler {
       console.log('🗺️ تنفيذ أمر الخريطة...');
       const result = this.worldMap.showMap(player);
       console.log('✅ نتيجة الخريطة:', result);
-      // يجب أن يتم حفظ اللاعب هنا إذا كان showMap يقوم بتغيير بياناته
-      // بما أن الكود الأصلي كان يحتوي على save() في دالة process
-      // سنعتمد على دالة process في الحفظ.
       return result;
     } catch (error) {
       console.error('❌ خطأ في handleMap:', error);
@@ -218,7 +202,6 @@ export default class CommandHandler {
       console.log('✅ نتيجة التجميع:', result);
 
       if (result.error) return result.error;
-      // إذا كان result هو كائن به message، ستقوم دالة process بالحفظ
       return result.message;
     } catch (error) {
       console.error('❌ خطأ في handleGather:', error);
@@ -243,14 +226,12 @@ export default class CommandHandler {
   async handleInventory(player) {
     try {
       console.log('🎒 تنفيذ أمر الحقيبة...');
-      // ⚠️ يجب أن تتأكد أن getPlayerInventory تستقبل لاعب فقط ولا تحتاج args/senderId
       const result = this.profileSystem.getPlayerInventory(player); 
       console.log('✅ نتيجة الحقيبة:', result);
       return result;
     } catch (error) {
       console.error('❌ خطأ في handleInventory:', error);
 
-      // عرض بدائي للحقيبة
       if (player.inventory.length === 0) {
         return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
       }
@@ -294,12 +275,17 @@ export default class CommandHandler {
   // --------------------------------------------------
   // 🆕 دالة معالجة الأمر الجديد: تغيير الاسم
   // --------------------------------------------------
-  // هذه الدالة تتلقى player, args, و senderId (معرف المرسل)
   async handleChangeName(player, args, senderId) {
-      // تفويض المهمة إلى دالة changeName الموجودة في ProfileSystem
       try {
           const result = await this.profileSystem.changeName(player, args, senderId);
-          // لا حاجة لـ player.save() هنا لأن دالة process ستقوم بذلك
+          await player.save(); // حفظ بيانات اللاعب بعد تغيير الاسم
+          
+          // إذا كان تغيير الاسم ناجحاً، قم باستدعاء دالة handleProfile مباشرة لإرسال البطاقة الجديدة
+          if (typeof result === 'string' && result.includes('تم تحديث اسم اللاعب')) {
+              console.log('✅ تم تغيير الاسم بنجاح، سيتم الآن إرسال البطاقة المحدثة...');
+              return this.handleProfile(player);
+          }
+          
           return result;
       } catch (error) {
           console.error('❌ خطأ في handleChangeName:', error);
@@ -310,4 +296,4 @@ export default class CommandHandler {
   async handleUnknown(command, player) {
     return `❓ **أمر غير معروف**: "${command}"\n\nاكتب "مساعدة" لرؤية الأوامر المتاحة.`;
   }
-    }
+          }
