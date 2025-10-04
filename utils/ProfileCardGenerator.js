@@ -146,4 +146,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);
         }
     }
-                                  }
+    }
