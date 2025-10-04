@@ -8,29 +8,26 @@ const __dirname = path.dirname(__filename);
 
 export class ProfileCardGenerator {
     constructor() {
-        this.fontFamily = 'Arial'; // خط افتراضي
+        this.fontFamily = 'Arial'; // استخدام خط افتراضي
         
         try {
-            // إنشاء مجلد الخطوط إذا لم يكن موجوداً
+            // محاولة تسجيل الخط مع معالجة الأخطاء
             const fontsDir = path.join(process.cwd(), 'assets', 'fonts');
             const fontPath = path.join(fontsDir, 'Cinzel-VariableFont_wght.ttf');
             
-            // التحقق من وجود المجلد والملف
-            try {
-                await fs.mkdir(fontsDir, { recursive: true });
-                
-                if (fs.existsSync(fontPath)) {
-                    registerFont(fontPath, { family: 'Cinzel' });
-                    this.fontFamily = 'Cinzel';
-                    console.log('✅ تم تسجيل خط Cinzel بنجاح.');
-                } else {
-                    console.warn('⚠️ خط Cinzel غير موجود، سيتم استخدام الخط الافتراضي');
-                }
-            } catch (error) {
-                console.warn('⚠️ لا يمكن الوصول إلى مجلد الخطوط، استخدام الخط الافتراضي');
+            // إنشاء المجلد إذا لم يكن موجوداً
+            fs.mkdir(fontsDir, { recursive: true }).catch(() => {});
+            
+            // استخدام الخط إذا كان موجوداً
+            if (fs.existsSync && fs.existsSync(fontPath)) {
+                registerFont(fontPath, { family: 'Cinzel' });
+                this.fontFamily = 'Cinzel';
+                console.log('✅ تم تسجيل خط Cinzel بنجاح.');
+            } else {
+                console.log('⚠️ استخدام الخط الافتراضي (Arial)');
             }
         } catch (error) {
-            console.error('❌ فشل تسجيل خط Cinzel:', error.message);
+            console.log('⚠️ استخدام الخط الافتراضي بسبب الخطأ:', error.message);
         }
     }
 
@@ -42,35 +39,22 @@ export class ProfileCardGenerator {
         const context = canvas.getContext('2d');
 
         try {
-            // استخدام خلفية افتراضية إذا لم توجد الصور
-            let background;
-            try {
-                let backgroundFileName = 'profile_card_male.png';
-                if (player.gender && player.gender.toLowerCase() === 'female') {
-                    backgroundFileName = 'profile_card_female.png';
-                }
-                
-                const backgroundPath = path.join(process.cwd(), 'assets', 'images', backgroundFileName);
-                background = await loadImage(backgroundPath);
-            } catch (error) {
-                // خلفية افتراضية إذا لم توجد الصور
-                context.fillStyle = '#1a365d';
-                context.fillRect(0, 0, width, height);
-                
-                // إضافة تدرج لوني
-                const gradient = context.createLinearGradient(0, 0, width, height);
-                gradient.addColorStop(0, '#2d3748');
-                gradient.addColorStop(1, '#4a5568');
-                context.fillStyle = gradient;
-                context.fillRect(0, 0, width, height);
-                
-                console.log('🎨 استخدام خلفية افتراضية');
-            }
-
-            if (background) {
-                context.drawImage(background, 0, 0, width, height);
-            }
+            // خلفية افتراضية إذا لم توجد الصور
+            context.fillStyle = '#1a365d';
+            context.fillRect(0, 0, width, height);
             
+            // إضافة تدرج لوني جميل
+            const gradient = context.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, '#2d3748');
+            gradient.addColorStop(1, '#4a5568');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, width, height);
+            
+            // إطار زخرفي
+            context.strokeStyle = '#e2e8f0';
+            context.lineWidth = 4;
+            context.strokeRect(10, 10, width - 20, height - 20);
+
             // إعدادات النص
             context.shadowColor = 'rgba(0,0,0,0.6)';
             context.shadowBlur = 8;
@@ -115,7 +99,7 @@ export class ProfileCardGenerator {
             const buffer = canvas.toBuffer('image/png');
             await fs.writeFile(outputPath, buffer);
             
-            console.log(`✅ تم إنشاء بطاقة بروفايل للاعب ${player.name} في: ${outputPath}`);
+            console.log(`✅ تم إنشاء بطاقة بروفايل للاعب ${player.name}`);
 
             return outputPath;
         } catch (error) {
@@ -146,4 +130,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);
         }
     }
-    }
+                    }
