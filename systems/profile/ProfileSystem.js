@@ -1,14 +1,13 @@
-import Player from '../core/Player.js';
-import { ProfileCardGenerator } from '../../utils/ProfileCardGenerator.js';
+// ⚠️ تم تعديل المسار لاستيراد Player.js من مجلد core/
+import Player from '../../core/Player.js';
 import 'dotenv/config'; 
+// إذا كنت تستخدم ProfileCardGenerator في هذا الملف، يجب أن يكون استيرادها موجودًا هنا.
+// سنفترض أن ProfileCardGenerator يتم استخدامه في CommandHandler فقط.
 
-const cardGenerator = new ProfileCardGenerator();
-
-// تم تحويل دوال النظام إلى دوال أوامر ليتم استيرادها مباشرة في CommandHandler
-export default {
-
-    // دالة مساعدة لإنشاء رسالة حالة اللاعب (Status Message)
-    'حالة': (player) => {
+export class ProfileSystem {
+    
+    // دالة لعرض حالة اللاعب (Status)
+    getPlayerStatus(player) {
         const expProgress = player.experience || 0;
         const requiredExp = player.level * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
@@ -16,7 +15,7 @@ export default {
         // يجب أن تكون getAttackDamage دالة موجودة في نموذج اللاعب
         const attackDamage = player.getAttackDamage ? player.getAttackDamage() : 10;
         const defense = player.level * 2;
-    
+
         return `📊 **حالة ${player.name}**
 ──────────────
 ❤️  الصحة: ${player.health}/${player.maxHealth}
@@ -27,10 +26,10 @@ export default {
 🛡️  الدفاع: ${defense}
 📍  الموقع: ${player.currentLocation}
 🎒  الأغراض: ${player.inventory ? player.inventory.length : 0} نوع`;
-    },
+    }
 
-    // دالة مساعدة لإنشاء رسالة البروفايل (Profile Message)
-    'بروفايل_نصي': (player) => {
+    // دالة لعرض بروفايل اللاعب (Text Profile)
+    getPlayerProfile(player) {
         const expProgress = player.experience || 0;
         const requiredExp = player.level * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
@@ -39,9 +38,9 @@ export default {
         const questsCompleted = player.stats?.questsCompleted || 0;
         const resourcesGathered = player.stats?.resourcesGathered || 0;
         const battlesWon = player.stats?.battlesWon || 0;
-    
+
         const weapon = player.equipment?.weapon ? player.equipment.weapon : 'لا يوجد';
-    
+
         return `📋 **بروفايل ${player.name}**
 ────────────────
 ✨ المستوى: ${player.level} 
@@ -49,18 +48,18 @@ export default {
 ❤️ الصحة: ${player.health}/${player.maxHealth}
 💰 الذهب: ${player.gold}
 ⚔️ السلاح: ${weapon}
-    
+
 🎯 **الإحصائيات:**
 • ⚔️ المعارك: ${battlesWon} فوز
 • 🐉 الوحوش: ${monstersKilled} قتيل
 • 📜 المهام: ${questsCompleted} مكتمل
 • 🌿 الموارد: ${resourcesGathered} مجمع
-    
-📍 **الموقع الحالي:** ${player.currentLocation}`;
-    },
 
-    // دالة مساعدة لإنشاء رسالة الحقيبة (Inventory Message)
-    'حقيبة': (player) => {
+📍 **الموقع الحالي:** ${player.currentLocation}`;
+    }
+
+    // دالة لعرض حقيبة اللاعب (Inventory)
+    getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
             return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
         }
@@ -70,6 +69,7 @@ export default {
             text += `• ${item.name} ×${item.quantity}\n`;
         });
         
+        // إضافة المعدات إذا كانت موجودة
         if (player.equipment) {
             text += `\n⚔️ **المعدات:**\n`;
             text += `• سلاح: ${player.equipment.weapon || 'لا يوجد'}\n`;
@@ -78,30 +78,13 @@ export default {
         }
         
         return text;
-    },
-
-    // 🆕 الأمر 'بروفايلي' الذي يرسل البطاقة
-    'بروفايلي': async (player) => {
-        try {
-            console.log('📋 تنفيذ أمر بروفايل البطاقة...');
-            
-            const imagePath = await cardGenerator.generateCard(player);
-
-            return {
-                type: 'image',
-                path: imagePath,
-                caption: `📋 هذه بطاقة بروفايلك يا ${player.name}!` 
-            };
-        } catch (error) {
-            console.error('❌ خطأ في إنشاء بطاقة البروفايل:', error);
-            return '❌ حدث خطأ أثناء إنشاء بطاقة البروفايل. يرجى إبلاغ المدير.';
-        }
-    },
+    }
     
-    // 🆕 الأمر الجديد: تغيير الاسم (للمدير فقط)
-    'تغيير_اسم': async (player, args, senderId) => {
+    // 🆕 دالة تغيير الاسم الجديدة (تُستخدم بواسطة أمر 'تغيير_اسم')
+    async changeName(player, args, senderId) {
         const ADMIN_ID = process.env.ADMIN_PSTD;
         
+        // 1. التحقق من صلاحية المدير
         if (senderId !== ADMIN_ID) {
             return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
         }
@@ -114,7 +97,8 @@ export default {
 
         let targetPlayer = player;
         
-        // يمكن للمدير تغيير اسمه أو اسم لاعب آخر
+        // 2. التحقق مما إذا كان المدير يغير اسم لاعب آخر (الحجة الأولى هي ID طويل)
+        // إذا كان طول الحجة الأولى كبيراً ويحتوي على أرقام فقط، نفترض أنه ID
         if (args.length > 1 && args[0].length > 10 && !isNaN(args[0])) { 
             const targetId = args[0];
             targetPlayer = await Player.findOne({ userId: targetId });
@@ -126,15 +110,16 @@ export default {
         }
 
         if (!newName) {
-            return 'يرجى تحديد اسم جديد بعد المعرف.';
+            return 'يرجى تحديد اسم جديد بعد المعرف (إذا كنت تغير اسم لاعب آخر).';
         }
 
+        // 3. تطبيق التغيير
         const oldName = targetPlayer.name;
         targetPlayer.name = newName;
-        await targetPlayer.save();
+        // لا نحفظ هنا، دالة CommandHandler.process ستقوم بذلك بشكل تلقائي
 
         console.log(`✅ تم تغيير اسم اللاعب ${oldName} إلى ${newName}`);
         
         return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: **${newName}**`;
     }
-};
+    }
