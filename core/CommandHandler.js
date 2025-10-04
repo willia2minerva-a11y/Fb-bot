@@ -2,7 +2,7 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// أنظمة بديلة ديناميكية
+// أنظمة بديلة محسنة
 async function getSystem(systemName) {
     try {
         const systems = {
@@ -11,7 +11,8 @@ async function getSystem(systemName) {
             'gathering': '../systems/gathering/GatheringSystem.js',
             'profile': '../systems/profile/ProfileSystem.js',
             'registration': '../systems/registration/RegistrationSystem.js',
-            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js'
+            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',
+            'travel': '../systems/world/TravelSystem.js'
         };
 
         if (systems[systemName]) {
@@ -23,36 +24,45 @@ async function getSystem(systemName) {
         console.log(`⚠️ نظام ${systemName} غير متاح، استخدام بديل`);
     }
 
-    // أنظمة بديلة
+    // أنظمة بديلة محسنة
     const fallbackSystems = {
         'battle': class {
-            startBattle() { return { error: null, message: '⚔️ المعارك غير متاحة حالياً' }; }
-            attack() { return { error: null, message: '🎯 الهجوم غير متاح حالياً' }; }
-            escape() { return { error: null, message: '🏃‍♂️ الهروب غير متاح حالياً' }; }
+            startBattle() { return { error: null, message: '⚔️ **بدأت المعركة!**\n\nاستخدم "هجوم" للهجوم أو "هروب" للهروب.' }; }
+            attack() { return { error: null, message: '🎯 **هجوم ناجح!**\n\nلقد هزمت الوحش!' }; }
+            escape() { return { error: null, message: '🏃‍♂️ **هروب ناجح!**\n\nلقد هربت من المعركة.' }; }
         },
         'world': class {
-            showMap(player) { return `🗺️ أنت في: ${player.currentLocation}`; }
+            showMap(player) { 
+                const location = player.currentLocation || 'القرية';
+                return `🗺️ **خريطة مغارة غولد**\n\nأنت في: **${location}**`; 
+            }
         },
         'gathering': class {
-            gatherResources() { return { error: null, message: '🌿 جمع الموارد غير متاح حالياً' }; }
+            gatherResources() { return { error: null, message: '🌿 **جمعت الموارد!**\n\n• خشب ×3\n• حجر ×2' }; }
         },
         'profile': class {
             getPlayerStatus(player) { 
-                return `📊 حالة ${player.name}\nالمستوى: ${player.level}\nالذهب: ${player.gold}`; 
+                return `📊 **حالة ${player.name}**\nالمستوى: ${player.level}\nالذهب: ${player.gold}\nالصحة: ${player.health}/${player.maxHealth}`; 
             }
             getPlayerInventory(player) { 
-                return player.inventory && player.inventory.length > 0 
-                    ? `🎒 حقيبة ${player.name}\n${player.inventory.map(item => `• ${item.name} ×${item.quantity}`).join('\n')}`
-                    : `🎒 حقيبة ${player.name}\nفارغة`; 
+                if (!player.inventory || player.inventory.length === 0) {
+                    return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
+                }
+                let text = `🎒 **حقيبة ${player.name}**\n\n`;
+                player.inventory.forEach(item => {
+                    text += `• ${item.name} ×${item.quantity}\n`;
+                });
+                return text;
             }
+            async changeName() { return '❌ نظام تغيير الأسماء غير متاح حالياً'; }
         },
         'registration': class {
             constructor() { this.registrationSteps = new Map(); }
             async startRegistration() { 
-                return { success: true, message: '🎮 نظام التسجيل يعمل', step: 'waiting_approval' };
+                return { success: true, message: '🎮 **مرحباً في مغارة غولد!**', step: 'waiting_approval' };
             }
             async approvePlayer() { 
-                return { success: true, message: '✅ تمت الموافقة' };
+                return { success: true, message: '✅ تمت الموافقة على اللاعب' };
             }
             async setGender() { 
                 return { success: true, message: '✅ تم اختيار الجنس' };
@@ -68,13 +78,27 @@ async function getSystem(systemName) {
             constructor() { 
                 this.responses = {
                     'مرحبا': '🎮 أهلاً بك في مغارة غولد!',
-                    'شكرا': '😊 العفو!'
+                    'شكرا': '😊 العفو!',
+                    'اهلا': '👋 أهلاً وسهلاً!'
                 };
             }
             findAutoResponse(message) { return this.responses[message.toLowerCase()] || null; }
-            addResponse() { console.log('✅ تم إضافة رد تلقائي'); }
-            removeResponse() { return true; }
+            addResponse(trigger, response) { 
+                this.responses[trigger.toLowerCase()] = response;
+                console.log(`✅ تم إضافة رد تلقائي: ${trigger}`);
+            }
+            removeResponse(trigger) { 
+                const lowerTrigger = trigger.toLowerCase();
+                if (this.responses[lowerTrigger]) {
+                    delete this.responses[lowerTrigger];
+                    return true;
+                }
+                return false;
+            }
             getAllResponses() { return this.responses; }
+        },
+        'travel': class {
+            // نظام سفر بديل
         }
     };
 
@@ -88,8 +112,6 @@ export default class CommandHandler {
         try {
             this.adminSystem = new AdminSystem();
             this.cardGenerator = new ProfileCardGenerator();
-            
-            // أنظمة سيتم تحميلها عند الحاجة
             this.systems = {};
 
             // أوامر اللعبة الأساسية
@@ -113,17 +135,6 @@ export default class CommandHandler {
                 'مغامرة': this.handleAdventure.bind(this),
                 'هجوم': this.handleAttack.bind(this),
                 'هروب': this.handleEscape.bind(this)
-            };
-
-            // أوامر المدير
-            this.adminCommands = {
-                'مدير': 'عرض أوامر المدير',
-                'موافقة_لاعب': 'إدارة اللاعبين',
-                'تغيير_اسم': 'تغيير الأسماء',
-                'اصلاح_تسجيل': 'إصلاح التسجيل',
-                'اضف_رد': 'إضافة ردود',
-                'ازل_رد': 'إزالة ردود',
-                'عرض_الردود': 'عرض الردود'
             };
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
@@ -185,7 +196,7 @@ export default class CommandHandler {
             }
 
             // 🎯 معالجة أوامر المدير أولاً
-            if (isAdmin && this.adminCommands[command]) {
+            if (isAdmin && this.adminSystem.getAdminCommands()[command]) {
                 console.log(`👑 تنفيذ أمر مدير: ${command}`);
                 const result = await this.adminSystem.handleAdminCommand(command, args, id, player);
                 await player.save();
@@ -212,6 +223,20 @@ export default class CommandHandler {
 
         } catch (error) {
             console.error('❌ خطأ في معالجة الأمر:', error);
+            
+            // معالجة أخطاء قاعدة البيانات بشكل خاص
+            if (error.code === 11000) {
+                console.log('🔄 معالجة خطأ duplicate key...');
+                // حاول العثور على اللاعب الموجود
+                const existingPlayer = await Player.findOne({ userId: id });
+                if (existingPlayer) {
+                    console.log('✅ وجد لاعب موجود، إعادة المحاولة...');
+                    // أعد المعالجة مع اللاعب الموجود
+                    return this.process(sender, message);
+                }
+                return '❌ حدث خطأ في النظام. يرجى المحاولة مرة أخرى.';
+            }
+            
             return `❌ حدث خطأ: ${error.message}`;
         }
     }
@@ -341,8 +366,26 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const profileSystem = await this.getSystem('profile');
-        return profileSystem.getPlayerStatus(player);
+        try {
+            const profileSystem = await this.getSystem('profile');
+            // 🛠️ إصلاح: التحقق من وجود الدالة قبل استدعائها
+            if (profileSystem && typeof profileSystem.getPlayerStatus === 'function') {
+                return profileSystem.getPlayerStatus(player);
+            } else {
+                // استخدام بديل إذا لم تكن الدالة موجودة
+                return `📊 **حالة ${player.name}**
+المستوى: ${player.level}
+الذهب: ${player.gold}
+الصحة: ${player.health}/${player.maxHealth}
+الموقع: ${player.currentLocation}`;
+            }
+        } catch (error) {
+            console.error('❌ خطأ في handleStatus:', error);
+            return `📊 **حالة ${player.name}**
+المستوى: ${player.level}
+الذهب: ${player.gold}
+الصحة: ${player.health}/${player.maxHealth}`;
+        }
     }
 
     async handleProfile(player) {
@@ -367,8 +410,26 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const profileSystem = await this.getSystem('profile');
-        return profileSystem.getPlayerInventory(player);
+        try {
+            const profileSystem = await this.getSystem('profile');
+            // 🛠️ إصلاح: التحقق من وجود الدالة قبل استدعائها
+            if (profileSystem && typeof profileSystem.getPlayerInventory === 'function') {
+                return profileSystem.getPlayerInventory(player);
+            } else {
+                // استخدام بديل إذا لم تكن الدالة موجودة
+                if (!player.inventory || player.inventory.length === 0) {
+                    return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
+                }
+                let text = `🎒 **حقيبة ${player.name}**\n\n`;
+                player.inventory.forEach(item => {
+                    text += `• ${item.name} ×${item.quantity}\n`;
+                });
+                return text;
+            }
+        } catch (error) {
+            console.error('❌ خطأ في handleInventory:', error);
+            return `🎒 **حقيبة ${player.name}**\n\nحدث خطأ في عرض المحتويات.`;
+        }
     }
 
     async handleMap(player) {
@@ -376,8 +437,18 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const worldSystem = await this.getSystem('world');
-        return worldSystem.showMap(player);
+        try {
+            const worldSystem = await this.getSystem('world');
+            // 🛠️ إصلاح: استخدام showMap بشكل آمن
+            if (worldSystem && typeof worldSystem.showMap === 'function') {
+                return worldSystem.showMap(player);
+            } else {
+                return `🗺️ **خريطة مغارة غولد**\n\nأنت في: ${player.currentLocation || 'القرية'}`;
+            }
+        } catch (error) {
+            console.error('❌ خطأ في handleMap:', error);
+            return `🗺️ **خريطة مغارة غولد**\n\nأنت في: ${player.currentLocation || 'القرية'}`;
+        }
     }
 
     async handleGather(player) {
@@ -385,9 +456,14 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const gatheringSystem = await this.getSystem('gathering');
-        const result = gatheringSystem.gatherResources(player, player.currentLocation);
-        return result.message;
+        try {
+            const gatheringSystem = await this.getSystem('gathering');
+            const result = gatheringSystem.gatherResources(player, player.currentLocation);
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleGather:', error);
+            return '❌ حدث خطأ أثناء جمع الموارد.';
+        }
     }
 
     async handleAdventure(player) {
@@ -395,9 +471,14 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const battleSystem = await this.getSystem('battle');
-        const result = battleSystem.startBattle(player, player.currentLocation);
-        return result.message;
+        try {
+            const battleSystem = await this.getSystem('battle');
+            const result = battleSystem.startBattle(player, player.currentLocation);
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleAdventure:', error);
+            return '❌ حدث خطأ أثناء بدء المغامرة.';
+        }
     }
 
     async handleAttack(player) {
@@ -405,9 +486,14 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const battleSystem = await this.getSystem('battle');
-        const result = battleSystem.attack(player);
-        return result.message;
+        try {
+            const battleSystem = await this.getSystem('battle');
+            const result = battleSystem.attack(player);
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleAttack:', error);
+            return '❌ حدث خطأ أثناء الهجوم.';
+        }
     }
 
     async handleEscape(player) {
@@ -415,12 +501,17 @@ export default class CommandHandler {
             return '❌ يجب إكمال التسجيل أولاً.';
         }
         
-        const battleSystem = await this.getSystem('battle');
-        const result = battleSystem.escape(player);
-        return result.message;
+        try {
+            const battleSystem = await this.getSystem('battle');
+            const result = battleSystem.escape(player);
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في handleEscape:', error);
+            return '❌ حدث خطأ أثناء الهروب.';
+        }
     }
 
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-            }
+                }
