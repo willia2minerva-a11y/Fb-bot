@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import { Bot, Events } from 'fb-bot';
+import pkg from 'fb-bot';
+const { Bot, Events } = pkg;
 import CommandHandler from './core/CommandHandler.js';
 import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js';
 import fs from 'fs';
@@ -81,8 +82,10 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
     // حذف الملف المؤقت بعد الإرسال
     setTimeout(() => {
       try {
-        fs.unlinkSync(imagePath);
-        console.log(`🧹 تم حذف الملف المؤقت: ${imagePath}`);
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+          console.log(`🧹 تم حذف الملف المؤقت: ${imagePath}`);
+        }
       } catch (deleteError) {
         console.error('❌ خطأ في حذف الملف المؤقت:', deleteError);
       }
