@@ -31,7 +31,6 @@ const playerSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // 🆕 حقول نظام التسجيل الجديد
   registrationStatus: {
     type: String,
     enum: ['pending', 'approved', 'completed'],
@@ -55,7 +54,6 @@ const playerSchema = new mongoose.Schema({
     type: String,
     default: null
   },
-  // الحقول الحالية
   level: {
     type: Number,
     default: 1,
@@ -140,6 +138,12 @@ const playerSchema = new mongoose.Schema({
 // تحديث updatedAt قبل الحفظ
 playerSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  
+  // إنشاء playerId إذا كان مكتملاً ولم يكن موجوداً
+  if (this.registrationStatus === 'completed' && !this.playerId) {
+    this.playerId = `P${Date.now().toString().slice(-6)}`;
+  }
+  
   next();
 });
 
@@ -159,6 +163,10 @@ playerSchema.methods.isApprovedButNotCompleted = function() {
 
 playerSchema.methods.getRegistrationStatus = function() {
   return this.registrationStatus;
+};
+
+playerSchema.methods.getCurrentLocation = function() {
+  return this.currentLocation || 'القرية';
 };
 
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
@@ -379,13 +387,11 @@ playerSchema.statics.createNew = async function(userId, name) {
     const player = new this({
       userId,
       name,
-      // حالة التسجيل الجديدة
       registrationStatus: 'pending',
       gender: null,
       playerId: null,
       approvedAt: null,
       approvedBy: null,
-      // البيانات الأساسية
       level: 1,
       experience: 0,
       gold: 50,
@@ -437,6 +443,16 @@ playerSchema.statics.createNew = async function(userId, name) {
     return player;
   } catch (error) {
     console.error('Error creating new player:', error);
+    
+    // إذا كان خطأ duplicate، حاول العثور على اللاعب الموجود
+    if (error.code === 11000) {
+      const existingPlayer = await this.findOne({ userId });
+      if (existingPlayer) {
+        console.log('✅ وجد لاعب موجود بالفعل:', existingPlayer.name);
+        return existingPlayer;
+      }
+    }
+    
     throw error;
   }
 };
