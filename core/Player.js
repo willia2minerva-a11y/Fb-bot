@@ -31,6 +31,31 @@ const playerSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // 🆕 حقول نظام التسجيل الجديد
+  registrationStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'completed'],
+    default: 'pending'
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female'],
+    default: null
+  },
+  playerId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  approvedBy: {
+    type: String,
+    default: null
+  },
+  // الحقول الحالية
   level: {
     type: Number,
     default: 1,
@@ -118,9 +143,21 @@ playerSchema.pre('save', function(next) {
   next();
 });
 
-// دوال المثيل (Instance Methods)
+// 🆕 دوال جديدة لنظام التسجيل
+playerSchema.methods.isApproved = function() {
+  return this.registrationStatus === 'completed';
+};
+
+playerSchema.methods.isPending = function() {
+  return this.registrationStatus === 'pending';
+};
+
+playerSchema.methods.isApprovedButNotCompleted = function() {
+  return this.registrationStatus === 'approved';
+};
+
+// الدوال الحالية (باقي دوال المثيل)
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
-  // تأكد من وجود inventory
   if (!this.inventory) {
     this.inventory = [];
   }
@@ -138,7 +175,6 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     });
   }
   
-  // تحديث الإحصائيات إذا كان المورد
   if (type === 'resource') {
     if (!this.stats) this.stats = {};
     this.stats.resourcesGathered = (this.stats.resourcesGathered || 0) + quantity;
@@ -190,20 +226,19 @@ playerSchema.methods.addExperience = function(amount) {
   
   if (this.experience >= requiredExp) {
     this.levelUp();
-    return true; // مستوى-up حدث
+    return true;
   }
-  return false; // لم يحدث مستوى-up
+  return false;
 };
 
 playerSchema.methods.levelUp = function() {
   this.level = (this.level || 1) + 1;
   this.experience = 0;
   this.maxHealth = (this.maxHealth || 100) + 20;
-  this.health = this.maxHealth; // تعبئة الصحة بالكامل عند المستوى الجديد
+  this.health = this.maxHealth;
   this.maxMana = (this.maxMana || 50) + 10;
-  this.mana = this.maxMana; // تعبئة المانا بالكامل
+  this.mana = this.maxMana;
   
-  // تحسين المهارات مع كل مستوى
   if (!this.skills) this.skills = { gathering: 1, combat: 1, crafting: 1 };
   this.skills.combat += 0.1;
   this.skills.gathering += 0.1;
@@ -222,7 +257,7 @@ playerSchema.methods.takeDamage = function(amount) {
   if (this.health < 0) {
     this.health = 0;
   }
-  return this.health > 0; // يرجع true إذا لا يزال حياً
+  return this.health > 0;
 };
 
 playerSchema.methods.isAlive = function() {
@@ -234,7 +269,6 @@ playerSchema.methods.respawn = function() {
   this.mana = this.maxMana || 50;
   this.currentLocation = 'القرية';
   
-  // خسارة بعض الذهب عند الموت
   const goldLoss = Math.floor((this.gold || 0) * 0.1);
   this.gold = Math.max(0, (this.gold || 0) - goldLoss);
   
@@ -254,9 +288,9 @@ playerSchema.methods.getCooldown = function(action) {
   
   const cooldown = this.cooldowns[action];
   if (!cooldown || new Date() > cooldown) {
-    return null; // لا يوجد توقيت تبريد أو انتهى
+    return null;
   }
-  return Math.ceil((cooldown - new Date()) / 1000 / 60); // يرجع الدقائق المتبقية
+  return Math.ceil((cooldown - new Date()) / 1000 / 60);
 };
 
 playerSchema.methods.equipItem = function(itemId, slot) {
@@ -265,12 +299,10 @@ playerSchema.methods.equipItem = function(itemId, slot) {
     return false;
   }
   
-  // تأكد من وجود equipment
   if (!this.equipment) {
     this.equipment = { weapon: null, armor: null, tool: null };
   }
   
-  // تأكد من أن العنصر موجود في الحقيبة
   if (!this.getItemQuantity(itemId)) {
     return false;
   }
@@ -297,10 +329,8 @@ playerSchema.methods.getAttackDamage = function() {
   let baseDamage = 10;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
-  // إضافة ضرر بناءً على المستوى
   baseDamage += ((this.level || 1) - 1) * 2;
   
-  // إذا كان هناك سلاح مُجهز
   if (this.equipment && this.equipment.weapon) {
     baseDamage += 5;
   }
@@ -312,10 +342,8 @@ playerSchema.methods.getDefense = function() {
   let baseDefense = 5;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
-  // إضافة دفاع بناءً على المستوى
   baseDefense += ((this.level || 1) - 1) * 1;
   
-  // إذا كان هناك درع مُجهز
   if (this.equipment && this.equipment.armor) {
     baseDefense += 3;
   }
@@ -340,12 +368,19 @@ playerSchema.methods.restoreMana = function(amount) {
   this.mana = Math.min((this.mana || 0) + amount, this.maxMana || 50);
 };
 
-// دوال ثابتة (Static Methods)
+// 🆕 تعديل دالة الإنشاء لدعم نظام التسجيل
 playerSchema.statics.createNew = async function(userId, name) {
   try {
     const player = new this({
       userId,
       name,
+      // حالة التسجيل الجديدة
+      registrationStatus: 'pending',
+      gender: null,
+      playerId: null,
+      approvedAt: null,
+      approvedBy: null,
+      // البيانات الأساسية
       level: 1,
       experience: 0,
       gold: 50,
@@ -406,12 +441,22 @@ playerSchema.statics.findByUserId = async function(userId) {
 };
 
 playerSchema.statics.getTopPlayers = async function(limit = 10) {
-  return await this.find({ banned: false })
+  return await this.find({ 
+    banned: false,
+    registrationStatus: 'completed' // 🆕 فقط اللاعبين المكتملين
+  })
     .sort({ level: -1, experience: -1, gold: -1 })
     .limit(limit);
 };
 
-// دوال افتراضية (Virtuals)
+// 🆕 دالة للحصول على اللاعبين المنتظرين
+playerSchema.statics.getPendingPlayers = async function() {
+  return await this.find({ 
+    registrationStatus: 'pending' 
+  }).select('userId name createdAt');
+};
+
+// دوال افتراضية
 playerSchema.virtual('requiredExp').get(function() {
   return (this.level || 1) * 100;
 });
