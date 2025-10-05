@@ -73,9 +73,8 @@ async function getSystem(systemName) {
         'autoResponse': class {
             constructor() { 
                 this.responses = {
-                    'مرحبا': '🎮 أهلاً بك في مغارة غولد!',
-                    'شكرا': '😊 العفو!',
-                    'اهلا': '👋 أهلاً وسهلاً!'
+                    'كيفك': 'بخير لحمدلله وانت ؟'
+
                 };
             }
             findAutoResponse(message) { return this.responses[message.toLowerCase()] || null; }
