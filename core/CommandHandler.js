@@ -2,7 +2,7 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// أنظمة بديلة محسنة
+// أنظمة بديلة محسنة (نظام افتراضي للسفر والصناعة)
 async function getSystem(systemName) {
     try {
         const systems = {
@@ -12,11 +12,12 @@ async function getSystem(systemName) {
             'profile': '../systems/profile/ProfileSystem.js',
             'registration': '../systems/registration/RegistrationSystem.js',
             'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',
-            'travel': '../systems/world/TravelSystem.js'
+            'travel': '../systems/world/TravelSystem.js', // 🆕 نظام السفر
+            'crafting': '../systems/crafting/CraftingSystem.js' // 🆕 نظام الصناعة
         };
 
         if (systems[systemName]) {
-            const module = await import(systems[systemName]);
+            const module = await import(systems[systems[systemName].startsWith('.') ? systemName : systems[systemName]]);
             const SystemClass = Object.values(module)[0];
             return new SystemClass();
         }
@@ -24,21 +25,24 @@ async function getSystem(systemName) {
         console.log(`⚠️ نظام ${systemName} غير متاح، استخدام بديل`);
     }
 
-    // أنظمة بديلة محسنة
+    // أنظمة بديلة محسنة (Fallbacks)
     const fallbackSystems = {
         'battle': class {
-            startBattle() { return { error: null, message: '⚔️ **بدأت المعركة!**\n\nاستخدم "هجوم" للهجوم أو "هروب" للهروب.' }; }
-            attack() { return { error: null, message: '🎯 **هجوم ناجح!**\n\nلقد هزمت الوحش!' }; }
-            escape() { return { error: null, message: '🏃‍♂️ **هروب ناجح!**\n\nلقد هربت من المعركة.' }; }
+            async startBattle() { return { success: true, message: '⚔️ **بدأت المعركة!**\n\nاستخدم "هجوم" للهجوم أو "هروب" للهروب.' }; }
+            async attack(player) { 
+                 const damage = player.getAttackDamage ? player.getAttackDamage() : 10;
+                 return { success: true, message: `🎯 **هجوم ناجح!** ألحقت ${damage} ضرر. وحش مهزوم.` }; 
+            }
+            async escape() { return { success: true, message: '🏃‍♂️ **هروب ناجح!**\n\nلقد هربت من المعركة.' }; }
         },
         'world': class {
             showMap(player) { 
-                const location = player.currentLocation || 'القرية';
+                const location = player.currentLocation || 'الغابات';
                 return `🗺️ **خريطة مغارة غولد**\n\nأنت في: **${location}**`; 
             }
         },
         'gathering': class {
-            gatherResources() { return { error: null, message: '🌿 **جمعت الموارد!**\n\n• خشب ×3\n• حجر ×2' }; }
+            async gatherResources() { return { success: true, message: '🌿 **جمعت الموارد!**\n\n• خشب ×3\n• حجر ×2' }; }
         },
         'profile': class {
             getPlayerStatus(player) { 
@@ -58,18 +62,10 @@ async function getSystem(systemName) {
         },
         'registration': class {
             constructor() { this.registrationSteps = new Map(); }
-            async startRegistration() { 
-                return { success: true, message: '🎮 **مرحباً في مغارة غولد!**', step: 'waiting_approval' };
-            }
-            async approvePlayer() { 
-                return { success: true, message: '✅ تمت الموافقة على اللاعب' };
-            }
-            async setGender() { 
-                return { success: true, message: '✅ تم اختيار الجنس' };
-            }
-            async setName() { 
-                return { success: true, message: '✅ تم تعيين الاسم' };
-            }
+            async startRegistration() { return { success: true, message: '🎮 **مرحباً في مغارة غولد!**', step: 'waiting_approval' }; }
+            async approvePlayer() { return { success: true, message: '✅ تمت الموافقة على اللاعب' }; }
+            async setGender() { return { success: true, message: '✅ تم اختيار الجنس' }; }
+            async setName() { return { success: true, message: '✅ تم تعيين الاسم' }; }
             getRegistrationStep() { return null; }
             async getPendingPlayers() { return []; }
             async resetRegistration() { return true; }
@@ -98,7 +94,15 @@ async function getSystem(systemName) {
             getAllResponses() { return this.responses; }
         },
         'travel': class {
-            // نظام سفر بديل
+            async travelTo(player, location) {
+                if (player.currentLocation === location) return { error: `أنت بالفعل في ${location}`};
+                player.currentLocation = location;
+                return { success: true, message: `🧭 انتقلت إلى **${location}**!` };
+            }
+        },
+        'crafting': class {
+             showCraftingRecipes() { return { message: '🛠️ **ورشة الصناعة**\n\n🚧 لا توجد وصفات حالياً.' }; }
+             async craftItem() { return { error: '🚧 نظام الصناعة غير متاح حالياً' }; }
         }
     };
 
@@ -131,7 +135,14 @@ export default class CommandHandler {
 
                 // الاستكشاف
                 'خريطة': this.handleMap.bind(this),
+                'انتقل': this.handleTravel.bind(this), // 🆕
                 'تجميع': this.handleGather.bind(this),
+                
+                // الصناعة
+                'وصفات': this.handleShowRecipes.bind(this), // 🆕
+                'اصنع': this.handleCraft.bind(this), // 🆕
+
+                // القتال
                 'مغامرة': this.handleAdventure.bind(this),
                 'هجوم': this.handleAttack.bind(this),
                 'هروب': this.handleEscape.bind(this)
@@ -199,7 +210,7 @@ export default class CommandHandler {
             if (isAdmin && this.adminSystem.getAdminCommands()[command]) {
                 console.log(`👑 تنفيذ أمر مدير: ${command}`);
                 const result = await this.adminSystem.handleAdminCommand(command, args, id, player);
-                await player.save();
+                // AdminSystem يفترض أنه يحفظ التغييرات
                 return result;
             }
 
@@ -212,10 +223,13 @@ export default class CommandHandler {
 
                 const result = await this.commands[command](player, args, id);
                 
+                // بما أن دوال الأنظمة باتت async وستحفظ الموديل، فإننا نحتاج لحفظه هنا فقط إذا كان الناتج نصاً (وهو ما لا يجب أن يحدث في الأنظمة المتقدمة)
+                // لكن نتركه للتوافق مع الدوال القديمة والبديلة التي ترجع نصاً مباشراً.
                 if (typeof result === 'string') {
                     await player.save();
                 }
 
+                // إذا كان الناتج كائناً يحتوي على success/error، نمرره مباشرة.
                 return result;
             }
 
@@ -227,11 +241,9 @@ export default class CommandHandler {
             // معالجة أخطاء قاعدة البيانات بشكل خاص
             if (error.code === 11000) {
                 console.log('🔄 معالجة خطأ duplicate key...');
-                // حاول العثور على اللاعب الموجود
                 const existingPlayer = await Player.findOne({ userId: id });
                 if (existingPlayer) {
                     console.log('✅ وجد لاعب موجود، إعادة المحاولة...');
-                    // أعد المعالجة مع اللاعب الموجود
                     return this.process(sender, message);
                 }
                 return '❌ حدث خطأ في النظام. يرجى المحاولة مرة أخرى.';
@@ -253,7 +265,7 @@ export default class CommandHandler {
             return `👋 **تمت الموافقة على حسابك!**
 
 📝 الرجاء إكمال التسجيل:
-• اكتب "ذكر" أو "أنثى" لاختيار الجنس
+• اكتب "ذكر" 👦 أو "أنثى" 👧
 • ثم اكتب "اسمي [الاسم]" لاختيار اسم إنجليزي`;
         }
         
@@ -263,6 +275,7 @@ export default class CommandHandler {
     // ========== دوال معالجة الأوامر ==========
 
     async handleStart(player) {
+        // ... (منطق handleStart يبقى كما هو)
         try {
             if (player.isPending()) {
                 const registrationSystem = await this.getSystem('registration');
@@ -338,8 +351,12 @@ export default class CommandHandler {
 
 🗺️ **الاستكشاف:**
 خريطة - عرض الخريطة
+انتقل [مكان] - السفر إلى موقع محدد
 تجميع - جمع الموارد
-مغامرة - بدء مغامرة
+
+🛠️ **الصناعة والتجارة:**
+وصفات - عرض وصفات الصنع المتاحة
+اصنع [ID] - صنع عنصر محدد
 
 🎒 **الإدارة:**
 حالتي - عرض حالتك
@@ -347,8 +364,9 @@ export default class CommandHandler {
 حقيبتي - عرض المحتويات
 
 ⚔️ **القتال:**
-هجوم - الهجوم في المعركة
-هروب - الهروب من المعركة`;
+مغامرة - بدء معركة ضد وحش في المنطقة
+هجوم - الهجوم في المعركة الحالية
+هروب - محاولة الهروب من المعركة`;
         }
 
         if (isAdmin) {
@@ -362,36 +380,13 @@ export default class CommandHandler {
     }
 
     async handleStatus(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
-        }
-        
-        try {
-            const profileSystem = await this.getSystem('profile');
-            // 🛠️ إصلاح: التحقق من وجود الدالة قبل استدعائها
-            if (profileSystem && typeof profileSystem.getPlayerStatus === 'function') {
-                return profileSystem.getPlayerStatus(player);
-            } else {
-                // استخدام بديل إذا لم تكن الدالة موجودة
-                return `📊 **حالة ${player.name}**
-المستوى: ${player.level}
-الذهب: ${player.gold}
-الصحة: ${player.health}/${player.maxHealth}
-الموقع: ${player.currentLocation}`;
-            }
-        } catch (error) {
-            console.error('❌ خطأ في handleStatus:', error);
-            return `📊 **حالة ${player.name}**
-المستوى: ${player.level}
-الذهب: ${player.gold}
-الصحة: ${player.health}/${player.maxHealth}`;
-        }
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const profileSystem = await this.getSystem('profile');
+        return profileSystem.getPlayerStatus(player);
     }
 
     async handleProfile(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
-        }
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
         try {
             const imagePath = await this.cardGenerator.generateCard(player);
@@ -406,112 +401,126 @@ export default class CommandHandler {
     }
 
     async handleInventory(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
-        }
-        
-        try {
-            const profileSystem = await this.getSystem('profile');
-            // 🛠️ إصلاح: التحقق من وجود الدالة قبل استدعائها
-            if (profileSystem && typeof profileSystem.getPlayerInventory === 'function') {
-                return profileSystem.getPlayerInventory(player);
-            } else {
-                // استخدام بديل إذا لم تكن الدالة موجودة
-                if (!player.inventory || player.inventory.length === 0) {
-                    return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
-                }
-                let text = `🎒 **حقيبة ${player.name}**\n\n`;
-                player.inventory.forEach(item => {
-                    text += `• ${item.name} ×${item.quantity}\n`;
-                });
-                return text;
-            }
-        } catch (error) {
-            console.error('❌ خطأ في handleInventory:', error);
-            return `🎒 **حقيبة ${player.name}**\n\nحدث خطأ في عرض المحتويات.`;
-        }
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const profileSystem = await this.getSystem('profile');
+        return profileSystem.getPlayerInventory(player);
     }
 
     async handleMap(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const worldSystem = await this.getSystem('world');
+        // هنا نستدعي دالة showMap من WorldMap.js التي تستخدم TravelSystem
+        return worldSystem.showMap(player); 
+    }
+
+    // 🆕 معالج أمر الانتقال
+    async handleTravel(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const locationId = args[0] ? args[0].toLowerCase() : null;
+        if (!locationId) {
+             return '❌ يرجى تحديد اسم المكان. مثال: انتقل village';
         }
         
-        try {
-            const worldSystem = await this.getSystem('world');
-            // 🛠️ إصلاح: استخدام showMap بشكل آمن
-            if (worldSystem && typeof worldSystem.showMap === 'function') {
-                return worldSystem.showMap(player);
-            } else {
-                return `🗺️ **خريطة مغارة غولد**\n\nأنت في: ${player.currentLocation || 'القرية'}`;
-            }
-        } catch (error) {
-            console.error('❌ خطأ في handleMap:', error);
-            return `🗺️ **خريطة مغارة غولد**\n\nأنت في: ${player.currentLocation || 'القرية'}`;
+        const travelSystem = await this.getSystem('travel');
+        const result = await travelSystem.travelTo(player, locationId);
+        
+        if (result.error) {
+            return result.error;
         }
+        
+        // لا حاجة لحفظ إضافي، travelTo تحفظ التغيير
+        return result.message;
     }
 
     async handleGather(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const gatheringSystem = await this.getSystem('gathering');
+        // 🛠️ تم التعديل: يجب أن نعرض الموارد المتاحة، أو ننفذ التجميع إذا كانت هناك وسائط
+        if (arguments.length < 2 || !arguments[1][0]) {
+             return gatheringSystem.showAvailableResources(player).message; // عرض قائمة الموارد
         }
         
-        try {
-            const gatheringSystem = await this.getSystem('gathering');
-            const result = gatheringSystem.gatherResources(player, player.currentLocation);
-            return result.message;
-        } catch (error) {
-            console.error('❌ خطأ في handleGather:', error);
-            return '❌ حدث خطأ أثناء جمع الموارد.';
+        const resourceId = arguments[1][0];
+        const result = await gatheringSystem.gatherResources(player, resourceId);
+        
+        if (result.error) {
+            return result.error;
         }
+        
+        return result.message;
+    }
+    
+    // 🆕 معالج أمر عرض الوصفات
+    async handleShowRecipes(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const craftingSystem = await this.getSystem('crafting');
+        const result = craftingSystem.showCraftingRecipes(player);
+        return result.message;
+    }
+    
+    // 🆕 معالج أمر الصنع
+    async handleCraft(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const itemId = args[0] ? args[0].toLowerCase() : null;
+        if (!itemId) {
+             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع wooden_sword';
+        }
+        
+        const craftingSystem = await this.getSystem('crafting');
+        const result = await craftingSystem.craftItem(player, itemId);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        // لا حاجة لحفظ إضافي، craftItem تحفظ التغيير
+        return result.message;
     }
 
     async handleAdventure(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const battleSystem = await this.getSystem('battle');
+        const result = await battleSystem.startBattle(player);
+        
+        if (result.error) {
+            return result.error;
         }
         
-        try {
-            const battleSystem = await this.getSystem('battle');
-            const result = battleSystem.startBattle(player, player.currentLocation);
-            return result.message;
-        } catch (error) {
-            console.error('❌ خطأ في handleAdventure:', error);
-            return '❌ حدث خطأ أثناء بدء المغامرة.';
-        }
+        return result.message;
     }
 
     async handleAttack(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const battleSystem = await this.getSystem('battle');
+        const result = await battleSystem.attack(player);
+        
+        if (result.error) {
+            return result.error;
         }
         
-        try {
-            const battleSystem = await this.getSystem('battle');
-            const result = battleSystem.attack(player);
-            return result.message;
-        } catch (error) {
-            console.error('❌ خطأ في handleAttack:', error);
-            return '❌ حدث خطأ أثناء الهجوم.';
-        }
+        // هنا النتيجة قد تكون رسالة انتصار أو استمرار المعركة أو خسارة
+        return result.message; 
     }
 
     async handleEscape(player) {
-        if (!player.isApproved()) {
-            return '❌ يجب إكمال التسجيل أولاً.';
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const battleSystem = await this.getSystem('battle');
+        const result = await battleSystem.escape(player);
+        
+        if (result.error) {
+            return result.error;
         }
         
-        try {
-            const battleSystem = await this.getSystem('battle');
-            const result = battleSystem.escape(player);
-            return result.message;
-        } catch (error) {
-            console.error('❌ خطأ في handleEscape:', error);
-            return '❌ حدث خطأ أثناء الهروب.';
-        }
+        return result.message;
     }
 
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                }
+}
