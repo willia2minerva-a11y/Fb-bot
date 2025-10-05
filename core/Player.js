@@ -91,7 +91,7 @@ const playerSchema = new mongoose.Schema({
   },
   currentLocation: {
     type: String,
-    default: 'القرية'
+    default: 'forest' // 💡 تم التعديل
   },
   inventory: [inventoryItemSchema],
   skills: {
@@ -166,7 +166,7 @@ playerSchema.methods.getRegistrationStatus = function() {
 };
 
 playerSchema.methods.getCurrentLocation = function() {
-  return this.currentLocation || 'القرية';
+  return this.currentLocation || 'forest'; // 💡 تم التعديل
 };
 
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
@@ -279,7 +279,7 @@ playerSchema.methods.isAlive = function() {
 playerSchema.methods.respawn = function() {
   this.health = this.maxHealth || 100;
   this.mana = this.maxMana || 50;
-  this.currentLocation = 'القرية';
+  this.currentLocation = 'forest'; // 💡 تم التعديل
   
   const goldLoss = Math.floor((this.gold || 0) * 0.1);
   this.gold = Math.max(0, (this.gold || 0) - goldLoss);
@@ -399,7 +399,7 @@ playerSchema.statics.createNew = async function(userId, name) {
       maxHealth: 100,
       mana: 50,
       maxMana: 50,
-      currentLocation: 'القرية',
+      currentLocation: 'forest', // 💡 تم التعديل
       inventory: [
         { 
           id: 'wood', 
