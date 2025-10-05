@@ -1,12 +1,18 @@
 // systems/world/WorldMap.js
+// 💡 جديد: استيراد TravelSystem و locations لضمان الوصول للبيانات
+import { TravelSystem } from './TravelSystem.js'; 
+import { locations } from '../../data/locations.js'; 
+
 export class WorldMap {
-    constructor(travelSystem) {
-        this.travelSystem = travelSystem;
+    constructor() {
+        // 💡 جديد: إنشاء نسخة خاصة من TravelSystem هنا لضمان وجودها
+        this.travelSystem = new TravelSystem();
+        this.locations = locations;
         console.log('🗺️ الخريطة تم تهيئتها');
     }
 
     showMap(player) {
-        // استخدام getLocationName للحصول على اسم الموقع العربي من نظام الانتقال
+        // 🛠️ تم إصلاح الخطأ: استخدام this.travelSystem المُنْشأ حديثاً
         const currentLocationInfo = this.travelSystem.getLocationName(player.currentLocation);
         
         return `🗺️ **خريطة مغارة غولد**
@@ -18,8 +24,8 @@ export class WorldMap {
 • 🌨️ الثلوج (خطر: 2/5)
 • 🌌 السماء (خطر: 3/5)
 • 🌊 المحيط (خطر: 3/5)
+• ⛰️ المعبد القديم/القلاع (خطر: 4/5 - 5/5)
 • 🐉 الغابة الجوفية (خطر: 4/5)
-• 🏰 المعبد القديم/القلاع (خطر: 4/5 - 5/5)
 • 🔥 الجحيم (خطر: 5/5)
 
 أنت في: **${currentLocationInfo}**
@@ -27,7 +33,7 @@ export class WorldMap {
 💡 **للانتقال:** استخدم أمر "انتقل [اسم المكان]" أو "بوابات" لاستعراض البوابات المتاحة حولك.`;
     }
 
-    // 🆕 دالة مساعدة للحصول على مواقع اللعبة (تم تحديثها لتشمل المناطق الجديدة فقط)
+    // 🆕 دالة مساعدة للحصول على مواقع اللعبة (تم تركها للمرجع، لكن الأفضل استخدام TravelSystem)
     getLocations() {
         return {
             'القرية': { danger: 0, resources: [], safeZone: true },
@@ -47,7 +53,6 @@ export class WorldMap {
         };
     }
 
-    // الدوال المساعدة للتحقق من الموقع
     isValidLocation(location) {
         const locations = this.getLocations();
         return locations.hasOwnProperty(location);
