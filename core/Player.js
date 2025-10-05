@@ -89,6 +89,22 @@ const playerSchema = new mongoose.Schema({
     default: 50,
     min: 0
   },
+  // 🆕 خصائص التعب (Stamina)
+  stamina: {
+    type: Number,
+    default: 100,
+    min: 0
+  },
+  maxStamina: {
+    type: Number,
+    default: 100,
+    min: 1
+  },
+  lastStaminaAction: {
+      type: Date,
+      default: Date.now
+  },
+  // نهاية خصائص التعب
   currentLocation: {
     type: String,
     default: 'forest' // 💡 تم التعديل
@@ -148,6 +164,45 @@ playerSchema.pre('save', function(next) {
 });
 
 // ========== دوال المثيل (Instance Methods) ==========
+
+// 🆕 حساب التعب الحالي مع الأخذ في الاعتبار التجديد الزمني
+playerSchema.methods.getActualStamina = function() {
+    const recoveryRate = 5; // 5 نقاط تعب لكل دقيقة
+    const maxStam = this.maxStamina || 100;
+    
+    // 🛠️ استخدام القيمة المخزنة للتأكد من حساب التجديد من آخر مرة
+    const lastActionTime = this.lastStaminaAction ? this.lastStaminaAction.getTime() : Date.now();
+    const now = Date.now();
+    
+    // حساب الدقائق المنقضية
+    const minutesPassed = (now - lastActionTime) / (1000 * 60); 
+    
+    // حساب التعب الذي تم تجديده
+    const recoveredStamina = Math.floor(minutesPassed * recoveryRate);
+    
+    let actualStamina = Math.min(this.stamina + recoveredStamina, maxStam);
+    
+    // تحديث الكائن في الذاكرة: هذا ضروري ليعمل useStamina
+    this.stamina = actualStamina;
+    if (recoveredStamina > 0) {
+        this.lastStaminaAction = new Date(now); 
+    }
+    
+    return actualStamina;
+};
+
+// 🆕 استخدام التعب
+playerSchema.methods.useStamina = function(amount) {
+    // يجب أولاً حساب التجديد قبل الخصم
+    const actualStamina = this.getActualStamina();
+    
+    if (actualStamina >= amount) {
+        this.stamina = actualStamina - amount;
+        this.lastStaminaAction = Date.now(); // تحديث وقت آخر استهلاك
+        return true;
+    }
+    return false;
+};
 
 playerSchema.methods.isApproved = function() {
   return this.registrationStatus === 'completed';
@@ -399,6 +454,9 @@ playerSchema.statics.createNew = async function(userId, name) {
       maxHealth: 100,
       mana: 50,
       maxMana: 50,
+      stamina: 100, // 🆕 الإعداد الافتراضي
+      maxStamina: 100, // 🆕 الإعداد الافتراضي
+      lastStaminaAction: Date.now(), // 🆕 الإعداد الافتراضي
       currentLocation: 'forest', // 💡 تم التعديل
       inventory: [
         { 
