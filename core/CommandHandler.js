@@ -11,14 +11,12 @@ async function getSystem(systemName) {
             'gathering': '../systems/gathering/GatheringSystem.js',
             'profile': '../systems/profile/ProfileSystem.js',
             'registration': '../systems/registration/RegistrationSystem.js',
+            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js', // 💡 تمت إعادته
             'travel': '../systems/world/TravelSystem.js',
-            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',
             'crafting': '../systems/crafting/CraftingSystem.js'
         };
 
         if (systems[systemName]) {
-            // استخدام require بدلاً من import الديناميكي لتبسيط التعامل مع fallbacks
-            // إذا كان هذا في بيئة Node.js تدعم ES Modules، استخدم import
             const module = await import(systems[systemName]);
             const SystemClass = Object.values(module)[0];
             return new SystemClass();
@@ -71,6 +69,10 @@ async function getSystem(systemName) {
             getRegistrationStep() { return null; }
             async getPendingPlayers() { return []; }
             async resetRegistration() { return true; }
+        },
+        'autoResponse': class {
+            // نسخة بديلة بسيطة لـ AutoResponseSystem
+            findAutoResponse(message) { return null; }
         },
         'travel': class {
             async travelTo(player, location) {
@@ -175,8 +177,17 @@ export default class CommandHandler {
             console.log('🎯 🔥 تم التعرف على المدير!');
         }
         
-        // ❌ تم حذف منطق الردود التلقائية هنا بناءً على طلبك
-
+        // 💡 تم الإرجاع: التحقق من الردود التلقائية أولاً
+        const autoResponseSystem = await this.getSystem('autoResponse');
+        if (autoResponseSystem) {
+             const autoResponse = autoResponseSystem.findAutoResponse(message);
+             if (autoResponse) {
+                 console.log(`🤖 رد تلقائي على: "${message}"`);
+                 return autoResponse;
+             }
+        }
+        // ---------------------------------------------
+        
         try {
             let player = await Player.findOne({ userId: id });
 
@@ -215,7 +226,6 @@ export default class CommandHandler {
 
                 const result = await this.commands[command](player, args, id);
                 
-                // هذا الجزء يُستخدم فقط في حال كان الكود البديل (fallback) يرجع سلسلة نصية
                 if (typeof result === 'string') {
                     await player.save();
                 }
@@ -308,14 +318,12 @@ export default class CommandHandler {
 
     async handleGenderMale(player) {
         const registrationSystem = await this.getSystem('registration');
-        // هنا يجب أن تتأكد من أن دالة setGender في نظام التسجيل تقوم بالحفظ
         const result = await registrationSystem.setGender(player.userId, 'male');
         return result;
     }
 
     async handleGenderFemale(player) {
         const registrationSystem = await this.getSystem('registration');
-        // هنا يجب أن تتأكد من أن دالة setGender في نظام التسجيل تقوم بالحفظ
         const result = await registrationSystem.setGender(player.userId, 'female');
         return result;
     }
@@ -325,7 +333,6 @@ export default class CommandHandler {
         if (!name) return '❌ يرجى تحديد اسم. مثال: اسمي John';
         
         const registrationSystem = await this.getSystem('registration');
-        // هنا يجب أن تتأكد من أن دالة setName في نظام التسجيل تقوم بالحفظ
         const result = await registrationSystem.setName(player.userId, name);
         return result;
     }
@@ -403,7 +410,6 @@ export default class CommandHandler {
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
-        // WorldMap الآن ينشئ TravelSystem بنفسه، لذا يعمل
         return worldSystem.showMap(player); 
     }
 
@@ -415,7 +421,6 @@ export default class CommandHandler {
              return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
         
-        // قاموس الترجمة من العربي إلى ID الموقع الإنجليزي
         const locationTranslation = {
             'قرية': 'village', 'القرية': 'village',
             'غابات': 'forest', 'الغابات': 'forest',
