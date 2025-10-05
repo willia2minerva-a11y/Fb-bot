@@ -89,7 +89,7 @@ const playerSchema = new mongoose.Schema({
     default: 50,
     min: 0
   },
-  // 🆕 خصائص التعب (Stamina)
+  // 🆕 خصائص النشاط (Stamina)
   stamina: {
     type: Number,
     default: 100,
@@ -104,10 +104,10 @@ const playerSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
   },
-  // نهاية خصائص التعب
+  // نهاية خصائص النشاط
   currentLocation: {
     type: String,
-    default: 'forest' // 💡 تم التعديل
+    default: 'forest'
   },
   inventory: [inventoryItemSchema],
   skills: {
@@ -151,11 +151,9 @@ const playerSchema = new mongoose.Schema({
   }
 });
 
-// تحديث updatedAt قبل الحفظ
 playerSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   
-  // إنشاء playerId إذا كان مكتملاً ولم يكن موجوداً
   if (this.registrationStatus === 'completed' && !this.playerId) {
     this.playerId = `P${Date.now().toString().slice(-6)}`;
   }
@@ -165,24 +163,19 @@ playerSchema.pre('save', function(next) {
 
 // ========== دوال المثيل (Instance Methods) ==========
 
-// 🆕 حساب التعب الحالي مع الأخذ في الاعتبار التجديد الزمني
+// 🆕 حساب النشاط الحالي مع الأخذ في الاعتبار التجديد الزمني
 playerSchema.methods.getActualStamina = function() {
-    const recoveryRate = 5; // 5 نقاط تعب لكل دقيقة
+    const recoveryRate = 5; // 5 نقاط نشاط لكل دقيقة
     const maxStam = this.maxStamina || 100;
     
-    // 🛠️ استخدام القيمة المخزنة للتأكد من حساب التجديد من آخر مرة
     const lastActionTime = this.lastStaminaAction ? this.lastStaminaAction.getTime() : Date.now();
     const now = Date.now();
     
-    // حساب الدقائق المنقضية
     const minutesPassed = (now - lastActionTime) / (1000 * 60); 
-    
-    // حساب التعب الذي تم تجديده
     const recoveredStamina = Math.floor(minutesPassed * recoveryRate);
     
     let actualStamina = Math.min(this.stamina + recoveredStamina, maxStam);
     
-    // تحديث الكائن في الذاكرة: هذا ضروري ليعمل useStamina
     this.stamina = actualStamina;
     if (recoveredStamina > 0) {
         this.lastStaminaAction = new Date(now); 
@@ -191,14 +184,13 @@ playerSchema.methods.getActualStamina = function() {
     return actualStamina;
 };
 
-// 🆕 استخدام التعب
+// 🆕 استخدام النشاط
 playerSchema.methods.useStamina = function(amount) {
-    // يجب أولاً حساب التجديد قبل الخصم
     const actualStamina = this.getActualStamina();
     
     if (actualStamina >= amount) {
         this.stamina = actualStamina - amount;
-        this.lastStaminaAction = Date.now(); // تحديث وقت آخر استهلاك
+        this.lastStaminaAction = Date.now(); 
         return true;
     }
     return false;
@@ -221,7 +213,7 @@ playerSchema.methods.getRegistrationStatus = function() {
 };
 
 playerSchema.methods.getCurrentLocation = function() {
-  return this.currentLocation || 'forest'; // 💡 تم التعديل
+  return this.currentLocation || 'forest';
 };
 
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
@@ -334,7 +326,9 @@ playerSchema.methods.isAlive = function() {
 playerSchema.methods.respawn = function() {
   this.health = this.maxHealth || 100;
   this.mana = this.maxMana || 50;
-  this.currentLocation = 'forest'; // 💡 تم التعديل
+  this.stamina = this.maxStamina || 100;
+  this.lastStaminaAction = Date.now();
+  this.currentLocation = 'forest'; 
   
   const goldLoss = Math.floor((this.gold || 0) * 0.1);
   this.gold = Math.max(0, (this.gold || 0) - goldLoss);
@@ -454,10 +448,10 @@ playerSchema.statics.createNew = async function(userId, name) {
       maxHealth: 100,
       mana: 50,
       maxMana: 50,
-      stamina: 100, // 🆕 الإعداد الافتراضي
-      maxStamina: 100, // 🆕 الإعداد الافتراضي
-      lastStaminaAction: Date.now(), // 🆕 الإعداد الافتراضي
-      currentLocation: 'forest', // 💡 تم التعديل
+      stamina: 100,
+      maxStamina: 100,
+      lastStaminaAction: Date.now(),
+      currentLocation: 'forest',
       inventory: [
         { 
           id: 'wood', 
@@ -502,7 +496,6 @@ playerSchema.statics.createNew = async function(userId, name) {
   } catch (error) {
     console.error('Error creating new player:', error);
     
-    // إذا كان خطأ duplicate، حاول العثور على اللاعب الموجود
     if (error.code === 11000) {
       const existingPlayer = await this.findOne({ userId });
       if (existingPlayer) {
