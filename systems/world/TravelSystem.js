@@ -9,7 +9,6 @@ export class TravelSystem {
   }
 
   getCurrentLocation(player) {
-    // الاعتماد على قيمة الموقع المحفوظة أو 'forest' كافتراضي
     const locationId = player.currentLocation || 'forest';
     return this.locations[locationId] || this.locations.forest; 
   }
@@ -23,7 +22,6 @@ export class TravelSystem {
     );
   }
 
-  // الدالة أصبحت async لحفظ الموديل
   async travelTo(player, locationId) { 
     const targetLocation = this.locations[locationId];
     
@@ -39,6 +37,26 @@ export class TravelSystem {
       return { error: `❌ تحتاج إلى المستوى ${targetLocation.requiredLevel} للوصول إلى ${targetLocation.name}.` };
     }
 
+    // ===========================================
+    // 🆕 تطبيق نظام التعب (Stamina Check)
+    // ===========================================
+    const cost = targetLocation.staminaCost || 10; 
+    const actualStamina = player.getActualStamina();
+
+    if (actualStamina < cost) {
+        const missingStamina = cost - actualStamina;
+        const recoveryRate = 5; // 5 نقاط تعب لكل دقيقة (من Player.js)
+        const timeToRecover = Math.ceil(missingStamina / recoveryRate);
+        
+        return { 
+            error: `😩 **أنت متعب جداً!** التنقل يتطلب ${cost} تعب، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد التعب الكافي في حوالي ${timeToRecover} دقيقة.` 
+        };
+    }
+    
+    // خصم التعب
+    player.useStamina(cost);
+    // ===========================================
+
     const previousLocation = player.currentLocation;
     player.currentLocation = locationId;
 
@@ -46,7 +64,7 @@ export class TravelSystem {
 
     return {
       success: true,
-      message: `🧭 **انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}!**\n\n${targetLocation.description}`,
+      message: `🧭 **انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}!**\n\n- تم خصم **${cost}** تعب.\n\n${targetLocation.description}`,
       location: targetLocation
     };
   }
