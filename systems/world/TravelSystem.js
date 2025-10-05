@@ -8,22 +8,29 @@ export class TravelSystem {
   }
 
   getCurrentLocation(player) {
-    const location = this.locations.find(loc => loc.id === player.currentLocation);
-    return location || { id: 'village', name: 'القرية', description: 'مكان آمن للراحة' };
+    // 💡 نقطة البداية الافتراضية هي 'forest' (الغابات)
+    const location = this.locations[player.currentLocation];
+    return location || this.locations.forest; // إذا لم يكن هناك موقع محدد، ابدأ في الغابات
   }
 
   getAvailableLocations(player) {
-    return this.locations.filter(loc => 
+    const allLocations = Object.values(this.locations);
+    
+    return allLocations.filter(loc => 
       loc.requiredLevel <= player.level && 
-      !loc.requiredQuest // يمكن إضافة شروط إضافية
+      !loc.requiredQuest
     );
   }
 
   travelTo(player, locationId) {
-    const targetLocation = this.locations.find(loc => loc.id === locationId);
+    const targetLocation = this.locations[locationId];
     
     if (!targetLocation) {
       return { error: "❌ هذا المكان غير موجود." };
+    }
+    
+    if (player.currentLocation === locationId) {
+        return { error: `أنت بالفعل في **${targetLocation.name}**! 🧭`};
     }
 
     if (targetLocation.requiredLevel > player.level) {
@@ -41,8 +48,9 @@ export class TravelSystem {
   }
 
   getLocationName(locationId) {
-    const location = this.locations.find(loc => loc.id === locationId);
-    return location ? location.name : 'مكان غير معروف';
+    const location = this.locations[locationId];
+    // تعيين اسم افتراضي للغابات في حال عدم وجود currentLocation للمرة الأولى
+    return location ? location.name : (this.locations.forest.name || 'مكان غير معروف');
   }
 
   getNearbyGates(player) {
@@ -69,4 +77,4 @@ export class TravelSystem {
       gate: gate
     };
   }
-    }
+}
