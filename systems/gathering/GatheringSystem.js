@@ -1,8 +1,5 @@
 // systems/gathering/GatheringSystem.js
 import { resources } from '../../data/resources.js';
-// 💡 ملاحظة: يُفترض أن ملف اللاعب (player object) يحتوي على دالة مثل: 
-// player.addItem(itemId, quantity) و player.addExperience(exp)
-// و player.getCurrentLocation()
 
 export class GatheringSystem {
   constructor() {
@@ -10,13 +7,11 @@ export class GatheringSystem {
     console.log('🌿 نظام جمع الموارد تم تهيئته. عدد الموارد القابلة للجمع:', Object.keys(this.allResources).length);
   }
 
-  // 1. عرض الموارد المتاحة في الموقع الحالي
   showAvailableResources(player) {
     const playerLocationId = player.currentLocation; 
     let message = `🔍 **موارد قابلة للجمع في ${playerLocationId}**:\n`;
     let found = false;
 
-    // المرور على جميع الموارد للتحقق من توافرها في موقع اللاعب
     for (const resourceId in this.allResources) {
       const resource = this.allResources[resourceId];
       if (resource.locations.includes(playerLocationId)) {
@@ -36,8 +31,8 @@ export class GatheringSystem {
     return { message };
   }
 
-  // 2. تنفيذ عملية التجميع
-  gatherResources(player, resourceId) {
+  // الدالة أصبحت async لحفظ الموديل
+  async gatherResources(player, resourceId) {
     const resource = this.allResources[resourceId];
     const playerLocationId = player.currentLocation; 
 
@@ -49,23 +44,18 @@ export class GatheringSystem {
       return { error: `❌ لا يمكنك جمع **${resource.name}** في موقعك الحالي (${playerLocationId}).` };
     }
     
-    // محاكاة وقت التجميع (يمكن استخدامها لاحقاً لمنع التجميع السريع)
-    // console.log(`⏳ جاري جمع ${resource.name}... تستغرق ${resource.gatherTime} مللي ثانية.`);
+    // يمكنك إضافة منطق التحقق من الأداة هنا لاحقًا
 
     let totalQuantity = 0;
     let itemsGained = [];
     
-    // جمع العناصر المحددة في خاصية items
     for (const itemDrop of resource.items) {
-      // التحقق من نسبة السقوط (chance)
       if (Math.random() <= itemDrop.chance) {
-        // حساب الكمية العشوائية المكتسبة
         const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
         
         if (quantity > 0) {
-            // يفترض أن دالة player.addItem(itemId, quantity) موجودة
-            // وإلا، ستحتاج إلى تعديلها لتتناسب مع كيفية إضافة العناصر لجرد اللاعب
-            player.addItem(itemDrop.itemId, quantity); 
+            // يفترض أن itemDrop.itemId هو اسم العنصر أيضاً
+            player.addItem(itemDrop.itemId, itemDrop.itemId, 'resource', quantity);
             itemsGained.push({ name: itemDrop.itemId, quantity });
             totalQuantity += quantity;
         }
@@ -76,8 +66,11 @@ export class GatheringSystem {
         return { success: false, message: `🌿 حاولت جمع **${resource.name}** لكنك لم تجد شيئًا هذه المرة! حاول مجددًا.` };
     }
 
-    // إضافة الخبرة (يفترض أن دالة player.addExperience(exp) موجودة)
+    // إضافة الخبرة
     player.addExperience(resource.experience);
+    
+    // 💾 حفظ التغييرات على موديل Mongoose
+    await player.save(); 
     
     const itemsMessage = itemsGained.map(item => `   • ${item.quantity} × ${item.name}`).join('\n');
 
