@@ -36,35 +36,51 @@ export class TravelSystem {
     if (targetLocation.requiredLevel > player.level) {
       return { error: `❌ تحتاج إلى المستوى ${targetLocation.requiredLevel} للوصول إلى ${targetLocation.name}.` };
     }
+    
+    // ===========================================
+    // 🆕 التحقق من شرط العنصر المطلوب (الأجنحة)
+    // ===========================================
+    if (targetLocation.requiredItem) {
+        const requiredItemId = targetLocation.requiredItem;
+        // التحقق مما إذا كان العنصر موجوداً في المخزون أو مجهزاً (يفترض أن getItemQuantity تعيد 1 إذا كان مجهزاً)
+        const hasRequiredItem = player.getItemQuantity(requiredItemId) > 0 || 
+                                player.equipment.weapon === requiredItemId ||
+                                player.equipment.armor === requiredItemId ||
+                                player.equipment.tool === requiredItemId;
+        
+        if (!hasRequiredItem) {
+            return { error: `❌ تحتاج إلى **${requiredItemId}** للدخول إلى **${targetLocation.name}**! (قم بصناعتها أو العثور عليها).` };
+        }
+    }
+    // ===========================================
 
     // ===========================================
-    // 🆕 تطبيق نظام التعب (Stamina Check)
+    // 🆕 تطبيق نظام النشاط (Stamina Check)
     // ===========================================
     const cost = targetLocation.staminaCost || 10; 
     const actualStamina = player.getActualStamina();
 
     if (actualStamina < cost) {
         const missingStamina = cost - actualStamina;
-        const recoveryRate = 5; // 5 نقاط تعب لكل دقيقة (من Player.js)
+        const recoveryRate = 5; 
         const timeToRecover = Math.ceil(missingStamina / recoveryRate);
         
         return { 
-            error: `😩 **أنت متعب جداً!** التنقل يتطلب ${cost} تعب، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد التعب الكافي في حوالي ${timeToRecover} دقيقة.` 
+            error: `😩 **أنت متعب جداً!** التنقل يتطلب ${cost} نشاط، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد النشاط الكافي في حوالي ${timeToRecover} دقيقة.` 
         };
     }
     
-    // خصم التعب
     player.useStamina(cost);
     // ===========================================
 
     const previousLocation = player.currentLocation;
     player.currentLocation = locationId;
 
-    await player.save(); // 💾 حفظ التغيير في قاعدة البيانات
+    await player.save();
 
     return {
       success: true,
-      message: `🧭 **انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}!**\n\n- تم خصم **${cost}** تعب.\n\n${targetLocation.description}`,
+      message: `🧭 **انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}!**\n\n- تم خصم **${cost}** نشاط.\n\n${targetLocation.description}`,
       location: targetLocation
     };
   }
