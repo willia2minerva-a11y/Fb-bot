@@ -1,8 +1,14 @@
+// systems/profile/ProfileSystem.js
+
 import Player from '../../core/Player.js';
+import { ProfileCardGenerator } from '../../utils/ProfileCardGenerator.js'; // ⬅️ استيراد المولد
+import fs from 'fs/promises'; // لاستخدامه في حذف الملف المؤقت
+
+const cardGenerator = new ProfileCardGenerator(); // إنشاء مثيل للمولد
 
 export class ProfileSystem {
     
-    // دالة لعرض حالة اللاعب (Status) - تم التصحيح
+    // دالة لعرض حالة اللاعب (Status) - الكود الأصلي
     getPlayerStatus(player) {
         const expProgress = player.experience || 0;
         const requiredExp = (player.level || 1) * 100;
@@ -23,7 +29,7 @@ export class ProfileSystem {
 🎒  الأغراض: ${player.inventory ? player.inventory.length : 0} نوع`;
     }
 
-    // دالة لعرض حقيبة اللاعب (Inventory) - تم التصحيح
+    // دالة لعرض حقيبة اللاعب (Inventory) - الكود الأصلي
     getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
             return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
@@ -45,7 +51,7 @@ export class ProfileSystem {
         return text;
     }
     
-    // 🆕 دالة لعرض بروفايل اللاعب (Text Profile)
+    // دالة لعرض بروفايل اللاعب (Text Profile) - الكود الأصلي
     getPlayerProfile(player) {
         const expProgress = player.experience || 0;
         const requiredExp = (player.level || 1) * 100;
@@ -75,7 +81,54 @@ export class ProfileSystem {
 📍 **الموقع الحالي:** ${player.currentLocation || 'القرية'}`;
     }
     
-    // دالة تغيير الاسم
+    // 🆕 دالة جديدة لإنشاء كائن المرفق (الصورة)
+    /**
+     * ينشئ بطاقة البروفايل المصوّرة ويرسلها.
+     * @param {Object} player - كائن اللاعب (يجب أن يحتوي على .gender).
+     * @returns {Promise<Object>} - يعيد {success: bool, attachment: Object, filePath: string}
+     */
+    async getProfileCardAttachment(player) {
+        if (!player) {
+            return { error: '❌ لم يتم العثور على بيانات اللاعب.' };
+        }
+        
+        try {
+            // 1. إنشاء البطاقة (الصورة)
+            const imagePath = await cardGenerator.generateCard(player);
+
+            // 2. تجهيز كائن المرفق (attachment object)
+            const attachment = {
+                type: 'image',
+                path: imagePath, // المسار المحلي للملف
+            };
+
+            console.log(`✅ تم تجهيز بطاقة البروفايل للاعب ${player.name} للإرسال.`);
+            
+            // 3. إرجاع المرفق
+            return { success: true, attachment: attachment, filePath: imagePath };
+            
+        } catch (error) {
+            console.error('❌ خطأ في إنشاء أو تجهيز البطاقة المصوّرة:', error);
+            return { error: '❌ فشلت عملية إنشاء بطاقة البروفايل المصوّرة.' };
+        }
+    }
+    
+    /**
+     * دالة تنظيف الملف المؤقت
+     * يجب استدعاء هذه الدالة بعد إرسال الصورة بنجاح بواسطة CommandHandler
+     */
+    async cleanupProfileCard(filePath) {
+        if (filePath) {
+            try {
+                await fs.unlink(filePath);
+                console.log(`🧹 تم حذف الملف المؤقت: ${filePath}`);
+            } catch (error) {
+                console.error('❌ فشل حذف ملف البطاقة المؤقت:', error.message);
+            }
+        }
+    }
+    
+    // دالة تغيير الاسم - الكود الأصلي
     async changeName(player, args, senderId) {
         const ADMIN_PSID = process.env.ADMIN_PSID;
         
@@ -131,4 +184,4 @@ export class ProfileSystem {
         
         return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: **${newName}**`;
     }
-                }
+}
