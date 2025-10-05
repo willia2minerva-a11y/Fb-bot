@@ -11,18 +11,20 @@ async function getSystem(systemName) {
             'gathering': '../systems/gathering/GatheringSystem.js',
             'profile': '../systems/profile/ProfileSystem.js',
             'registration': '../systems/registration/RegistrationSystem.js',
-            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',
             'travel': '../systems/world/TravelSystem.js',
+            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',
             'crafting': '../systems/crafting/CraftingSystem.js'
         };
 
         if (systems[systemName]) {
-            const module = await import(systems[systems[systemName].startsWith('.') ? systemName : systems[systemName]]);
+            // استخدام require بدلاً من import الديناميكي لتبسيط التعامل مع fallbacks
+            // إذا كان هذا في بيئة Node.js تدعم ES Modules، استخدم import
+            const module = await import(systems[systemName]);
             const SystemClass = Object.values(module)[0];
             return new SystemClass();
         }
     } catch (error) {
-        console.log(`⚠️ نظام ${systemName} غير متاح، استخدام بديل`);
+        // console.log(`⚠️ نظام ${systemName} غير متاح، استخدام بديل`);
     }
 
     // أنظمة بديلة محسنة (Fallbacks)
@@ -42,7 +44,8 @@ async function getSystem(systemName) {
             }
         },
         'gathering': class {
-            async gatherResources() { return { success: true, message: '🌿 **جمعت الموارد!**\n\n• خشب ×3\n• حجر ×2' }; }
+            showAvailableResources() { return { message: '🌿 **الموارد:** خشب (wood), حجر (stone).' }; }
+            async gatherResources() { return { success: true, message: '🌿 **جمعت الموارد!**\n\n• خشب ×3' }; }
         },
         'profile': class {
             getPlayerStatus(player) { 
@@ -58,7 +61,6 @@ async function getSystem(systemName) {
                 });
                 return text;
             }
-            async changeName() { return '❌ نظام تغيير الأسماء غير متاح حالياً'; }
         },
         'registration': class {
             constructor() { this.registrationSteps = new Map(); }
@@ -69,28 +71,6 @@ async function getSystem(systemName) {
             getRegistrationStep() { return null; }
             async getPendingPlayers() { return []; }
             async resetRegistration() { return true; }
-        },
-        'autoResponse': class {
-            constructor() { 
-                this.responses = {
-                    'كيفك': 'بخير لحمدلله وانت ؟'
-
-                };
-            }
-            findAutoResponse(message) { return this.responses[message.toLowerCase()] || null; }
-            addResponse(trigger, response) { 
-                this.responses[trigger.toLowerCase()] = response;
-                console.log(`✅ تم إضافة رد تلقائي: ${trigger}`);
-            }
-            removeResponse(trigger) { 
-                const lowerTrigger = trigger.toLowerCase();
-                if (this.responses[lowerTrigger]) {
-                    delete this.responses[lowerTrigger];
-                    return true;
-                }
-                return false;
-            }
-            getAllResponses() { return this.responses; }
         },
         'travel': class {
             async travelTo(player, location) {
@@ -129,41 +109,41 @@ export default class CommandHandler {
                 // المعلومات
                 'مساعدة': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
-                'حالة': this.handleStatus.bind(this), // 🆕 تعريف بديل
+                'حالة': this.handleStatus.bind(this), 
 
                 'بروفايلي': this.handleProfile.bind(this),
-                'بروفايل': this.handleProfile.bind(this), // 🆕 تعريف بديل
-                'بطاقتي': this.handleProfile.bind(this),  // 🆕 تعريف بديل
-                'بطاقة': this.handleProfile.bind(this),  // 🆕 تعريف بديل
+                'بروفايل': this.handleProfile.bind(this), 
+                'بطاقتي': this.handleProfile.bind(this),  
+                'بطاقة': this.handleProfile.bind(this), 
                 
                 'حقيبتي': this.handleInventory.bind(this),
-                'حقيبة': this.handleInventory.bind(this), // 🆕 تعريف بديل
-                'جرد': this.handleInventory.bind(this), // 🆕 تعريف بديل
+                'حقيبة': this.handleInventory.bind(this), 
+                'جرد': this.handleInventory.bind(this), 
 
                 // الاستكشاف
                 'خريطة': this.handleMap.bind(this),
-                'الموقع': this.handleMap.bind(this), // 🆕 تعريف بديل
+                'الموقع': this.handleMap.bind(this), 
                 
                 'انتقل': this.handleTravel.bind(this),
-                'سافر': this.handleTravel.bind(this), // 🆕 تعريف بديل
+                'سافر': this.handleTravel.bind(this), 
                 
                 'تجميع': this.handleGather.bind(this),
-                'اجمع': this.handleGather.bind(this), // 🆕 تعريف بديل
+                'اجمع': this.handleGather.bind(this), 
                 
                 // الصناعة
                 'وصفات': this.handleShowRecipes.bind(this),
                 'اصنع': this.handleCraft.bind(this),
-                'صنع': this.handleCraft.bind(this), // 🆕 تعريف بديل
+                'صنع': this.handleCraft.bind(this), 
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
-                'قتال': this.handleAdventure.bind(this), // 🆕 تعريف بديل
+                'قتال': this.handleAdventure.bind(this), 
                 
                 'هجوم': this.handleAttack.bind(this),
-                'اضرب': this.handleAttack.bind(this), // 🆕 تعريف بديل
+                'اضرب': this.handleAttack.bind(this), 
                 
                 'هروب': this.handleEscape.bind(this),
-                'اهرب': this.handleEscape.bind(this) // 🆕 تعريف بديل
+                'اهرب': this.handleEscape.bind(this) 
             };
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
@@ -194,13 +174,8 @@ export default class CommandHandler {
         if (isAdmin) {
             console.log('🎯 🔥 تم التعرف على المدير!');
         }
-
-        const autoResponseSystem = await this.getSystem('autoResponse');
-        const autoResponse = autoResponseSystem.findAutoResponse(message);
-        if (autoResponse) {
-            console.log(`🤖 رد تلقائي على: "${message}"`);
-            return autoResponse;
-        }
+        
+        // ❌ تم حذف منطق الردود التلقائية هنا بناءً على طلبك
 
         try {
             let player = await Player.findOne({ userId: id });
@@ -221,12 +196,18 @@ export default class CommandHandler {
                 return '❌ تم حظرك من اللعبة.';
             }
 
-            if (isAdmin && this.adminSystem.getAdminCommands()[command]) {
-                console.log(`👑 تنفيذ أمر مدير: ${command}`);
-                const result = await this.adminSystem.handleAdminCommand(command, args, id, player);
-                return result;
+            // 🎯 معالجة أوامر المدير أولاً
+            if (isAdmin) {
+                const adminCommands = this.adminSystem.getAdminCommands();
+                
+                if (adminCommands[command]) {
+                    console.log(`👑 تنفيذ أمر مدير: ${command}`);
+                    const result = await this.adminSystem.handleAdminCommand(command, args, id, player);
+                    return result;
+                }
             }
 
+            // معالجة الأوامر العادية
             if (this.commands[command]) {
                 if (!this.allowedBeforeApproval.includes(command) && !player.isApproved()) {
                     return this.getRegistrationMessage(player);
@@ -234,6 +215,7 @@ export default class CommandHandler {
 
                 const result = await this.commands[command](player, args, id);
                 
+                // هذا الجزء يُستخدم فقط في حال كان الكود البديل (fallback) يرجع سلسلة نصية
                 if (typeof result === 'string') {
                     await player.save();
                 }
@@ -326,12 +308,16 @@ export default class CommandHandler {
 
     async handleGenderMale(player) {
         const registrationSystem = await this.getSystem('registration');
-        return await registrationSystem.setGender(player.userId, 'male');
+        // هنا يجب أن تتأكد من أن دالة setGender في نظام التسجيل تقوم بالحفظ
+        const result = await registrationSystem.setGender(player.userId, 'male');
+        return result;
     }
 
     async handleGenderFemale(player) {
         const registrationSystem = await this.getSystem('registration');
-        return await registrationSystem.setGender(player.userId, 'female');
+        // هنا يجب أن تتأكد من أن دالة setGender في نظام التسجيل تقوم بالحفظ
+        const result = await registrationSystem.setGender(player.userId, 'female');
+        return result;
     }
 
     async handleSetName(player, args) {
@@ -339,7 +325,9 @@ export default class CommandHandler {
         if (!name) return '❌ يرجى تحديد اسم. مثال: اسمي John';
         
         const registrationSystem = await this.getSystem('registration');
-        return await registrationSystem.setName(player.userId, name);
+        // هنا يجب أن تتأكد من أن دالة setName في نظام التسجيل تقوم بالحفظ
+        const result = await registrationSystem.setName(player.userId, name);
+        return result;
     }
 
     async handleHelp(player, args, senderId) {
@@ -415,10 +403,10 @@ export default class CommandHandler {
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
+        // WorldMap الآن ينشئ TravelSystem بنفسه، لذا يعمل
         return worldSystem.showMap(player); 
     }
 
-    // 🆕 معالج أمر الانتقال (مع الترجمة)
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
@@ -429,24 +417,15 @@ export default class CommandHandler {
         
         // قاموس الترجمة من العربي إلى ID الموقع الإنجليزي
         const locationTranslation = {
-            'قرية': 'village',
-            'القرية': 'village',
-            'غابات': 'forest',
-            'الغابات': 'forest',
-            'صحراء': 'desert',
-            'الصحراء': 'desert',
-            'جوفية': 'underground_jungle',
-            'الغابة الجوفية': 'underground_jungle',
-            'سماء': 'sky',
-            'السماء': 'sky',
-            'محيط': 'ocean',
-            'المحيط': 'ocean',
-            'معبد': 'old_temple',
-            'المعبد القديم': 'old_temple',
-            'جحيم': 'hell',
-            'الجحيم': 'hell',
-            'ثلوج': 'snow',
-            'الثلوج': 'snow'
+            'قرية': 'village', 'القرية': 'village',
+            'غابات': 'forest', 'الغابات': 'forest',
+            'صحراء': 'desert', 'الصحراء': 'desert',
+            'جوفية': 'underground_jungle', 'الغابة الجوفية': 'underground_jungle',
+            'سماء': 'sky', 'السماء': 'sky',
+            'محيط': 'ocean', 'المحيط': 'ocean',
+            'معبد': 'old_temple', 'المعبد القديم': 'old_temple',
+            'جحيم': 'hell', 'الجحيم': 'hell',
+            'ثلوج': 'snow', 'الثلوج': 'snow'
         };
 
         const locationId = locationTranslation[rawLocationName] || rawLocationName.toLowerCase();
