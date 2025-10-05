@@ -7,6 +7,7 @@ export const locations = {
     type: 'safe',
     danger: 0,
     requiredLevel: 1, 
+    staminaCost: 5, // 🆕 تكلفة تعب بسيطة
     resources: [],
     monsters: []
   },
@@ -19,6 +20,7 @@ export const locations = {
     type: 'wild',
     danger: 1,
     requiredLevel: 0, 
+    staminaCost: 5, // 🆕 تكلفة تعب بسيطة
     resources: ['wood', 'mushroom', 'seed', 'bee_honey'],
     monsters: ['slime', 'demon_eye', 'wild_boar', 'queen_bee', 'king_slime', 'eye_of_cthulhu']
   },
@@ -31,6 +33,7 @@ export const locations = {
     type: 'wild',
     danger: 2,
     requiredLevel: 5,
+    staminaCost: 15, // 🆕
     resources: ['sand', 'cactus', 'stone', 'scorpion_egg'],
     monsters: ['slime', 'demon_eye']
   },
@@ -41,6 +44,7 @@ export const locations = {
     type: 'dungeon',
     danger: 4,
     requiredLevel: 25,
+    staminaCost: 40, // 🆕
     resources: ['chlorophyte', 'rare_plants', 'glowing_stone'],
     monsters: ['queen_bee', 'plantera', 'golem', 'ice_queen']
   },
@@ -51,6 +55,7 @@ export const locations = {
     type: 'celestial',
     danger: 3,
     requiredLevel: 15,
+    staminaCost: 30, // 🆕
     resources: ['golden_clouds', 'celestial_crystals', 'flight_tools'],
     monsters: ['wyvern', 'martian_saucer', 'the_twins']
   },
@@ -61,6 +66,7 @@ export const locations = {
     type: 'water',
     danger: 3,
     requiredLevel: 10,
+    staminaCost: 20, // 🆕
     resources: ['shells', 'pearl', 'coral'],
     monsters: ['duke_fishron']
   },
@@ -71,6 +77,7 @@ export const locations = {
     type: 'temple',
     danger: 4,
     requiredLevel: 30,
+    staminaCost: 45, // 🆕
     resources: ['sacred_stones', 'statues', 'ancient_symbols'],
     monsters: ['skeletron']
   },
@@ -81,6 +88,7 @@ export const locations = {
     type: 'temple',
     danger: 5,
     requiredLevel: 40,
+    staminaCost: 50, // 🆕
     resources: ['golden_bricks', 'life_energy'],
     monsters: ['golem']
   },
@@ -91,6 +99,7 @@ export const locations = {
     type: 'extreme',
     danger: 5,
     requiredLevel: 50,
+    staminaCost: 60, // 🆕
     resources: ['fire_gems', 'ash', 'hellstone'],
     monsters: ['wall_of_flesh', 'fire_imp', 'infernal_beast']
   },
@@ -101,6 +110,7 @@ export const locations = {
     type: 'wild',
     danger: 2,
     requiredLevel: 5,
+    staminaCost: 15, // 🆕
     resources: ['ice', 'snow', 'rare_fish'],
     monsters: ['ice_queen']
   },
@@ -111,6 +121,7 @@ export const locations = {
     type: 'temple',
     danger: 5,
     requiredLevel: 60,
+    staminaCost: 70, // 🆕
     resources: ['lunar_crystals', 'celestial_energy'],
     monsters: ['cultists', 'solar_eclipse']
   },
@@ -121,6 +132,7 @@ export const locations = {
     type: 'dungeon',
     danger: 5,
     requiredLevel: 65,
+    staminaCost: 75, // 🆕
     resources: ['spell_books', 'magic_crystals'],
     monsters: ['shadow_monarch']
   },
@@ -131,6 +143,7 @@ export const locations = {
     type: 'dungeon',
     danger: 5,
     requiredLevel: 70,
+    staminaCost: 80, // 🆕
     resources: ['trapped_souls', 'black_runes'],
     monsters: ['dark_lord']
   },
@@ -141,6 +154,7 @@ export const locations = {
     type: 'dungeon',
     danger: 5,
     requiredLevel: 75,
+    staminaCost: 90, // 🆕
     resources: ['royal_treasures', 'throne_shards'],
     monsters: ['monarch_of_destruction']
   }
