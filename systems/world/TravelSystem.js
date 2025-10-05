@@ -1,3 +1,4 @@
+// systems/world/TravelSystem.js
 import { locations } from '../../data/locations.js';
 import { gates } from '../../data/gates.js';
 
@@ -8,9 +9,9 @@ export class TravelSystem {
   }
 
   getCurrentLocation(player) {
-    // 💡 نقطة البداية الافتراضية هي 'forest' (الغابات)
-    const location = this.locations[player.currentLocation];
-    return location || this.locations.forest; // إذا لم يكن هناك موقع محدد، ابدأ في الغابات
+    // الاعتماد على قيمة الموقع المحفوظة أو 'forest' كافتراضي
+    const locationId = player.currentLocation || 'forest';
+    return this.locations[locationId] || this.locations.forest; 
   }
 
   getAvailableLocations(player) {
@@ -22,7 +23,8 @@ export class TravelSystem {
     );
   }
 
-  travelTo(player, locationId) {
+  // الدالة أصبحت async لحفظ الموديل
+  async travelTo(player, locationId) { 
     const targetLocation = this.locations[locationId];
     
     if (!targetLocation) {
@@ -40,6 +42,8 @@ export class TravelSystem {
     const previousLocation = player.currentLocation;
     player.currentLocation = locationId;
 
+    await player.save(); // 💾 حفظ التغيير في قاعدة البيانات
+
     return {
       success: true,
       message: `🧭 **انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}!**\n\n${targetLocation.description}`,
@@ -49,7 +53,6 @@ export class TravelSystem {
 
   getLocationName(locationId) {
     const location = this.locations[locationId];
-    // تعيين اسم افتراضي للغابات في حال عدم وجود currentLocation للمرة الأولى
     return location ? location.name : (this.locations.forest.name || 'مكان غير معروف');
   }
 
