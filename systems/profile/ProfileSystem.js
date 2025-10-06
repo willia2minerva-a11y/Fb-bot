@@ -1,6 +1,9 @@
 // systems/profile/ProfileSystem.js
 import Player from '../../core/Player.js';
-import { locations } from '../../data/locations.js'; 
+// 💡 يجب التأكد من وجود ملف locations.js
+const locations = {}; // placeholder
+// import { locations } from '../../data/locations.js'; 
+
 
 export class ProfileSystem {
     
@@ -14,7 +17,7 @@ export class ProfileSystem {
         return 'E';
     }
 
-    // دالة لعرض حالة اللاعب (Status)
+    // دالة لعرض حالة اللاعب (Status) - تنسيق مُحسّن
     getPlayerStatus(player) {
         const actualStamina = player.getActualStamina();
         
@@ -26,38 +29,49 @@ export class ProfileSystem {
         const defense = player.getDefense ? player.getDefense() : 5;
         const rank = this._getPlayerRank(player.level);
         
-        // 🆕 الحصول على اسم الموقع العربي
+        // الحصول على اسم الموقع العربي
         const currentLocationId = player.currentLocation || 'forest';
         const currentLocationName = locations[currentLocationId] ? locations[currentLocationId].name : currentLocationId;
+        
+        let statusMessage = `╔═════════════ 👤  ملف اللاعب: ${player.name} ════════════╗\n`;
+        statusMessage += `\n📜 معلومات أساسية\n`;
+        statusMessage += `├── المعرف (ID): ${player.playerId || 'N/A'}\n`;
+        statusMessage += `├── المستوى: ${player.level}\n`;
+        statusMessage += `├── 🌟 الرانك: ${rank}\n`;
+        statusMessage += `└── 🗺️  الموقع: ${currentLocationName}\n`;
 
-        return `📊 **حالة ${player.name}**
-──────────────
-⭐  الرانك: ${rank}
-❤️  الصحة: ${player.health}/${player.maxHealth}
-⚡  المانا: ${player.mana}/${player.maxMana}
-🔋  **النشاط**: ${Math.floor(actualStamina)}/${player.maxStamina || 100}
-✨  المستوى: ${player.level}
-💰  الذهب: ${player.gold}
-⚔️  الهجوم: ${attackDamage}
-🛡️  الدفاع: ${defense}
-📍  الموقع: ${currentLocationName}
-🎒  الأغراض: ${player.inventory ? player.inventory.length : 0} نوع`;
+        statusMessage += `\n💪 الإحصائيات الحيوية\n`;
+        statusMessage += `├── ❤️  الصحة: ${player.health}/${player.maxHealth}\n`;
+        statusMessage += `├── ⚡  المانا: ${player.mana}/${player.maxMana}\n`;
+        statusMessage += `├── 🏃  النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}\n`;
+        statusMessage += `└── 💰  الذهب: ${player.gold}\n`;
+
+        statusMessage += `\n⚔️ قوة القتال\n`;
+        statusMessage += `├── 🔥  الهجوم: ${attackDamage}\n`;
+        statusMessage += `└── 🛡️  الدفاع: ${defense}\n`;
+        
+        statusMessage += `\n📈 الخبرة\n`;
+        statusMessage += `└── 💡  التقدم: ${expPercentage}% (${expProgress}/${requiredExp})\n`;
+
+        statusMessage += `╚══════════════════════════════════════╝`;
+
+        return statusMessage;
     }
 
     // ... (بقية الدوال تبقى كما هي)
     
     getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
-            return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
+            return `🎒 حقيبة ${player.name}\n\nالحقيبة فارغة`;
         }
         
-        let text = `🎒 **حقيبة ${player.name}**\n\n`;
+        let text = `🎒 حقيبة ${player.name}\n\n`;
         player.inventory.forEach(item => {
             text += `• ${item.name} ×${item.quantity}\n`;
         });
         
         if (player.equipment) {
-            text += `\n⚔️ **المعدات:**\n`;
+            text += `\n⚔️ المعدات:\n`;
             text += `• سلاح: ${player.equipment.weapon || 'لا يوجد'}\n`;
             text += `• درع: ${player.equipment.armor || 'لا يوجد'}\n`;
             text += `• أداة: ${player.equipment.tool || 'لا يوجد'}\n`;
@@ -78,7 +92,7 @@ export class ProfileSystem {
 
         const weapon = player.equipment?.weapon ? player.equipment.weapon : 'لا يوجد';
 
-        return `📋 **بروفايل ${player.name}**
+        return `📋 بروفايل ${player.name}
 ────────────────
 ✨ المستوى: ${player.level} 
 ⭐ الخبرة: ${expProgress}/${requiredExp} (${expPercentage}%)
@@ -86,13 +100,13 @@ export class ProfileSystem {
 💰 الذهب: ${player.gold}
 ⚔️ السلاح: ${weapon}
 
-🎯 **الإحصائيات:**
+🎯 الإحصائيات:
 • ⚔️ المعارك: ${battlesWon} فوز
 • 🐉 الوحوش: ${monstersKilled} قتيل
 • 📜 المهام: ${questsCompleted} مكتمل
 • 🌿 الموارد: ${resourcesGathered} مجمع
 
-📍 **الموقع الحالي:** ${player.currentLocation || 'القرية'}`;
+📍 الموقع الحالي: ${player.currentLocation || 'القرية'}`;
     }
     
     async changeName(player, args, senderId) {
