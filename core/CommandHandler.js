@@ -2,14 +2,9 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
-// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
-const items = {
-    // مثال: 'wooden_bow': { name: 'قوس خشبي', type: 'weapon' }
-}; 
-const locations = {
-    // مثال: 'forest': { name: 'الغابات' }
-};
+// 💡 إصلاح الاستيراد: تم استيراد ملفات البيانات مباشرة لتغذية خريطة الترجمة
+import { items } from '../data/items.js'; 
+import { locations } from '../data/locations.js'; 
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -123,9 +118,9 @@ export default class CommandHandler {
                 'مساعدة': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers.bind(this), // 🆕
-                'افضل': this.handleTopPlayers.bind(this), // 🆕
-                'لاعبين': this.handleShowPlayers.bind(this), // 🆕
+                'توب': this.handleTopPlayers.bind(this), 
+                'افضل': this.handleTopPlayers.bind(this), 
+                'لاعبين': this.handleShowPlayers.bind(this), 
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -139,6 +134,7 @@ export default class CommandHandler {
                 // الاستكشاف
                 'خريطة': this.handleMap.bind(this),
                 'الموقع': this.handleMap.bind(this), 
+                'بوابات': this.handleGates.bind(this), // 🆕
                 
                 'انتقل': this.handleTravel.bind(this),
                 'سافر': this.handleTravel.bind(this), 
@@ -148,8 +144,8 @@ export default class CommandHandler {
                 
                 // الصناعة
                 'وصفات': this.handleShowRecipes.bind(this),
-                'اصنع': this.handleCraft.bind(this), // يعمل كـ "اصنع" أو "وصفات"
-                'صنع': this.handleCraft.bind(this),  // يعمل كـ "اصنع" أو "وصفات"
+                'اصنع': this.handleCraft.bind(this), 
+                'صنع': this.handleCraft.bind(this),  
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
@@ -178,7 +174,7 @@ export default class CommandHandler {
         for (const itemId in items) {
             const itemName = items[itemId].name;
             itemMap[itemName] = itemId;
-            itemMap[itemName.toLowerCase()] = itemId; // للسماح بحالة الأحرف الصغيرة
+            itemMap[itemName.toLowerCase()] = itemId; 
         }
         
         // 2. ترجمة من ملف locations
@@ -247,7 +243,6 @@ export default class CommandHandler {
                 
                 if (adminCommands[command]) {
                     console.log(`👑 تنفيذ أمر مدير: ${command}`);
-                    // تمرير خريطة الترجمة للمدير لاستخدامها في أوامر المنح
                     const result = await this.adminSystem.handleAdminCommand(command, args, id, player, this.ARABIC_ITEM_MAP);
                     return result;
                 }
@@ -387,6 +382,7 @@ export default class CommandHandler {
 
 🗺️ **الاستكشاف:**
 خريطة/الموقع - عرض الخريطة
+بوابات - عرض البوابات القريبة (دخول المغارات)
 انتقل/سافر [مكان] - السفر إلى موقع محدد
 تجميع/اجمع - جمع الموارد
 
@@ -429,6 +425,7 @@ export default class CommandHandler {
         
         try {
             const profileSystem = await this.getSystem('profile');
+            // 💡 ملاحظة: يجب أن يكون هناك دالة generateCard في ProfileCardGenerator
             const imagePath = await profileSystem.cardGenerator.generateCard(player);
             return {
                 type: 'image',
@@ -445,63 +442,35 @@ export default class CommandHandler {
         const profileSystem = await this.getSystem('profile');
         return profileSystem.getPlayerInventory(player);
     }
-    
-    // 🆕 دالة لعرض أفضل اللاعبين
-    async handleTopPlayers(player) {
-        try {
-            const topPlayers = await Player.getTopPlayers(5);
-            
-            let topMessage = `🏆 **أفضل 5 مغامرين (TOP 5)** 🏆\n\n`;
-            
-            topPlayers.forEach((p, index) => {
-                topMessage += `${index + 1} - **${p.name}** (مستوى ${p.level})\n`;
-            });
-            
-            const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId');
-            const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;
-            
-            topMessage += `\n------------------------------\n`;
-            topMessage += `ترتيبك: **#${playerRank}** - **${player.name}** (مستوى ${player.level})\n`;
-
-            return topMessage;
-
-        } catch (error) {
-            console.error('❌ خطأ في عرض قائمة التوب:', error);
-            return '❌ حدث خطأ أثناء جلب قائمة الأفضل.';
-        }
-    }
-    
-    // 🆕 دالة لعرض جميع اللاعبين (أمر المدير)
-    async handleShowPlayers(player) {
-        try {
-            if (!this.adminSystem.isAdmin(player.userId)) {
-                 return '❌ هذا الأمر خاص بالمدراء.';
-            }
-            
-            const activePlayers = await Player.find({ registrationStatus: 'completed' })
-                                        .sort({ level: -1, gold: -1 })
-                                        .select('name level gold currentLocation');
-            
-            let playerList = `📋 **قائمة اللاعبين النشطين (${activePlayers.length})**:\n\n`;
-            
-            activePlayers.forEach((p, index) => {
-                playerList += `${index + 1}. **${p.name}** (Lvl ${p.level}) - 💰${p.gold} - @${p.currentLocation}\n`;
-            });
-
-            return playerList;
-
-        } catch (error) {
-            console.error('❌ خطأ في عرض قائمة اللاعبين:', error);
-            return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';
-        }
-    }
-
 
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
         return worldSystem.showMap(player); 
     }
+    
+    // 🆕 معالج أمر البوابات
+    async handleGates(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const travelSystem = await this.getSystem('travel');
+        const gates = travelSystem.getNearbyGates(player);
+        
+        if (gates.length === 0) {
+            return `🚪 **لا توجد بوابات نشطة** حالياً في **${travelSystem.getLocationName(player.currentLocation)}**.`;
+        }
+
+        let message = `🚪 **البوابات النشطة القريبة (${gates.length})**:\n`;
+        gates.forEach(gate => {
+            message += `\n- **${gate.name}** (ID: ${gate.id})\n`;
+            message += `  • المستوى المطلوب: ${gate.requiredLevel}\n`;
+            message += `  • الوصف: ${gate.description}\n`;
+        });
+        message += `\n💡 **لدخول بوابة:** استخدم أمر "ادخل [ID البوابة]"`;
+        
+        return message;
+    }
+
 
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -544,7 +513,6 @@ export default class CommandHandler {
         return result.message;
     }
     
-    // 🛠️ معالج أمر عرض الوصفات (showRecipes)
     async handleShowRecipes(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const craftingSystem = await this.getSystem('crafting');
@@ -552,16 +520,14 @@ export default class CommandHandler {
         return result.message;
     }
 
-    // 🛠️ معالج أمر الصنع (Craft) - يعمل كـ "اصنع" أو "وصفات"
     async handleCraft(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات
         if (args.length === 0) {
             return this.handleShowRecipes(player); 
         }
 
-        const rawItemName = args.join(' '); // 💡 دمج الوسائط للبحث عن اسم العنصر المركب (مثال: سيف نحاس)
+        const rawItemName = args.join(' '); 
         if (!rawItemName) {
              return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
         }
