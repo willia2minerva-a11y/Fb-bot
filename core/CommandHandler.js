@@ -119,11 +119,16 @@ export default class CommandHandler {
                 'بدء': this.handleStart.bind(this),
                 'معرفي': this.handleGetId.bind(this),
                 'ذكر': this.handleGenderMale.bind(this),
+                'رجل': this.handleGenderMale.bind(this),
+                'ولد': this.handleGenderMale.bind(this),
                 'أنثى': this.handleGenderFemale.bind(this),
+                'بنت': this.handleGenderFemale.bind(this),
+                'فتاة': this.handleGenderFemale.bind(this),
                 'اسمي': this.handleSetName.bind(this),
 
                 // المعلومات
                 'مساعدة': this.handleHelp.bind(this),
+                'اوامر': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
                 'توب': this.handleTopPlayers,
@@ -138,26 +143,34 @@ export default class CommandHandler {
                 'حقيبتي': this.handleInventory.bind(this),
                 'حقيبة': this.handleInventory.bind(this), 
                 'جرد': this.handleInventory.bind(this), 
+                'مخزن': this.handleInventory.bind(this), 
 
                 // الاستكشاف
                 'خريطة': this.handleMap.bind(this),
                 'الموقع': this.handleMap.bind(this), 
                 'بوابات': this.handleGates.bind(this), 
-                
+                'ماب': this.handleMap.bind(this),
+ 
                 'انتقل': this.handleTravel.bind(this),
                 'سافر': this.handleTravel.bind(this), 
+                'نتقل': this.handleTravel.bind(this),
+                'ذهاب': this.handleTravel.bind(this),
                 
                 'تجميع': this.handleGather.bind(this),
                 'اجمع': this.handleGather.bind(this), 
+                'جمع': this.handleGather.bind(this),
                 
                 // الصناعة
                 'وصفات': this.handleShowRecipes.bind(this),
+                'صناعة': this.handleShowRecipes.bind(this),
                 'اصنع': this.handleCraft.bind(this), 
                 'صنع': this.handleCraft.bind(this),  
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
                 'قتال': this.handleAdventure.bind(this), 
+                'معركة': this.handleAdventure.bind(this),
+                'مواجهة': this.handleAdventure.bind(this),
                 
                 'هجوم': this.handleAttack.bind(this),
                 'اضرب': this.handleAttack.bind(this), 
@@ -166,7 +179,7 @@ export default class CommandHandler {
                 'اهرب': this.handleEscape.bind(this) 
             };
 
-            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
+            this.allowedBeforeApproval = ['بدء', "رجل", "بنت", 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
         } catch (error) {
@@ -190,6 +203,10 @@ export default class CommandHandler {
             const locationName = locations[locationId].name;
             itemMap[locationName] = locationId;
             itemMap[locationName.toLowerCase()] = locationId;
+            // إضافة الترجمة بدون 'ال' (للتنقل المرن)
+            if (locationName.startsWith('ال')) {
+                 itemMap[locationName.substring(2).toLowerCase()] = locationId;
+            }
         }
         
         return itemMap;
@@ -646,4 +663,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-}
+                }
