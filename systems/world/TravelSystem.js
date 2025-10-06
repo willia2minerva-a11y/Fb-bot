@@ -23,13 +23,25 @@ export class TravelSystem {
   }
 
   async travelTo(player, locationId) { 
-    const targetLocation = this.locations[locationId];
-    
+    // 🛠️ إصلاح: محاولة الترجمة العكسية إذا لم يكن المعرف موجوداً
+    let targetLocation = this.locations[locationId];
+    let originalId = locationId;
+
+    if (!targetLocation) {
+        // البحث عن المعرف باستخدام الاسم العربي (كملاذ أخير)
+        const foundKey = Object.keys(this.locations).find(key => 
+            this.locations[key].name.toLowerCase() === locationId.toLowerCase()
+        );
+        targetLocation = this.locations[foundKey];
+        if (foundKey) originalId = foundKey;
+    }
+    // نهاية الإصلاح
+
     if (!targetLocation) {
       return { error: "❌ هذا المكان غير موجود." };
     }
     
-    if (player.currentLocation === locationId) {
+    if (player.currentLocation === originalId) {
         return { error: `أنت بالفعل في **${targetLocation.name}**! 🧭`};
     }
 
@@ -37,26 +49,18 @@ export class TravelSystem {
       return { error: `❌ تحتاج إلى المستوى ${targetLocation.requiredLevel} للوصول إلى ${targetLocation.name}.` };
     }
     
-    // ===========================================
-    // 🆕 التحقق من شرط العنصر المطلوب (الأجنحة)
-    // ===========================================
+    // 1. التحقق من العنصر المطلوب (الأجنحة)
     if (targetLocation.requiredItem) {
         const requiredItemId = targetLocation.requiredItem;
-        // التحقق مما إذا كان العنصر موجوداً في المخزون أو مجهزاً (يفترض أن getItemQuantity تعيد 1 إذا كان مجهزاً)
         const hasRequiredItem = player.getItemQuantity(requiredItemId) > 0 || 
-                                player.equipment.weapon === requiredItemId ||
-                                player.equipment.armor === requiredItemId ||
-                                player.equipment.tool === requiredItemId;
+                                Object.values(player.equipment).includes(requiredItemId);
         
         if (!hasRequiredItem) {
             return { error: `❌ تحتاج إلى **${requiredItemId}** للدخول إلى **${targetLocation.name}**! (قم بصناعتها أو العثور عليها).` };
         }
     }
-    // ===========================================
-
-    // ===========================================
-    // 🆕 تطبيق نظام النشاط (Stamina Check)
-    // ===========================================
+    
+    // 2. التحقق من النشاط
     const cost = targetLocation.staminaCost || 10; 
     const actualStamina = player.getActualStamina();
 
@@ -70,11 +74,10 @@ export class TravelSystem {
         };
     }
     
+    // 3. خصم النشاط وتنفيذ السفر
     player.useStamina(cost);
-    // ===========================================
-
     const previousLocation = player.currentLocation;
-    player.currentLocation = locationId;
+    player.currentLocation = originalId;
 
     await player.save();
 
@@ -114,4 +117,4 @@ export class TravelSystem {
       gate: gate
     };
   }
-}
+  }
