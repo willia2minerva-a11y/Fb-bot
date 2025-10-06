@@ -5,10 +5,12 @@ import { AdminSystem } from '../systems/admin/AdminSystem.js';
 // 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
 // (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
 const items = {
-    // يجب أن تحتوي على جميع العناصر والمواد
+    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
+    'iron_bar': { name: 'سبيكة حديد', type: 'resource' }
 }; 
 const locations = {
-    // يجب أن تحتوي على جميع المواقع
+    'forest': { name: 'الغابات' },
+    'hell': { name: 'الجحيم' }
 };
 
 // أنظمة بديلة محسنة (Fallbacks)
@@ -26,10 +28,8 @@ async function getSystem(systemName) {
         };
 
         if (systems[systemName]) {
-            // 💡 إصلاح: يجب أن يتم استيراد Module كاملاً
             const module = await import(systems[systemName]);
-            // افتراض أن الكلاس هو أول شيء مُصدر
-            const SystemClass = Object.values(module)[0]; 
+            const SystemClass = Object.values(module)[0];
             return new SystemClass();
         }
     } catch (error) {
@@ -434,10 +434,7 @@ export default class CommandHandler {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
         try {
-            const profileSystem = await this.getSystem('profile');
-            // ❌ كان الخطأ هنا: profileSystem.cardGenerator غير مُعرّف
-            // يجب أن يكون الكارد جنريتور مُعرّفاً كخاصية في كلاس CommandHandler أو ProfileSystem
-            const cardGenerator = this.cardGenerator; // افتراض أنه مُعرّف في this
+            const cardGenerator = this.cardGenerator; 
             const imagePath = await cardGenerator.generateCard(player); 
             return {
                 type: 'image',
@@ -528,4 +525,125 @@ export default class CommandHandler {
             message += `  • المستوى المطلوب: ${gate.requiredLevel}\n`;
             message += `  • الوصف: ${gate.description}\n`;
         });
-        message += `\n💡 **لد
+        message += `\n💡 **لدخول بوابة:** استخدم أمر "ادخل [ID البوابة]"`;
+        
+        return message;
+    }
+
+
+    async handleTravel(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const rawLocationName = args.join(' ');
+        if (!rawLocationName) {
+             return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
+        }
+        
+        const locationId = this.ARABIC_ITEM_MAP[rawLocationName] || rawLocationName.toLowerCase();
+
+        const travelSystem = await this.getSystem('travel');
+        const result = await travelSystem.travelTo(player, locationId);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message;
+    }
+
+    async handleGather(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const gatheringSystem = await this.getSystem('gathering');
+        
+        if (args.length === 0) {
+             return gatheringSystem.showAvailableResources(player).message;
+        }
+        
+        const rawResourceName = args[0];
+        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName] || rawResourceName.toLowerCase();
+
+        const result = await gatheringSystem.gatherResources(player, resourceId);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message;
+    }
+    
+    async handleShowRecipes(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const craftingSystem = await this.getSystem('crafting');
+        const result = craftingSystem.showAvailableRecipes(player);
+        return result.message;
+    }
+
+    async handleCraft(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات
+        if (args.length === 0) {
+            return this.handleShowRecipes(player); 
+        }
+
+        const rawItemName = args.join(' '); 
+        if (!rawItemName) {
+             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
+        }
+        
+        const itemId = this.ARABIC_ITEM_MAP[rawItemName] || rawItemName.toLowerCase();
+
+        const craftingSystem = await this.getSystem('crafting');
+        const result = await craftingSystem.craftItem(player, itemId);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message;
+    }
+
+    async handleAdventure(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const battleSystem = await this.getSystem('battle');
+        const result = await battleSystem.startBattle(player);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message;
+    }
+
+    async handleAttack(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const battleSystem = await this.getSystem('battle');
+        const result = await battleSystem.attack(player);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message; 
+    }
+
+    async handleEscape(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const battleSystem = await this.getSystem('battle');
+        const result = await battleSystem.escape(player);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message;
+    }
+
+    async handleUnknown(command, player) {
+        return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
+    }
+}
