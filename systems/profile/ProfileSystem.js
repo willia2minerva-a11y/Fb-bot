@@ -14,7 +14,7 @@ export class ProfileSystem {
         return 'E';
     }
 
-    // دالة لعرض حالة اللاعب (Status) - تم التعديل
+    // دالة لعرض حالة اللاعب (Status)
     getPlayerStatus(player) {
         const actualStamina = player.getActualStamina();
         
@@ -44,6 +44,8 @@ export class ProfileSystem {
 🎒  الأغراض: ${player.inventory ? player.inventory.length : 0} نوع`;
     }
 
+    // ... (بقية الدوال تبقى كما هي)
+    
     getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
             return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
