@@ -1,24 +1,19 @@
-// systems/crafting/CraftingSystem.js
-// 💡 يجب التأكد من وجود ملف recipes.js و items.js في المسار الصحيح
-const recipes = {}; // افتراضي
-const items = {};   // افتراضي
-// import { recipes } from '../../data/recipes.js'; 
-// import { items } from '../../data/items.js'; 
-// import Player from '../../core/Player.js';
+import { recipes } from '../../data/recipes.js';
+import { items } from '../../data/items.js';
 
 export class CraftingSystem {
     constructor() {
-        this.recipes = recipes;
-        this.items = items;
+        this.RECIPES = recipes;
+        this.ITEMS = items;
         console.log('🔨 نظام الصناعة تم تهيئته.');
     }
 
     // 🛠️ دالة التصنيع - تم تحديثها لضمان استخدام اسم عربي مُترجم وتطبيق النشاط
     async craftItem(player, itemId) {
-        const recipe = this.recipes[itemId];
+        const recipe = this.RECIPES[itemId];
 
         if (!recipe) {
-            const itemName = this.items[itemId] ? this.items[itemId].name : itemId;
+            const itemName = this.ITEMS[itemId] ? this.ITEMS[itemId].name : itemId;
             return { error: `❌ لا توجد وصفة معروفة لـ **${itemName}**.` };
         }
         
@@ -47,7 +42,7 @@ export class CraftingSystem {
             const ownedQuantity = player.getItemQuantity(materialId);
             
             if (ownedQuantity < requiredQuantity) {
-                const materialName = this.items[materialId] ? this.items[materialId].name : materialId;
+                const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
                 missingMaterials.push(`❌ ${materialName}: ${ownedQuantity}/${requiredQuantity}`);
             }
         }
@@ -70,14 +65,11 @@ export class CraftingSystem {
         }
 
         // 4. إضافة العنصر المصنوع
-        const craftedItemInfo = this.items[itemId];
+        const craftedItemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
         player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1); 
 
         // 5. حفظ وتحديث الإحصائيات
         player.stats.itemsCrafted += 1;
-        // 💡 يجب استدعاء player.save() في CommandHandler بعد نجاح العملية
-        // لكننا نتركها هنا إذا كان نظامك يستخدمها (يجب أن يتم الحفظ خارج هذه الدالة في العادة)
-        // await player.save(); 
 
         return { 
             success: true,
@@ -86,22 +78,19 @@ export class CraftingSystem {
         };
     }
     
-    // 🛠️ دالة عرض الوصفات - تم تحديثها لتقسيم القائمة
+    /**
+     * يعرض الوصفات المتاحة مع مقارنتها بمخزون اللاعب
+     */
     showAvailableRecipes(player) {
+        const allRecipes = Object.keys(this.RECIPES).map(id => ({ id, ...this.RECIPES[id] }));
         const availableRecipes = {};
-        const allRecipes = Object.keys(this.recipes).map(id => ({ id, ...this.recipes[id] }));
-
-        // تصفية وتجميع الوصفات حسب النوع
+        
+        // 1. تجميع الوصفات حسب النوع
         allRecipes.forEach(recipe => {
-            const itemInfo = this.items[recipe.id];
-            if (!itemInfo) return; 
-            
-            if ((recipe.requiredSkill || 1) > (player.skills.crafting || 1)) return;
-            
+            const itemInfo = this.ITEMS[recipe.id] || { type: 'other' };
             const type = itemInfo.type || 'other';
-            if (!availableRecipes[type]) {
-                availableRecipes[type] = [];
-            }
+
+            if (!availableRecipes[type]) availableRecipes[type] = [];
             availableRecipes[type].push(recipe);
         });
         
@@ -116,7 +105,7 @@ export class CraftingSystem {
             'other': '📦 مواد أخرى/متنوعة'
         };
         
-        // بناء الرسالة بترتيب الأنواع
+        // 2. بناء الرسالة بترتيب الأنواع
         for (const typeKey in typeOrder) {
             const typeName = typeOrder[typeKey];
             const recipesList = availableRecipes[typeKey] || [];
@@ -131,9 +120,10 @@ export class CraftingSystem {
                         const requiredQuantity = recipe.materials[materialId];
                         const ownedQuantity = player.getItemQuantity(materialId);
                         
-                        const materialName = this.items[materialId] ? this.items[materialId].name : materialId;
+                        const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
                         const statusIcon = ownedQuantity >= requiredQuantity ? '✅' : '❌';
                         
+                        // 🛠️ إصلاح: عرض الكمية الموجودة لدى اللاعب (ownedQuantity)
                         message += `  ${statusIcon} ${materialName}: ${ownedQuantity}/${requiredQuantity}\n`;
                     }
                 });
