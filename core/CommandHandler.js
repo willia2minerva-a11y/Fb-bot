@@ -174,11 +174,11 @@ export default class CommandHandler {
     // 🆕 دالة لإنشاء خريطة ترجمة العناصر من العربي إلى الإنجليزي (ID)
     _createArabicItemMap() {
         const itemMap = {};
-        // 1. ترجمة من ملف items (يفترض أنه يحتوي على 'name' و 'id')
+        // 1. ترجمة من ملف items
         for (const itemId in items) {
             const itemName = items[itemId].name;
             itemMap[itemName] = itemId;
-            itemMap[itemName.toLowerCase()] = itemId; // للسماح بالحالة الصغيرة
+            itemMap[itemName.toLowerCase()] = itemId; // للسماح بحالة الأحرف الصغيرة
         }
         
         // 2. ترجمة من ملف locations
@@ -306,12 +306,149 @@ export default class CommandHandler {
         return '❌ يرجى إكمال عملية التسجيل أولاً.';
     }
 
-    // ... (بقية الدوال handleStart, handleGetId, handleGenderMale/Female, handleSetName تبقى كما هي)
+    // ========== دوال معالجة الأوامر ==========
 
+    async handleStart(player) {
+        try {
+            if (player.isPending()) {
+                const registrationSystem = await this.getSystem('registration');
+                return registrationSystem.startRegistration(player.userId, player.name);
+            } 
+            else if (player.isApprovedButNotCompleted()) {
+                const registrationSystem = await this.getSystem('registration');
+                const step = registrationSystem.getRegistrationStep(player.userId);
+                
+                if (step && step.step === 'gender_selection') {
+                    return `👋 **مرحباً ${player.name}!**
+
+الرجاء اختيار جنسك:
+• اكتب "ذكر" 👦
+• اكتب "أنثى" 👧`;
+                } 
+                else if (step && step.step === 'name_selection') {
+                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
+
+اكتب "اسمي [الاسم]" بين 3 إلى 9 أحرف إنجليزية
+مثال: اسمي John`;
+                }
+            }
+
+            return `🎮 **مرحباً ${player.name} في مغارة غولد!**
+
+📍 موقعك: ${player.currentLocation}
+✨ مستواك: ${player.level}
+💰 ذهبك: ${player.gold}
+
+اكتب "مساعدة" لرؤية الأوامر.`;
+        } catch (error) {
+            return '❌ حدث خطأ في بدء اللعبة.';
+        }
+    }
+
+    async handleGetId(player) {
+        return `🆔 **معرفك هو:** \`${player.userId}\`
+
+📨 أرسل هذا المعرف للمدير للحصول على الموافقة.`;
+    }
+
+    async handleGenderMale(player) {
+        const registrationSystem = await this.getSystem('registration');
+        const result = await registrationSystem.setGender(player.userId, 'male');
+        return result;
+    }
+
+    async handleGenderFemale(player) {
+        const registrationSystem = await this.getSystem('registration');
+        const result = await registrationSystem.setGender(player.userId, 'female');
+        return result;
+    }
+
+    async handleSetName(player, args) {
+        const name = args.join(' ');
+        if (!name) return '❌ يرجى تحديد اسم. مثال: اسمي John';
+        
+        const registrationSystem = await this.getSystem('registration');
+        const result = await registrationSystem.setName(player.userId, name);
+        return result;
+    }
+
+    async handleHelp(player, args, senderId) {
+        const isAdmin = this.adminSystem.isAdmin(senderId);
+        
+        let helpMessage = `🆘 **أوامر مغارة غولد**
+
+🎯 **الأساسية:**
+بدء - بدء اللعبة أو متابعة التسجيل
+معرفي - عرض معرفك للمدير
+مساعدة - عرض هذه القائمة`;
+
+        if (player.isApproved()) {
+            helpMessage += `
+
+🗺️ **الاستكشاف:**
+خريطة/الموقع - عرض الخريطة
+انتقل/سافر [مكان] - السفر إلى موقع محدد
+تجميع/اجمع - جمع الموارد
+
+🛠️ **الصناعة والتجارة:**
+وصفات - عرض وصفات الصنع المتاحة
+اصنع/صنع [ID] - صنع عنصر محدد
+
+🎒 **الإدارة:**
+حالتي/حالة - عرض حالتك
+بروفايلي/بطاقة - بطاقة البروفايل
+حقيبتي/جرد - عرض المحتويات
+توب/افضل - عرض قائمة الأفضل
+
+⚔️ **القتال:**
+مغامرة/قتال - بدء معركة ضد وحش في المنطقة
+هجوم/اضرب - الهجوم في المعركة الحالية
+هروب/اهرب - محاولة الهروب من المعركة`;
+        }
+
+        if (isAdmin) {
+            helpMessage += `
+
+👑 **أوامر المدير:**
+مدير - عرض أوامر المدير الكاملة
+لاعبين - عرض قائمة اللاعبين النشطين
+`;
+        }
+
+        return helpMessage;
+    }
+
+    async handleStatus(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const profileSystem = await this.getSystem('profile');
+        return profileSystem.getPlayerStatus(player);
+    }
+
+    async handleProfile(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        try {
+            const profileSystem = await this.getSystem('profile');
+            const imagePath = await profileSystem.cardGenerator.generateCard(player);
+            return {
+                type: 'image',
+                path: imagePath,
+                caption: `📋 بطاقة بروفايلك يا ${player.name}!`
+            };
+        } catch (error) {
+            return `❌ حدث خطأ في إنشاء البطاقة: ${error.message}`;
+        }
+    }
+
+    async handleInventory(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const profileSystem = await this.getSystem('profile');
+        return profileSystem.getPlayerInventory(player);
+    }
+    
     // 🆕 دالة لعرض أفضل اللاعبين
     async handleTopPlayers(player) {
         try {
-            // يفترض أن دالة getTopPlayers موجودة في Player.js
             const topPlayers = await Player.getTopPlayers(5);
             
             let topMessage = `🏆 **أفضل 5 مغامرين (TOP 5)** 🏆\n\n`;
@@ -320,7 +457,6 @@ export default class CommandHandler {
                 topMessage += `${index + 1} - **${p.name}** (مستوى ${p.level})\n`;
             });
             
-            // إيجاد ترتيب اللاعب الحالي
             const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId');
             const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;
             
@@ -338,7 +474,6 @@ export default class CommandHandler {
     // 🆕 دالة لعرض جميع اللاعبين (أمر المدير)
     async handleShowPlayers(player) {
         try {
-            // نحتاج لخاصية isAdmin (نستخدمها خارج دالة المدير)
             if (!this.adminSystem.isAdmin(player.userId)) {
                  return '❌ هذا الأمر خاص بالمدراء.';
             }
@@ -361,7 +496,13 @@ export default class CommandHandler {
         }
     }
 
-    // 🛠️ معالج أمر الانتقال (تم تحديثه لاستخدام خريطة الترجمة)
+
+    async handleMap(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const worldSystem = await this.getSystem('world');
+        return worldSystem.showMap(player); 
+    }
+
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
@@ -381,8 +522,7 @@ export default class CommandHandler {
         
         return result.message;
     }
-    
-    // 🛠️ معالج أمر التجميع (تم تحديثه لاستخدام خريطة الترجمة)
+
     async handleGather(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
@@ -421,9 +561,9 @@ export default class CommandHandler {
             return this.handleShowRecipes(player); 
         }
 
-        const rawItemName = args[0] ? args[0] : null;
+        const rawItemName = args.join(' '); // 💡 دمج الوسائط للبحث عن اسم العنصر المركب (مثال: سيف نحاس)
         if (!rawItemName) {
-             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع سيف حديد';
+             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
         }
         
         const itemId = this.ARABIC_ITEM_MAP[rawItemName] || rawItemName.toLowerCase();
@@ -437,9 +577,6 @@ export default class CommandHandler {
         
         return result.message;
     }
-
-    // ... (بقية الدوال handleAdventure, handleAttack, handleEscape, handleUnknown تبقى كما هي)
-
 
     async handleAdventure(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
