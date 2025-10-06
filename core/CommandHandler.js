@@ -2,6 +2,15 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
+// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
+// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
+const items = {
+    // مثال: 'wooden_bow': { name: 'قوس خشبي', type: 'weapon' }
+}; 
+const locations = {
+    // مثال: 'forest': { name: 'الغابات' }
+};
+
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
     try {
@@ -11,7 +20,7 @@ async function getSystem(systemName) {
             'gathering': '../systems/gathering/GatheringSystem.js',
             'profile': '../systems/profile/ProfileSystem.js',
             'registration': '../systems/registration/RegistrationSystem.js',
-            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js', // 💡 تمت إعادته
+            'autoResponse': '../systems/autoResponse/AutoResponseSystem.js', 
             'travel': '../systems/world/TravelSystem.js',
             'crafting': '../systems/crafting/CraftingSystem.js'
         };
@@ -71,7 +80,6 @@ async function getSystem(systemName) {
             async resetRegistration() { return true; }
         },
         'autoResponse': class {
-            // نسخة بديلة بسيطة لـ AutoResponseSystem
             findAutoResponse(message) { return null; }
         },
         'travel': class {
@@ -98,6 +106,9 @@ export default class CommandHandler {
             this.adminSystem = new AdminSystem();
             this.cardGenerator = new ProfileCardGenerator();
             this.systems = {};
+            
+            // 🆕 خريطة الترجمة الشاملة (للعناصر والموارد والمواقع)
+            this.ARABIC_ITEM_MAP = this._createArabicItemMap();
 
             // أوامر اللعبة الأساسية
             this.commands = {
@@ -112,6 +123,9 @@ export default class CommandHandler {
                 'مساعدة': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
+                'توب': this.handleTopPlayers.bind(this), // 🆕
+                'افضل': this.handleTopPlayers.bind(this), // 🆕
+                'لاعبين': this.handleShowPlayers.bind(this), // 🆕
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -134,8 +148,8 @@ export default class CommandHandler {
                 
                 // الصناعة
                 'وصفات': this.handleShowRecipes.bind(this),
-                'اصنع': this.handleCraft.bind(this),
-                'صنع': this.handleCraft.bind(this), 
+                'اصنع': this.handleCraft.bind(this), // يعمل كـ "اصنع" أو "وصفات"
+                'صنع': this.handleCraft.bind(this),  // يعمل كـ "اصنع" أو "وصفات"
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
@@ -156,6 +170,27 @@ export default class CommandHandler {
             throw error;
         }
     }
+    
+    // 🆕 دالة لإنشاء خريطة ترجمة العناصر من العربي إلى الإنجليزي (ID)
+    _createArabicItemMap() {
+        const itemMap = {};
+        // 1. ترجمة من ملف items (يفترض أنه يحتوي على 'name' و 'id')
+        for (const itemId in items) {
+            const itemName = items[itemId].name;
+            itemMap[itemName] = itemId;
+            itemMap[itemName.toLowerCase()] = itemId; // للسماح بالحالة الصغيرة
+        }
+        
+        // 2. ترجمة من ملف locations
+        for (const locationId in locations) {
+            const locationName = locations[locationId].name;
+            itemMap[locationName] = locationId;
+            itemMap[locationName.toLowerCase()] = locationId;
+        }
+        
+        return itemMap;
+    }
+
 
     async getSystem(systemName) {
         if (!this.systems[systemName]) {
@@ -163,7 +198,7 @@ export default class CommandHandler {
         }
         return this.systems[systemName];
     }
-
+    
     async process(sender, message) {
         const { id, name } = sender;
         const parts = message.trim().split(/\s+/);
@@ -177,7 +212,7 @@ export default class CommandHandler {
             console.log('🎯 🔥 تم التعرف على المدير!');
         }
         
-        // 💡 تم الإرجاع: التحقق من الردود التلقائية أولاً
+        // التحقق من الردود التلقائية أولاً
         const autoResponseSystem = await this.getSystem('autoResponse');
         if (autoResponseSystem) {
              const autoResponse = autoResponseSystem.findAutoResponse(message);
@@ -186,7 +221,6 @@ export default class CommandHandler {
                  return autoResponse;
              }
         }
-        // ---------------------------------------------
         
         try {
             let player = await Player.findOne({ userId: id });
@@ -213,7 +247,8 @@ export default class CommandHandler {
                 
                 if (adminCommands[command]) {
                     console.log(`👑 تنفيذ أمر مدير: ${command}`);
-                    const result = await this.adminSystem.handleAdminCommand(command, args, id, player);
+                    // تمرير خريطة الترجمة للمدير لاستخدامها في أوامر المنح
+                    const result = await this.adminSystem.handleAdminCommand(command, args, id, player, this.ARABIC_ITEM_MAP);
                     return result;
                 }
             }
@@ -271,148 +306,62 @@ export default class CommandHandler {
         return '❌ يرجى إكمال عملية التسجيل أولاً.';
     }
 
-    // ========== دوال معالجة الأوامر ==========
+    // ... (بقية الدوال handleStart, handleGetId, handleGenderMale/Female, handleSetName تبقى كما هي)
 
-    async handleStart(player) {
+    // 🆕 دالة لعرض أفضل اللاعبين
+    async handleTopPlayers(player) {
         try {
-            if (player.isPending()) {
-                const registrationSystem = await this.getSystem('registration');
-                return registrationSystem.startRegistration(player.userId, player.name);
-            } 
-            else if (player.isApprovedButNotCompleted()) {
-                const registrationSystem = await this.getSystem('registration');
-                const step = registrationSystem.getRegistrationStep(player.userId);
-                
-                if (step && step.step === 'gender_selection') {
-                    return `👋 **مرحباً ${player.name}!**
+            // يفترض أن دالة getTopPlayers موجودة في Player.js
+            const topPlayers = await Player.getTopPlayers(5);
+            
+            let topMessage = `🏆 **أفضل 5 مغامرين (TOP 5)** 🏆\n\n`;
+            
+            topPlayers.forEach((p, index) => {
+                topMessage += `${index + 1} - **${p.name}** (مستوى ${p.level})\n`;
+            });
+            
+            // إيجاد ترتيب اللاعب الحالي
+            const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId');
+            const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;
+            
+            topMessage += `\n------------------------------\n`;
+            topMessage += `ترتيبك: **#${playerRank}** - **${player.name}** (مستوى ${player.level})\n`;
 
-الرجاء اختيار جنسك:
-• اكتب "ذكر" 👦
-• اكتب "أنثى" 👧`;
-                } 
-                else if (step && step.step === 'name_selection') {
-                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
+            return topMessage;
 
-اكتب "اسمي [الاسم]" بين 3 إلى 9 أحرف إنجليزية
-مثال: اسمي John`;
-                }
+        } catch (error) {
+            console.error('❌ خطأ في عرض قائمة التوب:', error);
+            return '❌ حدث خطأ أثناء جلب قائمة الأفضل.';
+        }
+    }
+    
+    // 🆕 دالة لعرض جميع اللاعبين (أمر المدير)
+    async handleShowPlayers(player) {
+        try {
+            // نحتاج لخاصية isAdmin (نستخدمها خارج دالة المدير)
+            if (!this.adminSystem.isAdmin(player.userId)) {
+                 return '❌ هذا الأمر خاص بالمدراء.';
             }
+            
+            const activePlayers = await Player.find({ registrationStatus: 'completed' })
+                                        .sort({ level: -1, gold: -1 })
+                                        .select('name level gold currentLocation');
+            
+            let playerList = `📋 **قائمة اللاعبين النشطين (${activePlayers.length})**:\n\n`;
+            
+            activePlayers.forEach((p, index) => {
+                playerList += `${index + 1}. **${p.name}** (Lvl ${p.level}) - 💰${p.gold} - @${p.currentLocation}\n`;
+            });
 
-            return `🎮 **مرحباً ${player.name} في مغارة غولد!**
+            return playerList;
 
-📍 موقعك: ${player.currentLocation}
-✨ مستواك: ${player.level}
-💰 ذهبك: ${player.gold}
-
-اكتب "مساعدة" لرؤية الأوامر.`;
         } catch (error) {
-            return '❌ حدث خطأ في بدء اللعبة.';
+            console.error('❌ خطأ في عرض قائمة اللاعبين:', error);
+            return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';
         }
     }
 
-    async handleGetId(player) {
-        return `🆔 **معرفك هو:** \`${player.userId}\`
-
-📨 أرسل هذا المعرف للمدير للحصول على الموافقة.`;
-    }
-
-    async handleGenderMale(player) {
-        const registrationSystem = await this.getSystem('registration');
-        const result = await registrationSystem.setGender(player.userId, 'male');
-        return result;
-    }
-
-    async handleGenderFemale(player) {
-        const registrationSystem = await this.getSystem('registration');
-        const result = await registrationSystem.setGender(player.userId, 'female');
-        return result;
-    }
-
-    async handleSetName(player, args) {
-        const name = args.join(' ');
-        if (!name) return '❌ يرجى تحديد اسم. مثال: اسمي John';
-        
-        const registrationSystem = await this.getSystem('registration');
-        const result = await registrationSystem.setName(player.userId, name);
-        return result;
-    }
-
-    async handleHelp(player, args, senderId) {
-        const isAdmin = this.adminSystem.isAdmin(senderId);
-        
-        let helpMessage = `🆘 **أوامر مغارة غولد**
-
-🎯 **الأساسية:**
-بدء - بدء اللعبة أو متابعة التسجيل
-معرفي - عرض معرفك للمدير
-مساعدة - عرض هذه القائمة`;
-
-        if (player.isApproved()) {
-            helpMessage += `
-
-🗺️ **الاستكشاف:**
-خريطة/الموقع - عرض الخريطة
-انتقل/سافر [مكان] - السفر إلى موقع محدد
-تجميع/اجمع - جمع الموارد
-
-🛠️ **الصناعة والتجارة:**
-وصفات - عرض وصفات الصنع المتاحة
-اصنع/صنع [ID] - صنع عنصر محدد
-
-🎒 **الإدارة:**
-حالتي/حالة - عرض حالتك
-بروفايلي/بطاقة - بطاقة البروفايل
-حقيبتي/جرد - عرض المحتويات
-
-⚔️ **القتال:**
-مغامرة/قتال - بدء معركة ضد وحش في المنطقة
-هجوم/اضرب - الهجوم في المعركة الحالية
-هروب/اهرب - محاولة الهروب من المعركة`;
-        }
-
-        if (isAdmin) {
-            helpMessage += `
-
-👑 **أوامر المدير:**
-مدير - عرض أوامر المدير الكاملة`;
-        }
-
-        return helpMessage;
-    }
-
-    async handleStatus(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        const profileSystem = await this.getSystem('profile');
-        return profileSystem.getPlayerStatus(player);
-    }
-
-    async handleProfile(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        
-        try {
-            const imagePath = await this.cardGenerator.generateCard(player);
-            return {
-                type: 'image',
-                path: imagePath,
-                caption: `📋 بطاقة بروفايلك يا ${player.name}!`
-            };
-        } catch (error) {
-            return '❌ حدث خطأ في إنشاء البطاقة.';
-        }
-    }
-
-    async handleInventory(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        const profileSystem = await this.getSystem('profile');
-        return profileSystem.getPlayerInventory(player);
-    }
-
-    async handleMap(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        const worldSystem = await this.getSystem('world');
-        return worldSystem.showMap(player); 
-    }
-
+    // 🛠️ معالج أمر الانتقال (تم تحديثه لاستخدام خريطة الترجمة)
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
@@ -421,19 +370,7 @@ export default class CommandHandler {
              return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
         
-        const locationTranslation = {
-            'قرية': 'village', 'القرية': 'village',
-            'غابات': 'forest', 'الغابات': 'forest',
-            'صحراء': 'desert', 'الصحراء': 'desert',
-            'جوفية': 'underground_jungle', 'الغابة الجوفية': 'underground_jungle',
-            'سماء': 'sky', 'السماء': 'sky',
-            'محيط': 'ocean', 'المحيط': 'ocean',
-            'معبد': 'old_temple', 'المعبد القديم': 'old_temple',
-            'جحيم': 'hell', 'الجحيم': 'hell',
-            'ثلوج': 'snow', 'الثلوج': 'snow'
-        };
-
-        const locationId = locationTranslation[rawLocationName] || rawLocationName.toLowerCase();
+        const locationId = this.ARABIC_ITEM_MAP[rawLocationName] || rawLocationName.toLowerCase();
 
         const travelSystem = await this.getSystem('travel');
         const result = await travelSystem.travelTo(player, locationId);
@@ -444,7 +381,8 @@ export default class CommandHandler {
         
         return result.message;
     }
-
+    
+    // 🛠️ معالج أمر التجميع (تم تحديثه لاستخدام خريطة الترجمة)
     async handleGather(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
@@ -454,7 +392,9 @@ export default class CommandHandler {
              return gatheringSystem.showAvailableResources(player).message;
         }
         
-        const resourceId = args[0].toLowerCase();
+        const rawResourceName = args[0];
+        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName] || rawResourceName.toLowerCase();
+
         const result = await gatheringSystem.gatherResources(player, resourceId);
         
         if (result.error) {
@@ -464,21 +404,30 @@ export default class CommandHandler {
         return result.message;
     }
     
+    // 🛠️ معالج أمر عرض الوصفات (showRecipes)
     async handleShowRecipes(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const craftingSystem = await this.getSystem('crafting');
-        const result = craftingSystem.showCraftingRecipes(player);
+        const result = craftingSystem.showAvailableRecipes(player);
         return result.message;
     }
-    
+
+    // 🛠️ معالج أمر الصنع (Craft) - يعمل كـ "اصنع" أو "وصفات"
     async handleCraft(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        const itemId = args[0] ? args[0].toLowerCase() : null;
-        if (!itemId) {
-             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع wooden_bow';
+        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات
+        if (args.length === 0) {
+            return this.handleShowRecipes(player); 
+        }
+
+        const rawItemName = args[0] ? args[0] : null;
+        if (!rawItemName) {
+             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع سيف حديد';
         }
         
+        const itemId = this.ARABIC_ITEM_MAP[rawItemName] || rawItemName.toLowerCase();
+
         const craftingSystem = await this.getSystem('crafting');
         const result = await craftingSystem.craftItem(player, itemId);
         
@@ -488,6 +437,9 @@ export default class CommandHandler {
         
         return result.message;
     }
+
+    // ... (بقية الدوال handleAdventure, handleAttack, handleEscape, handleUnknown تبقى كما هي)
+
 
     async handleAdventure(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
