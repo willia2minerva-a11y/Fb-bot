@@ -1,5 +1,10 @@
-import { recipes } from '../../data/recipes.js';
-import { items } from '../../data/items.js';
+// systems/crafting/CraftingSystem.js
+// 💡 يجب التأكد من وجود ملف recipes.js و items.js في المسار الصحيح
+const recipes = {}; // placeholder
+const items = {};   // placeholder
+// import { recipes } from '../../data/recipes.js'; 
+// import { items } from '../../data/items.js'; 
+
 
 export class CraftingSystem {
     constructor() {
@@ -49,7 +54,7 @@ export class CraftingSystem {
 
         if (missingMaterials.length > 0) {
             return { 
-                error: `❌ **لا تملك المواد الكافية لصنع ${recipe.name}:**\n${missingMaterials.join('\n')}` 
+                error: `❌ لا تملك المواد الكافية لصنع ${recipe.name}:\n${missingMaterials.join('\n')}` 
             };
         }
 
@@ -73,13 +78,13 @@ export class CraftingSystem {
 
         return { 
             success: true,
-            message: `✅ **تم صنع ${craftedItemInfo.name} بنجاح!**\n- تم خصم ${cost} نشاط.`,
+            message: `✅ تم صنع **${craftedItemInfo.name}** بنجاح!\n- تم خصم ${cost} نشاط.`,
             item: craftedItemInfo 
         };
     }
     
     /**
-     * يعرض الوصفات المتاحة مع مقارنتها بمخزون اللاعب
+     * يعرض الوصفات المتاحة مع مقارنتها بمخزون اللاعب (تنسيق مُحسّن)
      */
     showAvailableRecipes(player) {
         const allRecipes = Object.keys(this.RECIPES).map(id => ({ id, ...this.RECIPES[id] }));
@@ -94,7 +99,9 @@ export class CraftingSystem {
             availableRecipes[type].push(recipe);
         });
         
-        let message = `🛠️ **ورشة الصناعة - الوصفات (${allRecipes.length})**\n`;
+        let message = `╔═══════════ 🛠️  ورشة الصناعة ═══════════╗\n`;
+        message += `║       📝 الوصفات المتاحة: (${allRecipes.length})           ║\n`;
+        message += `╚═══════════════════════════════════════╝\n`;
         
         const typeOrder = {
             'weapon': '⚔️ الأسلحة', 
@@ -111,10 +118,12 @@ export class CraftingSystem {
             const recipesList = availableRecipes[typeKey] || [];
             
             if (recipesList.length > 0) {
-                message += `\n**--- ${typeName} (${recipesList.length}) ---**\n`;
+                message += `\n─── ${typeName} (${recipesList.length}) ───\n`;
                 
                 recipesList.forEach(recipe => {
-                    message += `• **${recipe.name}** (ID: ${recipe.id})\n`;
+                    // إزالة **
+                    message += `\n✨ ${recipe.name} (Lvl: ${recipe.requiredLevel || 1})\n`;
+                    message += `  ├── المواد المطلوبة:\n`;
                     
                     for (const materialId in recipe.materials) {
                         const requiredQuantity = recipe.materials[materialId];
@@ -123,16 +132,17 @@ export class CraftingSystem {
                         const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
                         const statusIcon = ownedQuantity >= requiredQuantity ? '✅' : '❌';
                         
-                        // 🛠️ إصلاح: عرض الكمية الموجودة لدى اللاعب (ownedQuantity)
-                        message += `  ${statusIcon} ${materialName}: ${ownedQuantity}/${requiredQuantity}\n`;
+                        // إزالة **
+                        message += `  └── ${statusIcon} ${materialName}: ${ownedQuantity} / ${requiredQuantity}\n`;
                     }
                 });
             }
         }
         
-        message += `\n💡 **للتصنيع:** استخدم أمر "اصنع [اسم العنصر بالعربي]"\n`;
+        message += `\n═══════════════════════════════════════\n`;
+        message += `💡 للتصنيع: استخدم أمر "اصنع [اسم العنصر]"\n`;
         message += `مثال: اصنع قوس خشبي`;
         
         return { message };
     }
-}
+    }
