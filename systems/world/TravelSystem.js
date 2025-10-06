@@ -30,7 +30,9 @@ export class TravelSystem {
     if (!targetLocation) {
         // البحث عن المعرف باستخدام الاسم العربي (كملاذ أخير)
         const foundKey = Object.keys(this.locations).find(key => 
-            this.locations[key].name.toLowerCase() === locationId.toLowerCase()
+            this.locations[key].name.toLowerCase() === locationId.toLowerCase() ||
+            // 🆕 البحث بدون الـ 'ال' التعريف
+            (this.locations[key].name.startsWith('ال') && this.locations[key].name.substring(2).toLowerCase() === locationId.toLowerCase())
         );
         targetLocation = this.locations[foundKey];
         if (foundKey) originalId = foundKey;
@@ -42,7 +44,7 @@ export class TravelSystem {
     }
     
     if (player.currentLocation === originalId) {
-        return { error: `أنت بالفعل في **${targetLocation.name}**! 🧭`};
+        return { error: `أنت بالفعل في ${targetLocation.name}! 🧭`};
     }
 
     if (targetLocation.requiredLevel > player.level) {
@@ -56,7 +58,7 @@ export class TravelSystem {
                                 Object.values(player.equipment).includes(requiredItemId);
         
         if (!hasRequiredItem) {
-            return { error: `❌ تحتاج إلى **${requiredItemId}** للدخول إلى **${targetLocation.name}**! (قم بصناعتها أو العثور عليها).` };
+            return { error: `❌ تحتاج إلى **${requiredItemId}** للدخول إلى ${targetLocation.name}! (قم بصناعتها أو العثور عليها).` };
         }
     }
     
@@ -70,7 +72,7 @@ export class TravelSystem {
         const timeToRecover = Math.ceil(missingStamina / recoveryRate);
         
         return { 
-            error: `😩 **أنت متعب جداً!** التنقل يتطلب ${cost} نشاط، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد النشاط الكافي في حوالي ${timeToRecover} دقيقة.` 
+            error: `😩 أنت متعب جداً! التنقل يتطلب ${cost} نشاط، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد النشاط الكافي في حوالي ${timeToRecover} دقيقة.` 
         };
     }
     
@@ -83,7 +85,8 @@ export class TravelSystem {
 
     return {
       success: true,
-      message: `🧭 **انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}!**\n\n- تم خصم **${cost}** نشاط.\n\n${targetLocation.description}`,
+      // رسالة منسقة
+      message: `✅ تم التنقل بنجاح!\n🧭 انتقلت من ${this.getLocationName(previousLocation)} إلى ${targetLocation.name}.\n- تم خصم ${cost} نشاط.\n\n📝 وصف الموقع:\n${targetLocation.description}`,
       location: targetLocation
     };
   }
@@ -113,8 +116,8 @@ export class TravelSystem {
 
     return {
       success: true,
-      message: `🚪 **دخلت ${gate.name}!**\n\n${gate.description}\n\nالوحوش المحتملة: ${gate.monsters.join(', ')}`,
+      message: `🚪 دخلت **${gate.name}**!\n\n${gate.description}\n\nالوحوش المحتملة: ${gate.monsters.join(', ')}`,
       gate: gate
     };
   }
-  }
+}
