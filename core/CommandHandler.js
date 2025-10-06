@@ -2,9 +2,14 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 💡 إصلاح الاستيراد: تم استيراد ملفات البيانات مباشرة لتغذية خريطة الترجمة
-import { items } from '../data/items.js'; 
-import { locations } from '../data/locations.js'; 
+// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
+// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
+const items = {
+    // مثال: 'wooden_bow': { name: 'قوس خشبي', type: 'weapon' }
+}; 
+const locations = {
+    // مثال: 'forest': { name: 'الغابات' }
+};
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -118,9 +123,9 @@ export default class CommandHandler {
                 'مساعدة': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers.bind(this), 
-                'افضل': this.handleTopPlayers.bind(this), 
-                'لاعبين': this.handleShowPlayers.bind(this), 
+                'توب': this.handleTopPlayers, // 🛠️ تم إزالة bind
+                'افضل': this.handleTopPlayers, // 🛠️ تم إزالة bind
+                'لاعبين': this.handleShowPlayers, // 🛠️ تم إزالة bind
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -134,7 +139,7 @@ export default class CommandHandler {
                 // الاستكشاف
                 'خريطة': this.handleMap.bind(this),
                 'الموقع': this.handleMap.bind(this), 
-                'بوابات': this.handleGates.bind(this), // 🆕
+                'بوابات': this.handleGates.bind(this), 
                 
                 'انتقل': this.handleTravel.bind(this),
                 'سافر': this.handleTravel.bind(this), 
@@ -254,7 +259,9 @@ export default class CommandHandler {
                     return this.getRegistrationMessage(player);
                 }
 
-                const result = await this.commands[command](player, args, id);
+                // 🛠️ تم تحديث الاستدعاء ليعمل مع دوال Arrow Functions
+                const handler = this.commands[command]; 
+                const result = (typeof handler === 'function') ? await handler.call(this, player, args, id) : await handler(player, args, id);
                 
                 if (typeof result === 'string') {
                     await player.save();
@@ -425,7 +432,6 @@ export default class CommandHandler {
         
         try {
             const profileSystem = await this.getSystem('profile');
-            // 💡 ملاحظة: يجب أن يكون هناك دالة generateCard في ProfileCardGenerator
             const imagePath = await profileSystem.cardGenerator.generateCard(player);
             return {
                 type: 'image',
@@ -443,13 +449,65 @@ export default class CommandHandler {
         return profileSystem.getPlayerInventory(player);
     }
 
+    // 🆕 دوال خاصة بالخصائص (Arrow Functions) - تم إصلاح مشكلة Bind
+    handleTopPlayers = async (player) => {
+        try {
+            const topPlayers = await Player.getTopPlayers(5);
+            
+            let topMessage = `🏆 **أفضل 5 مغامرين (TOP 5)** 🏆\n\n`;
+            
+            topPlayers.forEach((p, index) => {
+                topMessage += `${index + 1} - **${p.name}** (مستوى ${p.level})\n`;
+            });
+            
+            const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId');
+            const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;
+            
+            topMessage += `\n------------------------------\n`;
+            topMessage += `ترتيبك: **#${playerRank}** - **${player.name}** (مستوى ${player.level})\n`;
+
+            return topMessage;
+
+        } catch (error) {
+            console.error('❌ خطأ في عرض قائمة التوب:', error);
+            return '❌ حدث خطأ أثناء جلب قائمة الأفضل.';
+        }
+    }
+    
+    handleShowPlayers = async (player) => {
+        try {
+            if (!this.adminSystem.isAdmin(player.userId)) {
+                 return '❌ هذا الأمر خاص بالمدراء.';
+            }
+            
+            const activePlayers = await Player.find({ registrationStatus: 'completed' })
+                                        .sort({ level: -1, gold: -1 })
+                                        .select('name level gold currentLocation');
+            
+            let playerList = `📋 **قائمة اللاعبين النشطين (${activePlayers.length})**:\n\n`;
+            
+            activePlayers.forEach((p, index) => {
+                const locationName = this.ARABIC_ITEM_MAP[p.currentLocation] || p.currentLocation;
+                playerList += `${index + 1}. **${p.name}** (Lvl ${p.level}) - 💰${p.gold} - @${locationName}\n`;
+            });
+
+            return playerList;
+
+        } catch (error) {
+            console.error('❌ خطأ في عرض قائمة اللاعبين:', error);
+            return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';
+        }
+    }
+
+    // نهاية الدوال الخاصة بالخصائص (Arrow Functions)
+    
+
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
         return worldSystem.showMap(player); 
     }
     
-    // 🆕 معالج أمر البوابات
     async handleGates(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
