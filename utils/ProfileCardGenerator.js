@@ -1,156 +1,106 @@
-// utils/ProfileCardGenerator.js
-
 import { createCanvas, loadImage, registerFont } from 'canvas';
-import fs from 'fs/promises';
+import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// 💡 إصلاح مشكلة الخط: تسجيل الخط المطلوب (Cinzel)
+try {
+    const fontPath = path.resolve('assets/fonts/Cinzel.ttf');
+    if (fs.existsSync(fontPath)) {
+        registerFont(fontPath, { family: 'Cinzel' });
+    } else {
+        console.warn('⚠️ خط Cinzel غير موجود في المسار assets/fonts/. استخدام الخط الافتراضي (Arial).');
+    }
+} catch (error) {
+    console.error('❌ خطأ في تسجيل الخط:', error);
+}
+
 
 export class ProfileCardGenerator {
     constructor() {
-        this.fontFamily = 'Arial'; // خط افتراضي
-        
-        try {
-            // مسار الخط بناءً على هيكل ملفاتك: assets/Cinzel-VariableFont_wght.ttf
-            const fontPath = path.join(process.cwd(), 'assets', 'Cinzel-VariableFont_wght.ttf');
-            
-            if (fs.existsSync && fs.existsSync(fontPath)) {
-                registerFont(fontPath, { family: 'Cinzel' });
-                this.fontFamily = 'Cinzel';
-                console.log('✅ تم تسجيل خط Cinzel بنجاح.');
-            } else {
-                console.warn('⚠️ خط Cinzel غير موجود في المسار assets/. استخدام الخط الافتراضي (Arial).');
-            }
-        } catch (error) {
-            console.error('❌ خطأ أثناء تسجيل الخط:', error.message);
+        // حجم البطاقة القياسي
+        this.WIDTH = 800;
+        this.HEIGHT = 300;
+        this.FONT_FAMILY = 'Cinzel, sans-serif'; // استخدام الخط المسجل أو الافتراضي
+        this.OUTPUT_DIR = path.resolve('assets/profiles');
+
+        if (!fs.existsSync(this.OUTPUT_DIR)) {
+            fs.mkdirSync(this.OUTPUT_DIR, { recursive: true });
         }
     }
 
     async generateCard(player) {
-        // الأبعاد الثابتة للبطاقة الأصلية (تم تخمينها لتناسب القالب)
-        const width = 600; 
-        const height = 375; 
+        // إنشاء الكانفاس
+        const canvas = createCanvas(this.WIDTH, this.HEIGHT);
+        const ctx = canvas.getContext('2d');
 
-        const canvas = createCanvas(width, height);
-        const context = canvas.getContext('2d');
+        // 1. الخلفية (لون ثابت مؤقت)
+        ctx.fillStyle = '#2c2f33'; // خلفية داكنة
+        ctx.fillRect(0, 0, this.WIDTH, this.HEIGHT);
 
-        // 1. تحديد الخلفية بناءً على الجنس
-        let cardImagePath;
-        
-        // مسارات الصور بناءً على هيكل ملفاتك: assets/images/...
-        if (player.gender && player.gender.toLowerCase() === 'female') {
-            cardImagePath = path.join(process.cwd(), 'assets', 'images', 'profile_card_female.png');
-        } else {
-            // يشمل الذكر وأي جنس غير محدد
-            cardImagePath = path.join(process.cwd(), 'assets', 'images', 'profile_card_male.png');
-        }
+        // 2. حدود البطاقة
+        ctx.strokeStyle = '#DAA520'; // ذهبي
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, this.WIDTH - 4, this.HEIGHT - 4);
 
+        // 3. صورة البروفايل (افتراضية)
+        // يجب استبدال هذا برابط أو ملف صورة اللاعب الحقيقي
+        let profileImage;
         try {
-            // تحميل صورة البطاقة كخلفية
-            const cardImage = await loadImage(cardImagePath);
-            context.drawImage(cardImage, 0, 0, width, height);
-
-        } catch (error) {
-            // خلفية طوارئ في حال فشل تحميل الصورة الأصلية (لحل مشكلة البطاقة السوداء)
-            console.error(`❌ فشل تحميل صورة البطاقة (${player.gender}):`, error.message);
-            context.fillStyle = '#1A1A1A'; // لون أسود داكن
-            context.fillRect(0, 0, width, height);
+            // يمكن استخدام صورة افتراضية للمستخدمين الجدد
+            profileImage = await loadImage(path.resolve('assets/images/default_avatar.png'));
+        } catch (e) {
+            console.error('❌ فشل تحميل الصورة الافتراضية:', e.message);
+            // رسم مربع فارغ في حالة الفشل
+            ctx.fillStyle = '#555555';
+            ctx.fillRect(50, 50, 200, 200);
+            profileImage = null;
         }
 
-        // 2. تجميع البيانات وتحديد الإحداثيات
-        
-        const data = {
-            name: player.name || "مقاتل مجهول",
-            level: player.level || 1,
-            health: player.health || 100,
-            mana: player.mana || 50,
-            attack: player.getAttackDamage ? player.getAttackDamage() : 10,
-            defense: player.getDefense ? player.getDefense() : 5,
-            tier: (player.tier || 'E').toUpperCase(),
-        };
+        if (profileImage) {
+            ctx.drawImage(profileImage, 50, 50, 200, 200);
+        }
 
-        const TEXT_COLOR = '#FFD700'; // اللون الذهبي
-        const STATS_COLOR = '#FFFFFF';
-        
-        // إحداثيات تعتمد على تصميم القالب الأصلي (يجب أن تتناسب مع خط Cinzel وحجم النص)
-        const STATS_LEFT_COL_X = width - 290; // موضع بدء العمود الأيمن في القالب
-        const STATS_RIGHT_COL_X = width - 150; // موضع بدء العمود الأيسر في القالب
+        // 4. كتابة البيانات (جهة اليمين)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'right';
+        let x = this.WIDTH - 40;
+        let y = 70;
 
-        // 3. رسم النصوص على البطاقة
-
-        context.shadowColor = 'rgba(0,0,0,0.7)';
-        context.shadowBlur = 4;
-        context.textAlign = 'left';
-        
         // الاسم
-        context.fillStyle = TEXT_COLOR;
-        context.font = `bold 22px "${this.fontFamily}"`;
-        // إحداثي Y يهدف إلى الكتابة بعد كلمة "Name:" في القالب
-        context.fillText(data.name, STATS_LEFT_COL_X + 10, 68); 
-        
+        ctx.font = `30px "${this.FONT_FAMILY}"`;
+        ctx.fillText(`الاسم: ${player.name}`, x, y);
+
         // المستوى
-        context.font = `20px "${this.fontFamily}"`;
-        // إحداثي Y يهدف إلى الكتابة بعد كلمة "LEVEL:" في القالب
-        context.fillText(data.level.toString(), STATS_LEFT_COL_X + 10, 118);
+        y += 40;
+        ctx.font = `24px "${this.FONT_FAMILY}"`;
+        ctx.fillStyle = '#DAA520'; // ذهبي
+        ctx.fillText(`المستوى: ${player.level}`, x, y);
 
-        // --- الإحصائيات (العمود الأيمن في القالب) ---
-        context.fillStyle = STATS_COLOR;
-        context.font = `20px "${this.fontFamily}"`;
+        // الذهب
+        y += 40;
+        ctx.fillStyle = '#FFD700'; // أصفر
+        ctx.fillText(`الذهب: ${player.gold}`, x, y);
         
-        // الصحة (HP)
-        context.fillText(data.health.toString(), STATS_LEFT_COL_X + 10, 195);
+        // الموقع
+        y += 40;
+        ctx.fillStyle = '#CCCCCC'; // رمادي
+        ctx.fillText(`الموقع: ${player.currentLocation}`, x, y);
 
-        // الدفاع (DEF)
-        context.fillText(data.defense.toString(), STATS_LEFT_COL_X + 10, 240);
+        // الصحة
+        y += 40;
+        ctx.fillStyle = '#dc3545'; // أحمر
+        ctx.fillText(`الصحة: ${player.health}/${player.maxHealth}`, x, y);
+        
+        // 5. حفظ الصورة
+        const filename = `${player.userId}_profile.png`;
+        const outputPath = path.join(this.OUTPUT_DIR, filename);
 
-        // المانا (MP)
-        context.fillText(data.mana.toString(), STATS_LEFT_COL_X + 10, 285);
-
-        // --- الإحصائيات (العمود الأيسر في القالب) ---
-        
-        // الهجوم (ATK)
-        context.fillText(data.attack.toString(), STATS_RIGHT_COL_X + 10, 195);
-        
-        // التير (TIER)
-        context.fillText(data.tier, STATS_RIGHT_COL_X + 10, 285);
-        
-        
-        // 4. حفظ الصورة
-        const tempDir = path.join(process.cwd(), 'temp');
-        await fs.mkdir(tempDir, { recursive: true });
-        
-        const outputPath = path.join(tempDir, `${player.userId}_profile_${Date.now()}.png`);
-        const buffer = canvas.toBuffer('image/png');
-        await fs.writeFile(outputPath, buffer);
-        
-        console.log(`✅ تم إنشاء بطاقة بروفايل للاعب ${data.name} (جنس: ${player.gender})`);
-
-        return outputPath;
-    }
-
-    // دالة تنظيف الملفات القديمة (غير معدلة)
-    async cleanupOldFiles() {
-        try {
-            const tempDir = path.join(process.cwd(), 'temp');
-            const files = await fs.readdir(tempDir);
-            const now = Date.now();
-            const oneHour = 60 * 60 * 1000;
-
-            for (const file of files) {
-                if (file.endsWith('.png')) {
-                    const filePath = path.join(tempDir, file);
-                    const stats = await fs.stat(filePath);
-                    
-                    if (now - stats.mtime.getTime() > oneHour) {
-                        await fs.unlink(filePath);
-                        console.log(`🧹 تم حذف الملف القديم: ${file}`);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('❌ خطأ في تنظيف الملفات:', error);
-        }
+        return new Promise((resolve, reject) => {
+            const out = fs.createWriteStream(outputPath);
+            const stream = canvas.createPNGStream();
+            stream.pipe(out);
+            out.on('finish', () => resolve(outputPath));
+            out.on('error', reject);
+        });
     }
 }
