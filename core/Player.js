@@ -154,9 +154,7 @@ const playerSchema = new mongoose.Schema({
 playerSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   
-  if (this.registrationStatus === 'completed' && !this.playerId) {
-    this.playerId = `P${Date.now().toString().slice(-6)}`;
-  }
+  // ❌ تم إزالة منطق تعيين playerId من هنا ليعمل بالتسلسل الرقمي في AdminSystem
   
   next();
 });
@@ -430,6 +428,17 @@ playerSchema.methods.restoreMana = function(amount) {
 };
 
 // ========== دوال ثابتة (Static Methods) ==========
+
+// 🆕 دالة للحصول على آخر ID رقمي مستخدم
+playerSchema.statics.getLastNumericId = async function() {
+    const lastPlayer = await this.findOne({ playerId: { $ne: null } })
+        .sort({ createdAt: -1 })
+        .exec();
+
+    const lastId = lastPlayer?.playerId ? parseInt(lastPlayer.playerId, 10) : 0;
+    return isNaN(lastId) ? 1000 : (lastId >= 1000 ? lastId : 1000); 
+};
+
 
 playerSchema.statics.createNew = async function(userId, name) {
   try {
