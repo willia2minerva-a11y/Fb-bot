@@ -6,7 +6,8 @@ import { AdminSystem } from '../systems/admin/AdminSystem.js';
 // (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
 const items = {
     'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
-    'iron_bar': { name: 'سبيكة حديد', type: 'resource' }
+    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
+    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } // مثال
 }; 
 const locations = {
     'forest': { name: 'الغابات' },
@@ -33,72 +34,8 @@ async function getSystem(systemName) {
             return new SystemClass();
         }
     } catch (error) {
-        // console.log(`⚠️ نظام ${systemName} غير متاح، استخدام بديل`);
+        // Fallback for missing systems
     }
-
-    // أنظمة بديلة محسنة (Fallbacks)
-    const fallbackSystems = {
-        'battle': class {
-            async startBattle() { return { success: true, message: '⚔️ **بدأت المعركة!**\n\nاستخدم "هجوم" للهجوم أو "هروب" للهروب.' }; }
-            async attack(player) { 
-                 const damage = player.getAttackDamage ? player.getAttackDamage() : 10;
-                 return { success: true, message: `🎯 **هجوم ناجح!** ألحقت ${damage} ضرر. وحش مهزوم.` }; 
-            }
-            async escape() { return { success: true, message: '🏃‍♂️ **هروب ناجح!**\n\nلقد هربت من المعركة.' }; }
-        },
-        'world': class {
-            showMap(player) { 
-                const location = player.currentLocation || 'الغابات';
-                return `🗺️ **خريطة مغارة غولد**\n\nأنت في: **${location}**`; 
-            }
-        },
-        'gathering': class {
-            showAvailableResources() { return { message: '🌿 **الموارد:** خشب (wood), حجر (stone).' }; }
-            async gatherResources() { return { success: true, message: '🌿 **جمعت الموارد!**\n\n• خشب ×3' }; }
-        },
-        'profile': class {
-            getPlayerStatus(player) { 
-                return `📊 **حالة ${player.name}**\nالمستوى: ${player.level}\nالذهب: ${player.gold}\nالصحة: ${player.health}/${player.maxHealth}`; 
-            }
-            getPlayerInventory(player) { 
-                if (!player.inventory || player.inventory.length === 0) {
-                    return `🎒 **حقيبة ${player.name}**\n\nالحقيبة فارغة`;
-                }
-                let text = `🎒 **حقيبة ${player.name}**\n\n`;
-                player.inventory.forEach(item => {
-                    text += `• ${item.name} ×${item.quantity}\n`;
-                });
-                return text;
-            }
-        },
-        'registration': class {
-            constructor() { this.registrationSteps = new Map(); }
-            async startRegistration() { return { success: true, message: '🎮 **مرحباً في مغارة غولد!**', step: 'waiting_approval' }; }
-            async approvePlayer() { return { success: true, message: '✅ تمت الموافقة على اللاعب' }; }
-            async setGender() { return { success: true, message: '✅ تم اختيار الجنس' }; }
-            async setName() { return { success: true, message: '✅ تم تعيين الاسم' }; }
-            getRegistrationStep() { return null; }
-            async getPendingPlayers() { return []; }
-            async resetRegistration() { return true; }
-        },
-        'autoResponse': class {
-            findAutoResponse(message) { return null; }
-        },
-        'travel': class {
-            async travelTo(player, location) {
-                if (player.currentLocation === location) return { error: `أنت بالفعل في ${location}`};
-                player.currentLocation = location;
-                return { success: true, message: `🧭 انتقلت إلى **${location}**!` };
-            }
-        },
-        'crafting': class {
-             // Fallback يجب أن يكون له دالة showAvailableRecipes
-             showAvailableRecipes() { return { message: '🛠️ **ورشة الصناعة**\n\n🚧 لا توجد وصفات حالياً.' }; }
-             async craftItem() { return { error: '🚧 نظام الصناعة غير متاح حالياً' }; }
-        }
-    };
-
-    return new (fallbackSystems[systemName])();
 }
 
 export default class CommandHandler {
@@ -179,7 +116,7 @@ export default class CommandHandler {
                 'اهرب': this.handleEscape.bind(this) 
             };
 
-            this.allowedBeforeApproval = ['بدء', "رجل", "بنت", 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
+            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
         } catch (error) {
@@ -194,14 +131,12 @@ export default class CommandHandler {
         // 1. ترجمة من ملف items
         for (const itemId in items) {
             const itemName = items[itemId].name;
-            itemMap[itemName] = itemId;
             itemMap[itemName.toLowerCase()] = itemId; 
         }
         
         // 2. ترجمة من ملف locations
         for (const locationId in locations) {
             const locationName = locations[locationId].name;
-            itemMap[locationName] = locationId;
             itemMap[locationName.toLowerCase()] = locationId;
             // إضافة الترجمة بدون 'ال' (للتنقل المرن)
             if (locationName.startsWith('ال')) {
@@ -280,7 +215,6 @@ export default class CommandHandler {
                 }
 
                 const handler = this.commands[command]; 
-                // 💡 يتم استخدام call(this, ...) لضمان عمل دوال bind و دوال Arrow Function
                 const result = await handler.call(this, player, args, id);
                 
                 if (typeof result === 'string') {
@@ -348,7 +282,7 @@ export default class CommandHandler {
 • اكتب "أنثى" 👧`;
                 } 
                 else if (step && step.step === 'name_selection') {
-                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
+                    return `📝  الآن يرجى اختيار اسم إنجليزي
 
 اكتب "اسمي [الاسم]" بين 3 إلى 9 أحرف إنجليزية
 مثال: اسمي John`;
@@ -368,7 +302,7 @@ export default class CommandHandler {
     }
 
     async handleGetId(player) {
-        return `🆔 **معرفك هو:** \`${player.userId}\`
+        return `🆔 معرفك هو : \`${player.userId}\`
 
 📨 أرسل هذا المعرف للمدير للحصول على الموافقة.`;
     }
@@ -397,9 +331,9 @@ export default class CommandHandler {
     async handleHelp(player, args, senderId) {
         const isAdmin = this.adminSystem.isAdmin(senderId);
         
-        let helpMessage = `🆘 **أوامر مغارة غولد**
+        let helpMessage = `🆘 أوامر مغارة غولد
 
-🎯 **الأساسية:**
+🎯 الأساسية :
 بدء - بدء اللعبة أو متابعة التسجيل
 معرفي - عرض معرفك للمدير
 مساعدة - عرض هذه القائمة`;
@@ -407,21 +341,21 @@ export default class CommandHandler {
         if (player.isApproved()) {
             helpMessage += `
 
-🗺️ **الاستكشاف:**
+🗺️ الاستكشاف :
 خريطة/الموقع - عرض الخريطة
 بوابات - عرض البوابات القريبة (دخول المغارات)
 انتقل/سافر [مكان] - السفر إلى موقع محدد
 تجميع/اجمع - جمع الموارد
 
-🛠️ **الصناعة والتجارة:**
-وصفات - عرض وصفات الصنع المتاحة
+🛠️ الصناعة والتجارة :
+وصفات/صناعة - عرض وصفات الصنع المتاحة
 اصنع/صنع [ID] - صنع عنصر محدد
 
 🎒 **الإدارة:**
-حالتي/حالة - عرض حالتك
-بروفايلي/بطاقة - بطاقة البروفايل
-حقيبتي/جرد - عرض المحتويات
-توب/افضل - عرض قائمة الأفضل
+حالتي/حالة - عرض حالتك الكاملة
+بروفايلي/بطاقة - عرض بطاقة البروفايل خاصتك
+حقيبتي/مخزن - عرض المحتويات التي بحوزتك
+توب/افضل - عرض قائمة أفضل 5 لاعبين وترتبيك
 
 ⚔️ **القتال:**
 مغامرة/قتال - بدء معركة ضد وحش في المنطقة
@@ -432,7 +366,7 @@ export default class CommandHandler {
         if (isAdmin) {
             helpMessage += `
 
-👑 **أوامر المدير:**
+👑 أوامر المدير :
 مدير - عرض أوامر المدير الكاملة
 لاعبين - عرض قائمة اللاعبين النشطين
 `;
@@ -474,17 +408,22 @@ export default class CommandHandler {
         try {
             const topPlayers = await Player.getTopPlayers(5);
             
-            let topMessage = `🏆 **أفضل 5 مغامرين (TOP 5)** 🏆\n\n`;
+            let topMessage = `╔═══════════ 🏆  قائمة الشجعان (Top 5) ═══════════╗\n`;
+            topMessage += `\`\`\`prolog\n`; 
             
             topPlayers.forEach((p, index) => {
-                topMessage += `${index + 1} - **${p.name}** (مستوى ${p.level})\n`;
+                const rankIcon = index === 0 ? '👑' : index === 1 ? '🥇' : index === 2 ? '🥈' : index === 3 ? '🥉' : '✨';
+                // 🆕 إضافة playerId
+                topMessage += `${rankIcon} #${index + 1}: ${p.name} (ID: ${p.playerId || p.userId}) - المستوى ${p.level}\n`;
             });
             
-            const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId');
+            topMessage += `\`\`\`\n`;
+            
+            // إيجاد ترتيب اللاعب الحالي
+            const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId playerId');
             const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;
             
-            topMessage += `\n------------------------------\n`;
-            topMessage += `ترتيبك: **#${playerRank}** - **${player.name}** (مستوى ${player.level})\n`;
+            topMessage += `📍 ترتيبك الحالي: **#${playerRank}** - **${player.name}** (المستوى ${player.level})\n`;
 
             return topMessage;
 
@@ -502,14 +441,22 @@ export default class CommandHandler {
             
             const activePlayers = await Player.find({ registrationStatus: 'completed' })
                                         .sort({ level: -1, gold: -1 })
-                                        .select('name level gold currentLocation');
+                                        .select('name level gold currentLocation playerId');
             
-            let playerList = `📋 **قائمة اللاعبين النشطين (${activePlayers.length})**:\n\n`;
+            let playerList = `╔═════════ 🧑‍💻  لوحة تحكم المدير ═════════╗\n`;
+            playerList += `║     📋 قائمة اللاعبين النشطين (${activePlayers.length})       ║\n`;
+            playerList += `╚═══════════════════════════════════╝\n`;
+            playerList += `\`\`\`markdown\n`;
+            // 🆕 إضافة ID
+            playerList += `| ID | المستوى | الاسم | الذهب | الموقع \n`;
+            playerList += `|----|---------|--------|-------|--------\n`;
             
             activePlayers.forEach((p, index) => {
                 const locationName = this.ARABIC_ITEM_MAP[p.currentLocation] || p.currentLocation;
-                playerList += `${index + 1}. **${p.name}** (Lvl ${p.level}) - 💰${p.gold} - @${locationName}\n`;
+                // 🆕 استخدام playerId
+                playerList += `| ${p.playerId || 'N/A'} | L${p.level} | ${p.name} | 💰${p.gold} | ${locationName}\n`;
             });
+            playerList += `\`\`\`\n`;
 
             return playerList;
 
@@ -533,12 +480,12 @@ export default class CommandHandler {
         const gates = travelSystem.getNearbyGates(player);
         
         if (gates.length === 0) {
-            return `🚪 **لا توجد بوابات نشطة** حالياً في **${travelSystem.getLocationName(player.currentLocation)}**.`;
+            return `🚪 لا توجد بوابات نشطة حالياً في **${travelSystem.getLocationName(player.currentLocation)}**!`;
         }
 
         let message = `🚪 **البوابات النشطة القريبة (${gates.length})**:\n`;
         gates.forEach(gate => {
-            message += `\n- **${gate.name}** (ID: ${gate.id})\n`;
+            message += `\n- ${gate.name} (ID: ${gate.id})\n`; // إزالة **
             message += `  • المستوى المطلوب: ${gate.requiredLevel}\n`;
             message += `  • الوصف: ${gate.description}\n`;
         });
@@ -551,12 +498,13 @@ export default class CommandHandler {
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        const rawLocationName = args.join(' ');
+        const rawLocationName = args.join(' ').toLowerCase();
         if (!rawLocationName) {
              return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
         
-        const locationId = this.ARABIC_ITEM_MAP[rawLocationName] || rawLocationName.toLowerCase();
+        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي (المُصغر)
+        const locationId = this.ARABIC_ITEM_MAP[rawLocationName] || rawLocationName;
 
         const travelSystem = await this.getSystem('travel');
         const result = await travelSystem.travelTo(player, locationId);
@@ -577,8 +525,9 @@ export default class CommandHandler {
              return gatheringSystem.showAvailableResources(player).message;
         }
         
-        const rawResourceName = args[0];
-        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName] || rawResourceName.toLowerCase();
+        const rawResourceName = args.join(' ').toLowerCase(); // 💡 دمج الوسائط للأسماء المركبة (مثل: 'قوس خشبي')
+        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي
+        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName] || rawResourceName;
 
         const result = await gatheringSystem.gatherResources(player, resourceId);
         
@@ -604,12 +553,13 @@ export default class CommandHandler {
             return this.handleShowRecipes(player); 
         }
 
-        const rawItemName = args.join(' '); 
+        const rawItemName = args.join(' ').toLowerCase(); 
         if (!rawItemName) {
              return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
         }
         
-        const itemId = this.ARABIC_ITEM_MAP[rawItemName] || rawItemName.toLowerCase();
+        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي
+        const itemId = this.ARABIC_ITEM_MAP[rawItemName] || rawItemName;
 
         const craftingSystem = await this.getSystem('crafting');
         const result = await craftingSystem.craftItem(player, itemId);
@@ -663,4 +613,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                }
+}
