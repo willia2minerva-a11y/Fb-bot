@@ -158,10 +158,27 @@ export default class CommandHandler {
     
     async process(sender, message) {
         const { id, name } = sender;
-        const parts = message.trim().split(/\s+/);
-        const command = parts[0].toLowerCase();
-        const args = parts.slice(1);
-
+        
+        // 🛠️ إصلاح: معالجة الرسائل متعددة الكلمات قبل الفصل (مثال: "موافقة لاعب")
+        const processedMessage = message.trim().toLowerCase();
+        let command = processedMessage.split(/\s+/)[0];
+        let args = processedMessage.split(/\s+/).slice(1);
+        
+        // البحث عن أوامر المدير متعددة الكلمات
+        if (command === 'موافقة' && args[0] === 'لاعب') {
+            command = 'موافقة_لاعب';
+            args = args.slice(1);
+        } else if (command === 'اعطاء' && args[0] === 'مورد') {
+            command = 'اعطاء_مورد';
+            args = args.slice(1);
+        } else if (command === 'اعطاء' && args[0] === 'ذهب') {
+            command = 'اعطاء_ذهب';
+            args = args.slice(1);
+        } else if (command === 'تغيير' && args[0] === 'اسم') {
+            command = 'تغيير_اسم';
+            args = args.slice(1);
+        }
+        
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
         const isAdmin = this.adminSystem.isAdmin(id);
@@ -611,4 +628,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-}
+                }
