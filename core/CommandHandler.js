@@ -7,11 +7,12 @@ import { AdminSystem } from '../systems/admin/AdminSystem.js';
 const items = {
     'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
     'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } // مثال
+    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } 
 }; 
 const locations = {
     'forest': { name: 'الغابات' },
-    'hell': { name: 'الجحيم' }
+    'hell': { name: 'الجحيم' },
+    'sky': { name: 'السماء' }
 };
 
 // أنظمة بديلة محسنة (Fallbacks)
@@ -116,7 +117,7 @@ export default class CommandHandler {
                 'اهرب': this.handleEscape.bind(this) 
             };
 
-            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
+            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
         } catch (error) {
@@ -266,6 +267,7 @@ export default class CommandHandler {
 
     async handleStart(player) {
         try {
+            // 💡 تحديث: توجيه اللاعبين الموافق عليهم ولكن لم يكملوا لخطوات الجنس والاسم
             if (player.isPending()) {
                 const registrationSystem = await this.getSystem('registration');
                 return registrationSystem.startRegistration(player.userId, player.name);
@@ -282,7 +284,7 @@ export default class CommandHandler {
 • اكتب "أنثى" 👧`;
                 } 
                 else if (step && step.step === 'name_selection') {
-                    return `📝  الآن يرجى اختيار اسم إنجليزي
+                    return `📝 **الآن يرجى اختيار اسم إنجليزي**
 
 اكتب "اسمي [الاسم]" بين 3 إلى 9 أحرف إنجليزية
 مثال: اسمي John`;
@@ -413,7 +415,6 @@ export default class CommandHandler {
             
             topPlayers.forEach((p, index) => {
                 const rankIcon = index === 0 ? '👑' : index === 1 ? '🥇' : index === 2 ? '🥈' : index === 3 ? '🥉' : '✨';
-                // 🆕 إضافة playerId
                 topMessage += `${rankIcon} #${index + 1}: ${p.name} (ID: ${p.playerId || p.userId}) - المستوى ${p.level}\n`;
             });
             
@@ -485,7 +486,7 @@ export default class CommandHandler {
 
         let message = `🚪 **البوابات النشطة القريبة (${gates.length})**:\n`;
         gates.forEach(gate => {
-            message += `\n- ${gate.name} (ID: ${gate.id})\n`; // إزالة **
+            message += `\n- ${gate.name} (ID: ${gate.id})\n`; 
             message += `  • المستوى المطلوب: ${gate.requiredLevel}\n`;
             message += `  • الوصف: ${gate.description}\n`;
         });
@@ -498,13 +499,12 @@ export default class CommandHandler {
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        const rawLocationName = args.join(' ').toLowerCase();
+        const rawLocationName = args.join(' ');
         if (!rawLocationName) {
              return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
         
-        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي (المُصغر)
-        const locationId = this.ARABIC_ITEM_MAP[rawLocationName] || rawLocationName;
+        const locationId = this.ARABIC_ITEM_MAP[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();
 
         const travelSystem = await this.getSystem('travel');
         const result = await travelSystem.travelTo(player, locationId);
@@ -525,9 +525,8 @@ export default class CommandHandler {
              return gatheringSystem.showAvailableResources(player).message;
         }
         
-        const rawResourceName = args.join(' ').toLowerCase(); // 💡 دمج الوسائط للأسماء المركبة (مثل: 'قوس خشبي')
-        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي
-        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName] || rawResourceName;
+        const rawResourceName = args.join(' ');
+        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName.toLowerCase()] || rawResourceName.toLowerCase();
 
         const result = await gatheringSystem.gatherResources(player, resourceId);
         
@@ -553,13 +552,12 @@ export default class CommandHandler {
             return this.handleShowRecipes(player); 
         }
 
-        const rawItemName = args.join(' ').toLowerCase(); 
+        const rawItemName = args.join(' '); 
         if (!rawItemName) {
              return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
         }
         
-        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي
-        const itemId = this.ARABIC_ITEM_MAP[rawItemName] || rawItemName;
+        const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();
 
         const craftingSystem = await this.getSystem('crafting');
         const result = await craftingSystem.craftItem(player, itemId);
