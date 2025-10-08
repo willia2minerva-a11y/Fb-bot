@@ -117,7 +117,7 @@ export default class CommandHandler {
                 'اهرب': this.handleEscape.bind(this) 
             };
 
-            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];
+            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
         } catch (error) {
