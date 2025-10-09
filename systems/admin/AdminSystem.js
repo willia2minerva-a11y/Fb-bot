@@ -5,10 +5,8 @@ const items = {
     'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
     'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
     'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' },
-    // 🆕 يجب إضافة العنصر الذي كنت تختبره هنا:
     'hallowed_bar': { name: 'سبيكة مقدسة', type: 'resource' } 
-}; // Placeholder
-
+}; // Placeholder for items data
 
 export class AdminSystem {
     constructor() {
@@ -37,6 +35,7 @@ export class AdminSystem {
             
             // 🆕 تعيين الـ ID التسلسلي إذا لم يكن معيناً
             if (!player.playerId) {
+                // يفترض وجود دالة getLastNumericId في Player.js
                 const lastId = await Player.getLastNumericId();
                 player.playerId = (lastId + 1).toString();
             }
@@ -60,6 +59,7 @@ export class AdminSystem {
     }
 
     getAdminCommands() {
+        // تم تحديث الأوامر لتشمل المسافات في الترجمة (موافقة_لاعب)
         return {
             'موافقة_لاعب': 'موافقة لاعب',
             'تغيير_اسم': 'تغيير اسم',
@@ -100,6 +100,7 @@ export class AdminSystem {
 
     async handleAdminCommand(command, args, senderId, player, itemMap) {
         const findTargetPlayer = async (id) => {
+            // 💡 البحث عن طريق playerId أو userId
             return await Player.findOne({ $or: [{ userId: id }, { playerId: id }] });
         };
         
@@ -114,6 +115,7 @@ export class AdminSystem {
             case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
             case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
             case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
+            // ... (بقية أوامر الردود)
             default: return '❌ أمر مدير غير معروف';
         }
     }
@@ -122,6 +124,7 @@ export class AdminSystem {
     // 1. أوامر الإدارة الأساسية (إصلاح الاسم)
     // ===================================
     
+    // 🆕 إعادة تعيين اللاعب (تحرير الاسم القديم)
     async handleResetPlayer(args, findTargetPlayer) {
         const targetId = args[0];
         if (!targetId) {
@@ -135,14 +138,17 @@ export class AdminSystem {
         
         const oldName = targetPlayer.name;
 
+        // حذف اللاعب بالكامل لتحرير الاسم
         await targetPlayer.deleteOne();
         
+        // إعادة إنشاء كائن جديد بـ 'pending'
         await Player.createNew(targetPlayer.userId, targetPlayer.name);
 
         return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
     }
 
 
+    // 🛠️ تغيير الاسم (تحرير الاسم القديم)
     async handleSetPlayerName(args, findTargetPlayer) {
         const targetId = args[0];
         const newName = args.slice(1).join(' ');
@@ -170,6 +176,7 @@ export class AdminSystem {
         return `✅ تم تحديث اسم اللاعب **${oldName}** بنجاح إلى: **${newName}**.\n(الاسم **${oldName}** أصبح متاحًا الآن).`;
     }
 
+    // 🆕 تغيير الجنس
     async handleSetPlayerGender(args, findTargetPlayer) {
         const targetId = args[0];
         const newGenderRaw = args[1] ? args[1].toLowerCase() : null;
@@ -192,6 +199,7 @@ export class AdminSystem {
         return `🚻 تم تغيير جنس اللاعب **${targetPlayer.name}** إلى **${genderName}** بنجاح.`;
     }
 
+    // 🆕 حظر لاعب
     async handleBanPlayer(args, findTargetPlayer) {
         const targetId = args[0];
         const banStatusRaw = args[1] ? args[1].toLowerCase() : 'true';
@@ -262,7 +270,7 @@ export class AdminSystem {
         // 🛠️ الخطوة 1: استخراج الكمية (الوسيط الأخير)
         const quantity = parseInt(args[args.length - 1], 10);
         
-        // 🛠️ الخطوة 2: استخراج الاسم المركب (كل شيء بين ID والكمية)
+        // 🛠️ الخطوة 2: استخراج الاسم المركب (كل شيء بين ID اللاعب والكمية)
         const rawItemNameArray = args.slice(1, args.length - 1);
         const rawItemName = rawItemNameArray.join(' ').toLowerCase();
 
