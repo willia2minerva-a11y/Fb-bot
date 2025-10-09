@@ -10,6 +10,8 @@ import { locations } from '../data/locations.js';
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
     try {
+        console.log(`🔍 [getSystem] محاولة تحميل النظام: ${systemName}`);
+        
         const systems = {
             'battle': '../systems/battle/BattleSystem.js',
             'world': '../systems/world/WorldMap.js',
@@ -25,19 +27,19 @@ async function getSystem(systemName) {
             const module = await import(systems[systemName]);
             const SystemClass = Object.values(module)[0];
             const systemInstance = new SystemClass();
-            console.log(`✅ تم تحميل نظام ${systemName} بنجاح`);
+            console.log(`✅ [getSystem] تم تحميل نظام ${systemName} بنجاح`);
             return systemInstance;
         }
     } catch (error) {
-        console.error(`❌ فشل تحميل نظام ${systemName}:`, error);
+        console.error(`❌ [getSystem] فشل تحميل نظام ${systemName}:`, error);
         
         // 🔥 نظام صناعة افتراضي للطوارئ
         if (systemName === 'crafting') {
-            console.log('🔄 استخدام نظام صناعة افتراضي');
+            console.log('🔄 [getSystem] استخدام نظام صناعة افتراضي');
             return {
                 showAvailableRecipes: (player) => {
                     return {
-                        message: `🛠️ **نظام الصناعة قيد التطوير**\n\n📍 موقعك: ${player.currentLocation}\n📝 سيتم إضافة وصفات الصنع قريباً!`,
+                        message: `🛠️ **نظام الصناعة قيد التطوير**\n\n📍 موقعك: ${player.currentLocation}\n📝 سيتم إضافة وصفات الصنع قريباً!\n\n🔧 عدد الوصفات: 0`,
                         recipes: []
                     };
                 },
@@ -49,6 +51,7 @@ async function getSystem(systemName) {
             };
         }
     }
+    return null;
 }
 
 export default class CommandHandler {
@@ -132,6 +135,7 @@ export default class CommandHandler {
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
+            console.log(`📋 الأوامر المسجلة: ${Object.keys(this.commands).join(', ')}`);
         } catch (error) {
             console.error('❌ فشل في تهيئة CommandHandler:', error);
             throw error;
@@ -163,17 +167,24 @@ export default class CommandHandler {
     }
 
     async getSystem(systemName) {
-        if (!this.systems[systemName]) {
-            this.systems[systemName] = await getSystem(systemName);
-            
-            // 🔥 تحقق من تحميل نظام الصناعة بشكل صحيح
-            if (systemName === 'crafting' && this.systems[systemName]) {
-                console.log('🔍 التحقق من وصفات الصناعة...');
-                const recipeCount = Object.keys(this.systems[systemName].RECIPES || {}).length;
-                console.log(`📋 عدد الوصفات المحملة: ${recipeCount}`);
+        try {
+            if (!this.systems[systemName]) {
+                console.log(`🔍 [CommandHandler] تحميل النظام: ${systemName}`);
+                this.systems[systemName] = await getSystem(systemName);
+                
+                if (systemName === 'crafting') {
+                    console.log(`🔍 [CommandHandler] نظام الصناعة محمل: ${this.systems[systemName] ? 'نعم' : 'لا'}`);
+                    if (this.systems[systemName]) {
+                        const recipeCount = Object.keys(this.systems[systemName].RECIPES || {}).length;
+                        console.log(`📋 [CommandHandler] عدد الوصفات المحملة: ${recipeCount}`);
+                    }
+                }
             }
+            return this.systems[systemName];
+        } catch (error) {
+            console.error(`❌ [CommandHandler] خطأ في getSystem: ${error}`);
+            return null;
         }
-        return this.systems[systemName];
     }
     
     async process(sender, message) {
@@ -183,6 +194,7 @@ export default class CommandHandler {
         const args = parts.slice(1);
 
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
+        console.log(`🔍 الأجزاء: ${parts}, الوسائط: ${args}`);
 
         const isAdmin = this.adminSystem.isAdmin(id);
         if (isAdmin) {
@@ -190,13 +202,17 @@ export default class CommandHandler {
         }
         
         // التحقق من الردود التلقائية أولاً
-        const autoResponseSystem = await this.getSystem('autoResponse');
-        if (autoResponseSystem) {
-             const autoResponse = autoResponseSystem.findAutoResponse(message);
-             if (autoResponse) {
-                 console.log(`🤖 رد تلقائي على: "${message}"`);
-                 return autoResponse;
-             }
+        try {
+            const autoResponseSystem = await this.getSystem('autoResponse');
+            if (autoResponseSystem) {
+                 const autoResponse = autoResponseSystem.findAutoResponse(message);
+                 if (autoResponse) {
+                     console.log(`🤖 رد تلقائي على: "${message}"`);
+                     return autoResponse;
+                 }
+            }
+        } catch (error) {
+            console.log('⚠️ نظام الرد التلقائي غير متاح');
         }
         
         try {
@@ -231,18 +247,25 @@ export default class CommandHandler {
 
             // معالجة الأوامر العادية
             if (this.commands[command]) {
+                console.log(`✅ الأمر "${command}" معروف وسيتم معالجته`);
+                
                 if (!this.allowedBeforeApproval.includes(command) && !player.isApproved()) {
+                    console.log(`⏳ اللاعب لم يكمل التسجيل بعد`);
                     return this.getRegistrationMessage(player);
                 }
 
                 const handler = this.commands[command]; 
+                console.log(`🔧 استدعاء المعالج للامر: ${command}`);
                 const result = await handler.call(this, player, args, id);
                 
                 if (typeof result === 'string') {
                     await player.save();
                 }
 
+                console.log(`✅ تم معالجة الأمر "${command}" بنجاح`);
                 return result;
+            } else {
+                console.log(`❌ الأمر "${command}" غير معروف`);
             }
 
             return await this.handleUnknown(command, player);
@@ -371,7 +394,7 @@ export default class CommandHandler {
 
 🛠️ الصناعة والتجارة :
 وصفات/صناعة - عرض وصفات الصنع المتاحة
-اصنع/صنع [ID] - صنع عنصر محدد
+اصنع/صنع [اسم العنصر] - صنع عنصر محدد
 
 🎒 **الإدارة:**
 حالتي/حالة - عرض حالتك الكاملة
@@ -555,39 +578,48 @@ export default class CommandHandler {
         return result.message;
     }
     
-    // 🔥 إصلاح دوال الصناعة
+    // 🔥 إصلاح دوال الصناعة مع debugging مكثف
     async handleShowRecipes(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        console.log(`🔍 [handleShowRecipes] بدء معالجة أمر الصناعة للاعب ${player.name}`);
+        
+        if (!player.isApproved()) {
+            console.log('❌ [handleShowRecipes] اللاعب لم يكمل التسجيل');
+            return '❌ يجب إكمال التسجيل أولاً.';
+        }
         
         try {
+            console.log(`🔍 [handleShowRecipes] جلب نظام الصناعة...`);
             const craftingSystem = await this.getSystem('crafting');
             
             if (!craftingSystem) {
-                console.log('❌ نظام الصناعة غير محمل');
+                console.log('❌ [handleShowRecipes] نظام الصناعة غير محمل');
                 return '❌ نظام الصناعة غير متاح حالياً.';
             }
             
-            console.log(`🔍 جلب الوصفات للاعب ${player.name} في موقع ${player.currentLocation}`);
-            
+            console.log(`🔍 [handleShowRecipes] استدعاء showAvailableRecipes...`);
             const result = craftingSystem.showAvailableRecipes(player);
             
             if (!result) {
+                console.log('❌ [handleShowRecipes] دالة showAvailableRecipes لم تُرجع أي نتيجة');
                 return '❌ لم يتم العثور على وصفات صناعة متاحة.';
             }
             
-            console.log(`✅ تم العثور على ${result.recipes ? result.recipes.length : 0} وصفة`);
+            console.log(`✅ [handleShowRecipes] تم العثور على ${result.recipes ? result.recipes.length : 0} وصفة`);
             return result.message || '❌ لا توجد وصفات صناعة متاحة حالياً.';
             
         } catch (error) {
-            console.error('❌ خطأ في عرض الوصفات:', error);
-            return '❌ حدث خطأ في عرض وصفات الصناعة.';
+            console.error('❌ [handleShowRecipes] خطأ في عرض الوصفات:', error);
+            return `❌ حدث خطأ في عرض وصفات الصناعة: ${error.message}`;
         }
     }
 
     async handleCraft(player, args) {
+        console.log(`🔍 [handleCraft] بدء معالجة أمر الاصنع للاعب ${player.name}`);
+        
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
         if (args.length === 0) {
+            console.log('🔍 [handleCraft] لا توجد وسائط، عرض الوصفات...');
             return this.handleShowRecipes(player);
         }
 
@@ -597,6 +629,7 @@ export default class CommandHandler {
         }
         
         const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();
+        console.log(`🔍 [handleCraft] محاولة صنع: "${rawItemName}" (ID: ${itemId})`);
 
         try {
             const craftingSystem = await this.getSystem('crafting');
@@ -604,8 +637,6 @@ export default class CommandHandler {
             if (!craftingSystem) {
                 return '❌ نظام الصناعة غير متاح حالياً.';
             }
-            
-            console.log(`🛠️ محاولة صنع: ${rawItemName} (ID: ${itemId})`);
             
             const result = await craftingSystem.craftItem(player, itemId);
             
@@ -616,7 +647,7 @@ export default class CommandHandler {
             return result.message;
             
         } catch (error) {
-            console.error('❌ خطأ في الصناعة:', error);
+            console.error('❌ [handleCraft] خطأ في الصناعة:', error);
             return `❌ حدث خطأ في عملية الصناعة: ${error.message}`;
         }
     }
@@ -663,4 +694,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-    }
+        }
