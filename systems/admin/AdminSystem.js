@@ -36,6 +36,7 @@ export class AdminSystem {
             
             // 🆕 تعيين الـ ID التسلسلي إذا لم يكن معيناً
             if (!player.playerId) {
+                // يفترض وجود دالة getLastNumericId في Player.js
                 const lastId = await Player.getLastNumericId();
                 player.playerId = (lastId + 1).toString();
             }
@@ -134,8 +135,10 @@ export class AdminSystem {
         
         const oldName = targetPlayer.name;
 
+        // حذف اللاعب بالكامل لتحرير الاسم
         await targetPlayer.deleteOne();
         
+        // إعادة إنشاء كائن جديد بـ 'pending'
         await Player.createNew(targetPlayer.userId, targetPlayer.name);
 
         return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
@@ -256,7 +259,7 @@ export class AdminSystem {
 
     // 🛠️ الإصلاح النهائي لـ دالة إعطاء مورد (handleGiveItem)
     async handleGiveItem(args, findTargetPlayer, itemMap) { 
-        // نحتاج 3 وسائط على الأقل: [ID] [ITEM_NAME_WORD_1] [QUANTITY]
+        // نحتاج على الأقل 3 وسائط: [ID] [اسم_العنصر] [الكمية]
         if (args.length < 3) {
             return `❌ صيغة خاطئة. الاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]`;
         }
@@ -274,7 +277,7 @@ export class AdminSystem {
 
         if (!itemInfo || isNaN(quantity) || quantity <= 0) {
             // رسالة خطأ أكثر تحديدًا
-            return `❌ صيغة خاطئة أو العنصر غير موجود.\nالاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]\n(تحقق: هل الكمية رقم؟ هل ${rawItemName} موجود؟)`;
+            return `❌ صيغة خاطئة أو العنصر غير موجود.\nالاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]\n(تحقق: هل ${rawItemName} موجود؟ هل الكمية رقم؟)`;
         }
 
         const targetPlayer = await findTargetPlayer(targetId);
@@ -288,6 +291,7 @@ export class AdminSystem {
         return `🎒 تم إضافة ${quantity} × **${itemInfo.name}** للاعب **${targetPlayer.name}** بنجاح.`;
     }
 
+    // 🆕 زيادة الإحصائيات (الصحة والمانا)
     async handleIncreaseStat(args, statToChange, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
@@ -318,6 +322,7 @@ export class AdminSystem {
         return `📈 تم زيادة **${statNameAr}** للاعب **${targetPlayer.name}** بمقدار ${amount}.`;
     }
     
+    // 🆕 إعطاء الذهب
     async handleGiveGold(args, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
@@ -336,4 +341,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-                                                               }
+                }
