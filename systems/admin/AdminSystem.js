@@ -4,7 +4,9 @@ import Player from '../../core/Player.js';
 const items = {
     'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
     'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } 
+    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' },
+    // 🆕 يجب إضافة العنصر الذي كنت تختبره هنا:
+    'hallowed_bar': { name: 'سبيكة مقدسة', type: 'resource' } 
 }; // Placeholder
 
 
@@ -112,7 +114,6 @@ export class AdminSystem {
             case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
             case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
             case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
-            // ... (بقية أوامر الردود)
             default: return '❌ أمر مدير غير معروف';
         }
     }
@@ -121,7 +122,6 @@ export class AdminSystem {
     // 1. أوامر الإدارة الأساسية (إصلاح الاسم)
     // ===================================
     
-    // 🆕 إعادة تعيين اللاعب (تحرير الاسم القديم)
     async handleResetPlayer(args, findTargetPlayer) {
         const targetId = args[0];
         if (!targetId) {
@@ -135,17 +135,14 @@ export class AdminSystem {
         
         const oldName = targetPlayer.name;
 
-        // حذف اللاعب بالكامل لتحرير الاسم
         await targetPlayer.deleteOne();
         
-        // إعادة إنشاء كائن جديد بـ 'pending'
         await Player.createNew(targetPlayer.userId, targetPlayer.name);
 
         return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
     }
 
 
-    // 🛠️ تغيير الاسم (تحرير الاسم القديم)
     async handleSetPlayerName(args, findTargetPlayer) {
         const targetId = args[0];
         const newName = args.slice(1).join(' ');
@@ -173,7 +170,6 @@ export class AdminSystem {
         return `✅ تم تحديث اسم اللاعب **${oldName}** بنجاح إلى: **${newName}**.\n(الاسم **${oldName}** أصبح متاحًا الآن).`;
     }
 
-    // 🆕 تغيير الجنس
     async handleSetPlayerGender(args, findTargetPlayer) {
         const targetId = args[0];
         const newGenderRaw = args[1] ? args[1].toLowerCase() : null;
@@ -196,7 +192,6 @@ export class AdminSystem {
         return `🚻 تم تغيير جنس اللاعب **${targetPlayer.name}** إلى **${genderName}** بنجاح.`;
     }
 
-    // 🆕 حظر لاعب
     async handleBanPlayer(args, findTargetPlayer) {
         const targetId = args[0];
         const banStatusRaw = args[1] ? args[1].toLowerCase() : 'true';
@@ -264,17 +259,16 @@ export class AdminSystem {
     async handleGiveItem(args, findTargetPlayer, itemMap) { 
         const targetId = args[0];
         
-        // 🛠️ إصلاح: يتم استخراج الكمية من الوسيط الأخير (آخر كلمة)
+        // 🛠️ الخطوة 1: استخراج الكمية (الوسيط الأخير)
         const quantity = parseInt(args[args.length - 1], 10);
         
-        // يتم استخراج اسم العنصر من كل شيء بين ID اللاعب والكمية (الكلمة الأخيرة)
+        // 🛠️ الخطوة 2: استخراج الاسم المركب (كل شيء بين ID والكمية)
         const rawItemNameArray = args.slice(1, args.length - 1);
         const rawItemName = rawItemNameArray.join(' ').toLowerCase();
 
+        // 🛠️ الخطوة 3: التحقق من الصلاحية
         const itemId = itemMap[rawItemName] || rawItemName;
-
-        // 💡 استخدام items Placeholder من الأعلى
-        const itemInfo = items[itemId];
+        const itemInfo = items[itemId]; // استخدام items Placeholder من الأعلى
 
         if (!targetId || rawItemNameArray.length === 0 || !itemInfo || isNaN(quantity) || quantity <= 0) {
             return `❌ صيغة خاطئة. الاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]\n(تحقق من اسم العنصر والكمية)`;
@@ -341,4 +335,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-            }
+    }
