@@ -258,7 +258,6 @@ export default class CommandHandler {
             console.error('❌ خطأ في معالجة الأمر:', error);
             
             if (error.code === 11000) {
-                console.log('🔄 معالجة خطأ duplicate key...');
                 const existingPlayer = await Player.findOne({ userId: id });
                 if (existingPlayer) {
                     console.log('✅ وجد لاعب موجود، إعادة المحاولة...');
