@@ -1,19 +1,15 @@
 // systems/crafting/CraftingSystem.js
-// 💡 يجب التأكد من وجود ملف recipes.js و items.js في المسار الصحيح
-const recipes = {}; // placeholder
-const items = {};   // placeholder
-// import { recipes } from '../../data/recipes.js'; 
-// import { items } from '../../data/items.js'; 
-
+import { craftingRecipes } from '../../data/crafting.js';
+import { items } from '../../data/items.js';
 
 export class CraftingSystem {
     constructor() {
-        this.RECIPES = recipes;
+        this.RECIPES = craftingRecipes; // 🔥 تصحيح: استخدام craftingRecipes بدلاً من recipes
         this.ITEMS = items;
-        console.log('🔨 نظام الصناعة تم تهيئته.');
+        console.log(`🔨 نظام الصناعة تم تهيئته. تم تحميل ${Object.keys(this.RECIPES).length} وصفة و ${Object.keys(this.ITEMS).length} عنصر.`);
     }
 
-    // 🛠️ دالة التصنيع - تم تحديثها لضمان استخدام اسم عربي مُترجم وتطبيق النشاط
+    // 🛠️ دالة التصنيع - تم تحديثها لتعمل مع التنسيق الجديد
     async craftItem(player, itemId) {
         const recipe = this.RECIPES[itemId];
 
@@ -25,7 +21,7 @@ export class CraftingSystem {
         // ===========================================
         // 🆕 تطبيق نظام النشاط (Stamina Check)
         // ===========================================
-        const cost = 10; // تكلفة ثابتة للصناعة
+        const cost = 10;
         const actualStamina = player.getActualStamina();
 
         if (actualStamina < cost) {
@@ -38,12 +34,13 @@ export class CraftingSystem {
             };
         }
         
-        // 1. التحقق من المواد المطلوبة
+        // 1. التحقق من المواد المطلوبة (التنسيق الجديد)
         const requiredMaterials = recipe.materials;
         let missingMaterials = [];
 
-        for (const materialId in requiredMaterials) {
-            const requiredQuantity = requiredMaterials[materialId];
+        for (const material of requiredMaterials) {
+            const materialId = material.id;
+            const requiredQuantity = material.quantity;
             const ownedQuantity = player.getItemQuantity(materialId);
             
             if (ownedQuantity < requiredQuantity) {
@@ -58,20 +55,20 @@ export class CraftingSystem {
             };
         }
 
-        // 2. التحقق من مستوى الصناعة (اختياري)
+        // 2. التحقق من مستوى الصناعة
         if (player.skills.crafting < (recipe.requiredSkill || 1)) {
             return { error: `❌ تحتاج إلى مستوى صناعة ${recipe.requiredSkill} لصنع هذا العنصر.` };
         }
         
         // 3. استهلاك المواد والنشاط
         player.useStamina(cost);
-        for (const materialId in requiredMaterials) {
-            player.removeItem(materialId, requiredMaterials[materialId]);
+        for (const material of requiredMaterials) {
+            player.removeItem(material.id, material.quantity);
         }
 
         // 4. إضافة العنصر المصنوع
         const craftedItemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
-        player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1); 
+        player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1);
 
         // 5. حفظ وتحديث الإحصائيات
         player.stats.itemsCrafted += 1;
@@ -84,17 +81,29 @@ export class CraftingSystem {
     }
     
     /**
-     * يعرض الوصفات المتاحة مع مقارنتها بمخزون اللاعب (تنسيق مُحسّن)
+     * يعرض الوصفات المتاحة مع مقارنتها بمخزون اللاعب
      */
     showAvailableRecipes(player) {
-        const allRecipes = Object.keys(this.RECIPES).map(id => ({ id, ...this.RECIPES[id] }));
+        const allRecipes = Object.keys(this.RECIPES).map(id => ({ 
+            id, 
+            ...this.RECIPES[id],
+            itemInfo: this.ITEMS[id] || { type: 'other' }
+        }));
+        
+        console.log(`🔍 عرض الوصفات للاعب ${player.name}. إجمالي الوصفات: ${allRecipes.length}`);
+        
+        if (allRecipes.length === 0) {
+            return {
+                message: `🛠️ **لا توجد وصفات صناعة متاحة حالياً**\n\nسيتم إضافة وصفات قريباً!`,
+                recipes: []
+            };
+        }
+
+        // تجميع الوصفات حسب النوع
         const availableRecipes = {};
         
-        // 1. تجميع الوصفات حسب النوع
         allRecipes.forEach(recipe => {
-            const itemInfo = this.ITEMS[recipe.id] || { type: 'other' };
-            const type = itemInfo.type || 'other';
-
+            const type = recipe.itemInfo.type || 'other';
             if (!availableRecipes[type]) availableRecipes[type] = [];
             availableRecipes[type].push(recipe);
         });
@@ -109,10 +118,10 @@ export class CraftingSystem {
             'armor': '🛡️ الدروع', 
             'accessory': '💍 الإكسسوارات', 
             'potion': '🧪 البوشنات', 
-            'other': '📦 مواد أخرى/متنوعة'
+            'other': '📦 مواد أخرى'
         };
         
-        // 2. بناء الرسالة بترتيب الأنواع
+        // بناء الرسالة بترتيب الأنواع
         for (const typeKey in typeOrder) {
             const typeName = typeOrder[typeKey];
             const recipesList = availableRecipes[typeKey] || [];
@@ -121,20 +130,20 @@ export class CraftingSystem {
                 message += `\n─── ${typeName} (${recipesList.length}) ───\n`;
                 
                 recipesList.forEach(recipe => {
-                    // إزالة **
-                    message += `\n✨ ${recipe.name} (Lvl: ${recipe.requiredLevel || 1})\n`;
-                    message += `  ├── المواد المطلوبة:\n`;
+                    message += `\n✨ ${recipe.name}\n`;
+                    message += `  📍 المستوى المطلوب: ${recipe.requiredLevel || 1}\n`;
+                    message += `  🧩 المواد المطلوبة:\n`;
                     
-                    for (const materialId in recipe.materials) {
-                        const requiredQuantity = recipe.materials[materialId];
+                    recipe.materials.forEach(material => {
+                        const materialId = material.id;
+                        const requiredQuantity = material.quantity;
                         const ownedQuantity = player.getItemQuantity(materialId);
                         
                         const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
                         const statusIcon = ownedQuantity >= requiredQuantity ? '✅' : '❌';
                         
-                        // إزالة **
-                        message += `  └── ${statusIcon} ${materialName}: ${ownedQuantity} / ${requiredQuantity}\n`;
-                    }
+                        message += `     ${statusIcon} ${materialName}: ${ownedQuantity}/${requiredQuantity}\n`;
+                    });
                 });
             }
         }
@@ -143,6 +152,9 @@ export class CraftingSystem {
         message += `💡 للتصنيع: استخدم أمر "اصنع [اسم العنصر]"\n`;
         message += `مثال: اصنع قوس خشبي`;
         
-        return { message };
+        return { 
+            message: message,
+            recipes: allRecipes 
+        };
     }
-    }
+            }
