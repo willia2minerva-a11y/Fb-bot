@@ -1,19 +1,11 @@
+// core/commandhandelr.js
 import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
-// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
-const items = {
-    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
-    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } 
-}; 
-const locations = {
-    'forest': { name: 'الغابات' },
-    'hell': { name: 'الجحيم' },
-    'sky': { name: 'السماء' }
-};
+// 🔥 استيراد البيانات الحقيقية بدلاً من المتغيرات المؤقتة
+import { items } from '../data/items.js';
+import { locations } from '../data/locations.js';
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -32,10 +24,30 @@ async function getSystem(systemName) {
         if (systems[systemName]) {
             const module = await import(systems[systemName]);
             const SystemClass = Object.values(module)[0];
-            return new SystemClass();
+            const systemInstance = new SystemClass();
+            console.log(`✅ تم تحميل نظام ${systemName} بنجاح`);
+            return systemInstance;
         }
     } catch (error) {
-        // Fallback for missing systems
+        console.error(`❌ فشل تحميل نظام ${systemName}:`, error);
+        
+        // 🔥 نظام صناعة افتراضي للطوارئ
+        if (systemName === 'crafting') {
+            console.log('🔄 استخدام نظام صناعة افتراضي');
+            return {
+                showAvailableRecipes: (player) => {
+                    return {
+                        message: `🛠️ **نظام الصناعة قيد التطوير**\n\n📍 موقعك: ${player.currentLocation}\n📝 سيتم إضافة وصفات الصنع قريباً!`,
+                        recipes: []
+                    };
+                },
+                craftItem: (player, itemId) => {
+                    return {
+                        error: '❌ نظام الصناعة غير متاح حالياً. يرجى المحاولة لاحقاً.'
+                    };
+                }
+            };
+        }
     }
 }
 
@@ -48,7 +60,7 @@ export default class CommandHandler {
             this.cardGenerator = new ProfileCardGenerator();
             this.systems = {};
             
-            // 🆕 خريطة الترجمة الشاملة (للعناصر والموارد والمواقع)
+            // 🆕 خريطة الترجمة الشاملة (باستخدام البيانات الحقيقية)
             this.ARABIC_ITEM_MAP = this._createArabicItemMap();
 
             // أوامر اللعبة الأساسية
@@ -129,13 +141,14 @@ export default class CommandHandler {
     // 🆕 دالة لإنشاء خريطة ترجمة العناصر من العربي إلى الإنجليزي (ID)
     _createArabicItemMap() {
         const itemMap = {};
-        // 1. ترجمة من ملف items
+        
+        // 1. ترجمة من ملف items الحقيقي
         for (const itemId in items) {
             const itemName = items[itemId].name;
             itemMap[itemName.toLowerCase()] = itemId; 
         }
         
-        // 2. ترجمة من ملف locations
+        // 2. ترجمة من ملف locations الحقيقي
         for (const locationId in locations) {
             const locationName = locations[locationId].name;
             itemMap[locationName.toLowerCase()] = locationId;
@@ -145,13 +158,20 @@ export default class CommandHandler {
             }
         }
         
+        console.log(`🗺️ تم إنشاء خريطة ترجمة تحتوي على ${Object.keys(itemMap).length} عنصر`);
         return itemMap;
     }
-
 
     async getSystem(systemName) {
         if (!this.systems[systemName]) {
             this.systems[systemName] = await getSystem(systemName);
+            
+            // 🔥 تحقق من تحميل نظام الصناعة بشكل صحيح
+            if (systemName === 'crafting' && this.systems[systemName]) {
+                console.log('🔍 التحقق من وصفات الصناعة...');
+                const recipeCount = Object.keys(this.systems[systemName].RECIPES || {}).length;
+                console.log(`📋 عدد الوصفات المحملة: ${recipeCount}`);
+            }
         }
         return this.systems[systemName];
     }
@@ -467,7 +487,6 @@ export default class CommandHandler {
         }
     }
 
-
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
@@ -494,7 +513,6 @@ export default class CommandHandler {
         
         return message;
     }
-
 
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -537,36 +555,70 @@ export default class CommandHandler {
         return result.message;
     }
     
+    // 🔥 إصلاح دوال الصناعة
     async handleShowRecipes(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        const craftingSystem = await this.getSystem('crafting');
-        const result = craftingSystem.showAvailableRecipes(player);
-        return result.message;
+        
+        try {
+            const craftingSystem = await this.getSystem('crafting');
+            
+            if (!craftingSystem) {
+                console.log('❌ نظام الصناعة غير محمل');
+                return '❌ نظام الصناعة غير متاح حالياً.';
+            }
+            
+            console.log(`🔍 جلب الوصفات للاعب ${player.name} في موقع ${player.currentLocation}`);
+            
+            const result = craftingSystem.showAvailableRecipes(player);
+            
+            if (!result) {
+                return '❌ لم يتم العثور على وصفات صناعة متاحة.';
+            }
+            
+            console.log(`✅ تم العثور على ${result.recipes ? result.recipes.length : 0} وصفة`);
+            return result.message || '❌ لا توجد وصفات صناعة متاحة حالياً.';
+            
+        } catch (error) {
+            console.error('❌ خطأ في عرض الوصفات:', error);
+            return '❌ حدث خطأ في عرض وصفات الصناعة.';
+        }
     }
 
     async handleCraft(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات
         if (args.length === 0) {
-            return this.handleShowRecipes(player); 
+            return this.handleShowRecipes(player);
         }
 
-        const rawItemName = args.join(' '); 
+        const rawItemName = args.join(' ');
         if (!rawItemName) {
-             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
+            return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
         }
         
         const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();
 
-        const craftingSystem = await this.getSystem('crafting');
-        const result = await craftingSystem.craftItem(player, itemId);
-        
-        if (result.error) {
-            return result.error;
+        try {
+            const craftingSystem = await this.getSystem('crafting');
+            
+            if (!craftingSystem) {
+                return '❌ نظام الصناعة غير متاح حالياً.';
+            }
+            
+            console.log(`🛠️ محاولة صنع: ${rawItemName} (ID: ${itemId})`);
+            
+            const result = await craftingSystem.craftItem(player, itemId);
+            
+            if (result.error) {
+                return result.error;
+            }
+            
+            return result.message;
+            
+        } catch (error) {
+            console.error('❌ خطأ في الصناعة:', error);
+            return `❌ حدث خطأ في عملية الصناعة: ${error.message}`;
         }
-        
-        return result.message;
     }
 
     async handleAdventure(player) {
@@ -611,4 +663,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                                          }
+    }
