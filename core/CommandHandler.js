@@ -1,17 +1,23 @@
-// core/commandhandelr.js
 import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 🔥 استيراد البيانات الحقيقية بدلاً من المتغيرات المؤقتة
-import { items } from '../data/items.js';
-import { locations } from '../data/locations.js';
+// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
+// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
+const items = {
+    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
+    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
+    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } 
+}; 
+const locations = {
+    'forest': { name: 'الغابات' },
+    'hell': { name: 'الجحيم' },
+    'sky': { name: 'السماء' }
+};
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
     try {
-        console.log(`🔍 [getSystem] محاولة تحميل النظام: ${systemName}`);
-        
         const systems = {
             'battle': '../systems/battle/BattleSystem.js',
             'world': '../systems/world/WorldMap.js',
@@ -24,42 +30,13 @@ async function getSystem(systemName) {
         };
 
         if (systems[systemName]) {
-            console.log(`📁 [getSystem] مسار النظام: ${systems[systemName]}`);
             const module = await import(systems[systemName]);
-            console.log(`✅ [getSystem] تم استيراد модуل ${systemName}`);
-            
             const SystemClass = Object.values(module)[0];
-            console.log(`🔧 [getSystem] فئة النظام:`, SystemClass);
-            
-            const systemInstance = new SystemClass();
-            console.log(`✅ [getSystem] تم إنشاء نسخة من نظام ${systemName}`);
-            return systemInstance;
+            return new SystemClass();
         }
     } catch (error) {
-        console.error(`❌ [getSystem] فشل تحميل نظام ${systemName}:`, error.message);
-        console.error(`🔍 [getSystem] تفاصيل الخطأ:`, error.stack);
-        
-        // 🔥 نظام صناعة افتراضي للطوارئ
-        if (systemName === 'crafting') {
-            console.log('🔄 [getSystem] استخدام نظام صناعة افتراضي');
-            return {
-                showAvailableRecipes: (player) => {
-                    console.log('🔄 [Crafting Fallback] استدعاء showAvailableRecipes');
-                    return {
-                        message: `🛠️ **نظام الصناعة قيد التطوير**\n\n📍 موقعك: ${player.currentLocation}\n📝 سيتم إضافة وصفات الصنع قريباً!\n\n🔧 عدد الوصفات: 0`,
-                        recipes: []
-                    };
-                },
-                craftItem: (player, itemId) => {
-                    console.log('🔄 [Crafting Fallback] استدعاء craftItem');
-                    return {
-                        error: '❌ نظام الصناعة غير متاح حالياً. يرجى المحاولة لاحقاً.'
-                    };
-                }
-            };
-        }
+        // Fallback for missing systems
     }
-    return null;
 }
 
 export default class CommandHandler {
@@ -71,7 +48,7 @@ export default class CommandHandler {
             this.cardGenerator = new ProfileCardGenerator();
             this.systems = {};
             
-            // 🆕 خريطة الترجمة الشاملة (باستخدام البيانات الحقيقية)
+            // 🆕 خريطة الترجمة الشاملة (للعناصر والموارد والمواقع)
             this.ARABIC_ITEM_MAP = this._createArabicItemMap();
 
             // أوامر اللعبة الأساسية
@@ -121,7 +98,7 @@ export default class CommandHandler {
                 'اجمع': this.handleGather.bind(this), 
                 'جمع': this.handleGather.bind(this),
                 
-                // الصناعة - 🔥 إضافة اختبار أولي
+                // الصناعة
                 'وصفات': this.handleShowRecipes.bind(this),
                 'صناعة': this.handleShowRecipes.bind(this),
                 'اصنع': this.handleCraft.bind(this), 
@@ -143,7 +120,6 @@ export default class CommandHandler {
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
-            console.log(`📋 الأوامر المسجلة: ${Object.keys(this.commands).join(', ')}`);
         } catch (error) {
             console.error('❌ فشل في تهيئة CommandHandler:', error);
             throw error;
@@ -152,107 +128,88 @@ export default class CommandHandler {
     
     // 🆕 دالة لإنشاء خريطة ترجمة العناصر من العربي إلى الإنجليزي (ID)
     _createArabicItemMap() {
-        try {
-            console.log('🗺️ إنشاء خريطة الترجمة...');
-            const itemMap = {};
-            
-            // 1. ترجمة من ملف items الحقيقي
-            if (items) {
-                for (const itemId in items) {
-                    const itemName = items[itemId].name;
-                    itemMap[itemName.toLowerCase()] = itemId; 
-                }
-                console.log(`📦 تم تحميل ${Object.keys(items).length} عنصر من items`);
-            } else {
-                console.log('❌ ملف items غير محمل');
-            }
-            
-            // 2. ترجمة من ملف locations الحقيقي
-            if (locations) {
-                for (const locationId in locations) {
-                    const locationName = locations[locationId].name;
-                    itemMap[locationName.toLowerCase()] = locationId;
-                    // إضافة الترجمة بدون 'ال' (للتنقل المرن)
-                    if (locationName.startsWith('ال')) {
-                         itemMap[locationName.substring(2).toLowerCase()] = locationId;
-                    }
-                }
-                console.log(`🏞️ تم تحميل ${Object.keys(locations).length} موقع من locations`);
-            } else {
-                console.log('❌ ملف locations غير محمل');
-            }
-            
-            console.log(`🗺️ تم إنشاء خريطة ترجمة تحتوي على ${Object.keys(itemMap).length} عنصر`);
-            return itemMap;
-        } catch (error) {
-            console.error('❌ خطأ في إنشاء خريطة الترجمة:', error);
-            return {};
+        const itemMap = {};
+        // 1. ترجمة من ملف items
+        for (const itemId in items) {
+            const itemName = items[itemId].name;
+            itemMap[itemName.toLowerCase()] = itemId; 
         }
+        
+        // 2. ترجمة من ملف locations
+        for (const locationId in locations) {
+            const locationName = locations[locationId].name;
+            itemMap[locationName.toLowerCase()] = locationId;
+            // إضافة الترجمة بدون 'ال' (للتنقل المرن)
+            if (locationName.startsWith('ال')) {
+                 itemMap[locationName.substring(2).toLowerCase()] = locationId;
+            }
+        }
+        
+        return itemMap;
     }
 
+
     async getSystem(systemName) {
-        try {
-            console.log(`🔍 [CommandHandler.getSystem] طلب النظام: ${systemName}`);
-            
-            if (!this.systems[systemName]) {
-                console.log(`🔍 [CommandHandler.getSystem] تحميل النظام الجديد: ${systemName}`);
-                this.systems[systemName] = await getSystem(systemName);
-                
-                if (this.systems[systemName]) {
-                    console.log(`✅ [CommandHandler.getSystem] تم تحميل نظام ${systemName} بنجاح`);
-                    
-                    if (systemName === 'crafting') {
-                        const recipeCount = Object.keys(this.systems[systemName].RECIPES || {}).length;
-                        console.log(`📋 [CommandHandler.getSystem] عدد الوصفات المحملة: ${recipeCount}`);
-                    }
-                } else {
-                    console.log(`❌ [CommandHandler.getSystem] فشل تحميل نظام ${systemName}`);
-                }
-            } else {
-                console.log(`✅ [CommandHandler.getSystem] نظام ${systemName} محمل مسبقاً`);
-            }
-            
-            return this.systems[systemName];
-        } catch (error) {
-            console.error(`❌ [CommandHandler.getSystem] خطأ في getSystem:`, error);
-            return null;
+        if (!this.systems[systemName]) {
+            this.systems[systemName] = await getSystem(systemName);
         }
+        return this.systems[systemName];
     }
     
     async process(sender, message) {
-        console.log(`\n🎯 ========== بدء معالجة أمر جديد ==========`);
         const { id, name } = sender;
-        const parts = message.trim().split(/\s+/);
-        const command = parts[0].toLowerCase();
-        const args = parts.slice(1);
+        const processedMessage = message.trim().toLowerCase();
+        
+        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)
+        let commandParts = processedMessage.split(/\s+/);
+        let command = commandParts[0];
+        let args = commandParts.slice(1);
+        
+        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين
 
+        // 🆕 دمج معالجة الأوامر المركبة هنا
+        if (fullCommand === 'موافقة لاعب') {
+            command = 'موافقة_لاعب';
+            args = args.slice(1);
+        } else if (fullCommand === 'اعطاء مورد') {
+            command = 'اعطاء_مورد';
+            args = args.slice(1);
+        } else if (fullCommand === 'اعطاء ذهب') {
+            command = 'اعطاء_ذهب';
+            args = args.slice(1);
+        } else if (fullCommand === 'تغيير اسم') {
+            command = 'تغيير_اسم';
+            args = args.slice(1);
+        } else if (fullCommand === 'زيادة صحة') {
+            command = 'زيادة_صحة';
+            args = args.slice(1);
+        } else if (fullCommand === 'زيادة مانا') {
+            command = 'زيادة_مانا';
+            args = args.slice(1);
+        }
+        // يمكن إضافة المزيد من الأوامر المركبة هنا...
+        
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
-        console.log(`🔍 الأجزاء: ${parts}, الوسائط: ${args}`);
 
+        const isAdmin = this.adminSystem.isAdmin(id);
+        if (isAdmin) {
+            console.log('🎯 🔥 تم التعرف على المدير!');
+        }
+        
+        // التحقق من الردود التلقائية أولاً
+        const autoResponseSystem = await this.getSystem('autoResponse');
+        if (autoResponseSystem) {
+             const autoResponse = autoResponseSystem.findAutoResponse(message);
+             if (autoResponse) {
+                 console.log(`🤖 رد تلقائي على: "${message}"`);
+                 return autoResponse;
+             }
+        }
+        
         try {
-            const isAdmin = this.adminSystem.isAdmin(id);
-            if (isAdmin) {
-                console.log('🎯 🔥 تم التعرف على المدير!');
-            }
-            
-            // التحقق من الردود التلقائية أولاً
-            try {
-                const autoResponseSystem = await this.getSystem('autoResponse');
-                if (autoResponseSystem) {
-                     const autoResponse = autoResponseSystem.findAutoResponse(message);
-                     if (autoResponse) {
-                         console.log(`🤖 رد تلقائي على: "${message}"`);
-                         return autoResponse;
-                     }
-                }
-            } catch (error) {
-                console.log('⚠️ نظام الرد التلقائي غير متاح أو به خطأ');
-            }
-            
             let player = await Player.findOne({ userId: id });
 
             if (!player) {
-                console.log('🎮 إنشاء لاعب جديد...');
                 player = await Player.createNew(id, name);
                 console.log(`🎮 تم إنشاء لاعب جديد: ${player.name}`);
             }
@@ -280,46 +237,25 @@ export default class CommandHandler {
             }
 
             // معالجة الأوامر العادية
-            console.log(`🔍 البحث عن الأمر: "${command}" في القائمة...`);
-            console.log(`📋 الأوامر المتاحة: ${Object.keys(this.commands).join(', ')}`);
-            
             if (this.commands[command]) {
-                console.log(`✅ الأمر "${command}" معروف وسيتم معالجته`);
-                
                 if (!this.allowedBeforeApproval.includes(command) && !player.isApproved()) {
-                    console.log(`⏳ اللاعب لم يكمل التسجيل بعد`);
                     return this.getRegistrationMessage(player);
                 }
 
                 const handler = this.commands[command]; 
-                console.log(`🔧 استدعاء المعالج للأمر: ${command}`);
-                
-                // 🔥 اختبار بسيط أولاً
-                if (command === 'صناعة' || command === 'وصفات') {
-                    console.log('🎯 اختبار مباشر لأمر الصناعة...');
-                    const testResult = await this.handleShowRecipes(player);
-                    console.log(`✅ نتيجة اختبار الصناعة:`, testResult ? 'ناجح' : 'فاشل');
-                    return testResult;
-                }
-                
                 const result = await handler.call(this, player, args, id);
-                
-                console.log(`✅ تم معالجة الأمر "${command}" بنجاح`);
                 
                 if (typeof result === 'string') {
                     await player.save();
                 }
 
                 return result;
-            } else {
-                console.log(`❌ الأمر "${command}" غير معروف`);
             }
 
             return await this.handleUnknown(command, player);
 
         } catch (error) {
             console.error('❌ خطأ في معالجة الأمر:', error);
-            console.error('🔍 تفاصيل الخطأ:', error.stack);
             
             if (error.code === 11000) {
                 console.log('🔄 معالجة خطأ duplicate key...');
@@ -332,8 +268,6 @@ export default class CommandHandler {
             }
             
             return `❌ حدث خطأ: ${error.message}`;
-        } finally {
-            console.log(`🎯 ========== انتهاء معالجة الأمر ==========\n`);
         }
     }
 
@@ -444,7 +378,7 @@ export default class CommandHandler {
 
 🛠️ الصناعة والتجارة :
 وصفات/صناعة - عرض وصفات الصنع المتاحة
-اصنع/صنع [اسم العنصر] - صنع عنصر محدد
+اصنع/صنع [ID] - صنع عنصر محدد
 
 🎒 **الإدارة:**
 حالتي/حالة - عرض حالتك الكاملة
@@ -560,6 +494,7 @@ export default class CommandHandler {
         }
     }
 
+
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
@@ -586,6 +521,7 @@ export default class CommandHandler {
         
         return message;
     }
+
 
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -628,100 +564,36 @@ export default class CommandHandler {
         return result.message;
     }
     
-    // 🔥 إصلاح كامل لدوال الصناعة
     async handleShowRecipes(player) {
-        console.log(`\n🎯 ========== بدء handleShowRecipes ==========`);
-        
-        try {
-            console.log(`🔍 [handleShowRecipes] بدء معالجة أمر الصناعة للاعب ${player.name}`);
-            
-            if (!player.isApproved()) {
-                console.log('❌ [handleShowRecipes] اللاعب لم يكمل التسجيل');
-                return '❌ يجب إكمال التسجيل أولاً.';
-            }
-            
-            console.log(`🔍 [handleShowRecipes] جلب نظام الصناعة...`);
-            const craftingSystem = await this.getSystem('crafting');
-            
-            if (!craftingSystem) {
-                console.log('❌ [handleShowRecipes] نظام الصناعة غير محمل');
-                return '❌ نظام الصناعة غير متاح حالياً.';
-            }
-            
-            console.log(`✅ [handleShowRecipes] نظام الصناعة محمل بنجاح`);
-            console.log(`🔍 [handleShowRecipes] استدعاء showAvailableRecipes...`);
-            
-            const result = craftingSystem.showAvailableRecipes(player);
-            
-            if (!result) {
-                console.log('❌ [handleShowRecipes] دالة showAvailableRecipes لم تُرجع أي نتيجة');
-                return '❌ لم يتم العثور على وصفات صناعة متاحة.';
-            }
-            
-            console.log(`✅ [handleShowRecipes] تم العثور على ${result.recipes ? result.recipes.length : 0} وصفة`);
-            
-            if (!result.message) {
-                console.log('❌ [handleShowRecipes] لا توجد رسالة في النتيجة');
-                return '❌ لا توجد وصفات صناعة متاحة حالياً.';
-            }
-            
-            console.log(`✅ [handleShowRecipes] تم إنشاء رسالة الوصفات بنجاح`);
-            console.log(`🎯 ========== انتهاء handleShowRecipes ==========\n`);
-            
-            return result.message;
-            
-        } catch (error) {
-            console.error('❌ [handleShowRecipes] خطأ في عرض الوصفات:', error);
-            console.error('🔍 [handleShowRecipes] تفاصيل الخطأ:', error.stack);
-            return `❌ حدث خطأ في عرض وصفات الصناعة: ${error.message}`;
-        }
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const craftingSystem = await this.getSystem('crafting');
+        const result = craftingSystem.showAvailableRecipes(player);
+        return result.message;
     }
 
     async handleCraft(player, args) {
-        console.log(`\n🎯 ========== بدء handleCraft ==========`);
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        try {
-            console.log(`🔍 [handleCraft] بدء معالجة أمر الاصنع للاعب ${player.name}`);
-            
-            if (!player.isApproved()) {
-                console.log('❌ [handleCraft] اللاعب لم يكمل التسجيل');
-                return '❌ يجب إكمال التسجيل أولاً.';
-            }
-            
-            if (args.length === 0) {
-                console.log('🔍 [handleCraft] لا توجد وسائط، عرض الوصفات...');
-                return this.handleShowRecipes(player);
-            }
-
-            const rawItemName = args.join(' ');
-            if (!rawItemName) {
-                return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
-            }
-            
-            const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();
-            console.log(`🔍 [handleCraft] محاولة صنع: "${rawItemName}" (ID: ${itemId})`);
-
-            const craftingSystem = await this.getSystem('crafting');
-            
-            if (!craftingSystem) {
-                return '❌ نظام الصناعة غير متاح حالياً.';
-            }
-            
-            const result = await craftingSystem.craftItem(player, itemId);
-            
-            if (result.error) {
-                return result.error;
-            }
-            
-            console.log(`✅ [handleCraft] تمت الصناعة بنجاح`);
-            console.log(`🎯 ========== انتهاء handleCraft ==========\n`);
-            return result.message;
-            
-        } catch (error) {
-            console.error('❌ [handleCraft] خطأ في الصناعة:', error);
-            console.error('🔍 [handleCraft] تفاصيل الخطأ:', error.stack);
-            return `❌ حدث خطأ في عملية الصناعة: ${error.message}`;
+        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات (إصلاح المشكلة هنا)
+        if (args.length === 0) {
+            return this.handleShowRecipes(player); 
         }
+
+        const rawItemName = args.join(' '); 
+        if (!rawItemName) {
+             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';
+        }
+        
+        const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();
+
+        const craftingSystem = await this.getSystem('crafting');
+        const result = await craftingSystem.craftItem(player, itemId);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        return result.message;
     }
 
     async handleAdventure(player) {
@@ -766,4 +638,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                }
+}
