@@ -117,7 +117,7 @@ export default class CommandHandler {
                 'اهرب': this.handleEscape.bind(this) 
             };
 
-            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر', 'أنثى', 'اسمي'];
+            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];
             
             console.log('✅ CommandHandler تم تهيئته بنجاح');
         } catch (error) {
@@ -158,30 +158,10 @@ export default class CommandHandler {
     
     async process(sender, message) {
         const { id, name } = sender;
-        const processedMessage = message.trim().toLowerCase();
-        
-        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)
-        let commandParts = processedMessage.split(/\s+/);
-        let command = commandParts[0];
-        let args = commandParts.slice(1);
-        
-        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين
+        const parts = message.trim().split(/\s+/);
+        const command = parts[0].toLowerCase();
+        const args = parts.slice(1);
 
-        if (fullCommand === 'موافقة لاعب') {
-            command = 'موافقة_لاعب';
-            args = args.slice(1);
-        } else if (fullCommand === 'اعطاء مورد') {
-            command = 'اعطاء_مورد';
-            args = args.slice(1);
-        } else if (fullCommand === 'اعطاء ذهب') {
-            command = 'اعطاء_ذهب';
-            args = args.slice(1);
-        } else if (fullCommand === 'تغيير اسم') {
-            command = 'تغيير_اسم';
-            args = args.slice(1);
-        }
-        // يمكن إضافة المزيد من الأوامر المركبة هنا...
-        
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
         const isAdmin = this.adminSystem.isAdmin(id);
@@ -631,4 +611,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-}
+                                          }
