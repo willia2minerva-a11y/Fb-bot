@@ -574,7 +574,7 @@ export default class CommandHandler {
     async handleCraft(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات (إصلاح المشكلة هنا)
+        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات
         if (args.length === 0) {
             return this.handleShowRecipes(player); 
         }
