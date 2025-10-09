@@ -158,13 +158,14 @@ export default class CommandHandler {
     
     async process(sender, message) {
         const { id, name } = sender;
-        
-        // 🛠️ إصلاح: معالجة الرسائل متعددة الكلمات قبل الفصل (مثال: "موافقة لاعب")
         const processedMessage = message.trim().toLowerCase();
-        let command = processedMessage.split(/\s+/)[0];
-        let args = processedMessage.split(/\s+/).slice(1);
         
-        // البحث عن أوامر المدير متعددة الكلمات
+        // 🛠️ الخطوة 1: استخراج الأمر الرئيسي والوسائط
+        let commandParts = processedMessage.split(/\s+/);
+        let command = commandParts[0];
+        let args = commandParts.slice(1);
+
+        // 🛠️ الخطوة 2: معالجة الأوامر المركبة (الأوامر ذات المسافات)
         if (command === 'موافقة' && args[0] === 'لاعب') {
             command = 'موافقة_لاعب';
             args = args.slice(1);
@@ -178,6 +179,7 @@ export default class CommandHandler {
             command = 'تغيير_اسم';
             args = args.slice(1);
         }
+        // يمكن إضافة المزيد من الأوامر المركبة هنا...
         
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
@@ -521,6 +523,7 @@ export default class CommandHandler {
              return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
         
+        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي (المُصغر)
         const locationId = this.ARABIC_ITEM_MAP[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();
 
         const travelSystem = await this.getSystem('travel');
@@ -628,4 +631,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                }
+}
