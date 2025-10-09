@@ -160,22 +160,23 @@ export default class CommandHandler {
         const { id, name } = sender;
         const processedMessage = message.trim().toLowerCase();
         
-        // 🛠️ الخطوة 1: استخراج الأمر الرئيسي والوسائط
+        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)
         let commandParts = processedMessage.split(/\s+/);
         let command = commandParts[0];
         let args = commandParts.slice(1);
+        
+        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين
 
-        // 🛠️ الخطوة 2: معالجة الأوامر المركبة (الأوامر ذات المسافات)
-        if (command === 'موافقة' && args[0] === 'لاعب') {
+        if (fullCommand === 'موافقة لاعب') {
             command = 'موافقة_لاعب';
             args = args.slice(1);
-        } else if (command === 'اعطاء' && args[0] === 'مورد') {
+        } else if (fullCommand === 'اعطاء مورد') {
             command = 'اعطاء_مورد';
             args = args.slice(1);
-        } else if (command === 'اعطاء' && args[0] === 'ذهب') {
+        } else if (fullCommand === 'اعطاء ذهب') {
             command = 'اعطاء_ذهب';
             args = args.slice(1);
-        } else if (command === 'تغيير' && args[0] === 'اسم') {
+        } else if (fullCommand === 'تغيير اسم') {
             command = 'تغيير_اسم';
             args = args.slice(1);
         }
@@ -523,7 +524,6 @@ export default class CommandHandler {
              return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
         
-        // 🛠️ استخدام الخريطة: البحث عن ID باستخدام الاسم العربي (المُصغر)
         const locationId = this.ARABIC_ITEM_MAP[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();
 
         const travelSystem = await this.getSystem('travel');
