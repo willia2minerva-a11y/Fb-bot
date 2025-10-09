@@ -439,7 +439,6 @@ playerSchema.statics.getLastNumericId = async function() {
     return isNaN(lastId) ? 1000 : (lastId >= 1000 ? lastId : 1000); 
 };
 
-
 playerSchema.statics.createNew = async function(userId, name) {
   try {
     const player = new this({
