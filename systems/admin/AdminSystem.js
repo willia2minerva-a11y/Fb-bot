@@ -290,7 +290,6 @@ export class AdminSystem {
         return `🎒 تم إضافة ${quantity} × **${itemInfo.name}** للاعب **${targetPlayer.name}** بنجاح.`;
     }
 
-    // 🆕 زيادة الإحصائيات (الصحة والمانا)
     async handleIncreaseStat(args, statToChange, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
@@ -321,7 +320,6 @@ export class AdminSystem {
         return `📈 تم زيادة **${statNameAr}** للاعب **${targetPlayer.name}** بمقدار ${amount}.`;
     }
     
-    // 🆕 إعطاء الذهب
     async handleGiveGold(args, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
@@ -340,4 +338,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-}
+                }
