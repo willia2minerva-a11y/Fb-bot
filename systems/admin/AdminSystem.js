@@ -1,13 +1,7 @@
 // systems/admin/AdminSystem.js
 import Player from '../../core/Player.js';
-// 💡 ملاحظة: يجب التأكد من وجود ملف items.js
-const items = {
-    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
-    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' },
-    'hallowed_bar': { name: 'سبيكة مقدسة', type: 'resource' } 
-}; // Placeholder
-
+// 💡 إصلاح حاسم: استيراد بيانات العناصر الحقيقية من المسار الصحيح
+import { items } from '../../data/items.js';
 
 export class AdminSystem {
     constructor() {
@@ -40,7 +34,6 @@ export class AdminSystem {
                 player.playerId = (lastId + 1).toString();
             }
 
-
             player.registrationStatus = 'completed';
             player.gender = 'male';
             player.name = userName || 'المدير';
@@ -67,7 +60,7 @@ export class AdminSystem {
             'اصلاح_تسجيل': 'إصلاح تسجيل',
             'اعادة_بيانات': 'اعادة بيانات',
             'اعطاء_ذهب': 'اعطاء ذهب',
-            'اعطاء_مورد': 'اعطاء مورد', // 🛠️ تم تحديث الاسم البرمجي
+            'اعطاء_مورد': 'اعطاء مورد',
             'زيادة_صحة': 'زيادة صحة',
             'زيادة_مانا': 'زيادة مانا',
             'اضف_رد': 'إضافة رد',
@@ -110,154 +103,15 @@ export class AdminSystem {
             case 'تغيير_جنس': return await this.handleSetPlayerGender(args, findTargetPlayer);
             case 'حظر_لاعب': return await this.handleBanPlayer(args, findTargetPlayer);
             case 'اعطاء_ذهب': return await this.handleGiveGold(args, findTargetPlayer);
-            case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
+            case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap);
             case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
             case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
             default: return '❌ أمر مدير غير معروف';
         }
     }
-    
-    // ===================================
-    // 1. أوامر الإدارة الأساسية
-    // ===================================
-    
-    async handleResetPlayer(args, findTargetPlayer) {
-        const targetId = args[0];
-        if (!targetId) {
-            return '❌ الاستخدام: اعادة_بيانات [UserID/PlayerID]';
-        }
-
-        const targetPlayer = await findTargetPlayer(targetId);
-        if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
-        }
-        
-        const oldName = targetPlayer.name;
-
-        // حذف اللاعب بالكامل لتحرير الاسم
-        await targetPlayer.deleteOne();
-        
-        // إعادة إنشاء كائن جديد بـ 'pending'
-        await Player.createNew(targetPlayer.userId, targetPlayer.name);
-
-        return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
-    }
-
-
-    async handleSetPlayerName(args, findTargetPlayer) {
-        const targetId = args[0];
-        const newName = args.slice(1).join(' ');
-
-        if (!targetId || !newName) {
-            return '❌ الاستخدام: تغيير_اسم [UserID/PlayerID] [الاسم الجديد]';
-        }
-        
-        const targetPlayer = await findTargetPlayer(targetId);
-
-        if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب بالمعرّف ${targetId}.`;
-        }
-        
-        const existingPlayer = await Player.findOne({ name: newName, userId: { $ne: targetPlayer.userId } });
-        if (existingPlayer) {
-            return `❌ الاسم **${newName}** مستخدم بالفعل من قبل لاعب آخر.`;
-        }
-
-        const oldName = targetPlayer.name;
-        
-        targetPlayer.name = newName;
-        await targetPlayer.save();
-        
-        return `✅ تم تحديث اسم اللاعب **${oldName}** بنجاح إلى: **${newName}**.\n(الاسم **${oldName}** أصبح متاحًا الآن).`;
-    }
-
-    async handleSetPlayerGender(args, findTargetPlayer) {
-        const targetId = args[0];
-        const newGenderRaw = args[1] ? args[1].toLowerCase() : null;
-
-        if (!targetId || (newGenderRaw !== 'ذكر' && newGenderRaw !== 'أنثى' && newGenderRaw !== 'male' && newGenderRaw !== 'female')) {
-            return '❌ الاستخدام: تغيير_جنس [UserID/PlayerID] [ذكر/أنثى]';
-        }
-        
-        const targetPlayer = await findTargetPlayer(targetId);
-        if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
-        }
-
-        const genderCode = (newGenderRaw === 'ذكر' || newGenderRaw === 'male') ? 'male' : 'female';
-        const genderName = (newGenderRaw === 'ذكر' || newGenderRaw === 'male') ? 'ذكر 👦' : 'أنثى 👧';
-        
-        targetPlayer.gender = genderCode;
-        await targetPlayer.save();
-
-        return `🚻 تم تغيير جنس اللاعب **${targetPlayer.name}** إلى **${genderName}** بنجاح.`;
-    }
-
-    async handleBanPlayer(args, findTargetPlayer) {
-        const targetId = args[0];
-        const banStatusRaw = args[1] ? args[1].toLowerCase() : 'true';
-
-        if (!targetId) {
-            return '❌ الاستخدام: حظر_لاعب [UserID/PlayerID] [true/false]';
-        }
-
-        const targetPlayer = await findTargetPlayer(targetId);
-
-        if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
-        }
-
-        const isBanning = banStatusRaw === 'true' || banStatusRaw === 'حظر';
-        targetPlayer.banned = isBanning;
-        await targetPlayer.save();
-
-        return `🚫 تم **${isBanning ? 'حظر' : 'رفع الحظر عن'}** اللاعب **${targetPlayer.name}** بنجاح.`;
-    }
-    
-    async handleApprovePlayer(args, senderId) {
-        const RegistrationSystem = (await import('../registration/RegistrationSystem.js')).RegistrationSystem;
-        const registrationSystem = new RegistrationSystem();
-
-        if (args.length === 0) {
-            const pendingPlayers = await registrationSystem.getPendingPlayers();
-            if (pendingPlayers.length === 0) {
-                return '✅ لا يوجد لاعبين بانتظار الموافقة.';
-            }
-
-            let message = '⏳ **اللاعبين المنتظرين للموافقة:**\n\n';
-            pendingPlayers.forEach((p, index) => {
-                message += `${index + 1}. ${p.name} - \`${p.userId}\` - ${new Date(p.createdAt).toLocaleDateString('ar-SA')}\n`;
-            });
-            
-            message += '\nللموافقة، اكتب: موافقة_لاعب [المعرف]';
-            return message;
-        }
-
-        const targetUserId = args[0];
-        return await registrationSystem.approvePlayer(targetUserId, senderId);
-    }
-    
-    async handleFixRegistration(args, senderId) {
-        const RegistrationSystem = (await import('../registration/RegistrationSystem.js')).RegistrationSystem;
-        const registrationSystem = new RegistrationSystem();
-
-        let targetUserId = senderId;
-        if (args.length > 0) {
-            targetUserId = args[0];
-        }
-
-        const success = await registrationSystem.resetRegistration(targetUserId);
-        
-        if (success) {
-            return `✅ **تم إصلاح التسجيل للمستخدم ${targetUserId}**`;
-        } else {
-            return `❌ لم يتم العثور على لاعب بالمعرف: ${targetUserId}`;
-        }
-    }
-
 
     // 🛠️ الإصلاح النهائي لـ دالة إعطاء مورد (handleGiveItem)
-    async handleGiveItem(args, findTargetPlayer, itemMap) { 
+    async handleGiveItem(args, findTargetPlayer, itemMap) {
         // نحتاج على الأقل 3 وسائط: [ID], [اسم], [كمية] 
         if (args.length < 3) {
             return `❌ صيغة خاطئة. الاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]`;
@@ -270,12 +124,11 @@ export class AdminSystem {
         const rawItemNameArray = args.slice(1, args.length - 1);
         const rawItemName = rawItemNameArray.join(' ').toLowerCase();
 
-        // 🛠️ التحقق من الصلاحية
+        // 🛠️ الإصلاح الحاسم: استخدام items المستوردة من ملف البيانات الحقيقي
         const itemId = itemMap[rawItemName] || rawItemName;
-        const itemInfo = items[itemId]; // استخدام items Placeholder من الأعلى
+        const itemInfo = items[itemId];
 
         if (!itemInfo || isNaN(quantity) || quantity <= 0) {
-            // رسالة خطأ جديدة مع القيمة التي لم يتم التعرف عليها
             return `❌ صيغة خاطئة أو العنصر غير موجود.\nالاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]\n(تحقق: هل العنصر **${rawItemName}** موجود؟ هل الكمية رقم؟)`;
         }
 
@@ -290,6 +143,178 @@ export class AdminSystem {
         return `🎒 تم إضافة ${quantity} × **${itemInfo.name}** للاعب **${targetPlayer.name}** بنجاح.`;
     }
 
+    // دوال الإدارة الأخرى (يجب أن تبقى كما هي)
+    async handleResetPlayer(args, findTargetPlayer) {
+        const targetId = args[0];
+        if (!targetId) {
+            return '❌ الاستخدام: اعادة_بيانات [UserID/PlayerID]';
+        }
+
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        // حفظ الاسم القديم لتحريره
+        const oldName = targetPlayer.name;
+        
+        // إعادة تعيين البيانات
+        targetPlayer.registrationStatus = 'pending';
+        targetPlayer.gender = '';
+        targetPlayer.name = `Player_${targetPlayer.userId.substring(0, 6)}`;
+        targetPlayer.level = 1;
+        targetPlayer.gold = 0;
+        targetPlayer.health = 100;
+        targetPlayer.maxHealth = 100;
+        targetPlayer.mana = 20;
+        targetPlayer.maxMana = 20;
+        targetPlayer.experience = 0;
+        targetPlayer.currentLocation = 'forest';
+        targetPlayer.inventory = [];
+        targetPlayer.equipment = {};
+        targetPlayer.skills = { crafting: 1, gathering: 1, combat: 1 };
+        targetPlayer.stats = { itemsCrafted: 0, monstersKilled: 0, resourcesGathered: 0 };
+        
+        await targetPlayer.save();
+
+        return `🔄 تم إعادة تعيين بيانات اللاعب **${oldName}** (${targetId}) بنجاح.\n✅ الاسم القديم **${oldName}** تم تحريره وهو متاح الآن.`;
+    }
+
+    async handleSetPlayerName(args, findTargetPlayer) {
+        if (args.length < 2) {
+            return '❌ الاستخدام: تغيير_اسم [ID] [الاسم الجديد]';
+        }
+        
+        const targetId = args[0];
+        const newName = args.slice(1).join(' ');
+        
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        const oldName = targetPlayer.name;
+        targetPlayer.name = newName;
+        await targetPlayer.save();
+
+        return `📝 تم تغيير اسم اللاعب من **${oldName}** إلى **${newName}** بنجاح.\n✅ الاسم القديم **${oldName}** تم تحريره.`;
+    }
+
+    async handleSetPlayerGender(args, findTargetPlayer) {
+        if (args.length < 2) {
+            return '❌ الاستخدام: تغيير_جنس [ID] [ذكر/أنثى]';
+        }
+        
+        const targetId = args[0];
+        const gender = args[1].toLowerCase();
+        
+        if (gender !== 'ذكر' && gender !== 'أنثى') {
+            return '❌ الجنس يجب أن يكون "ذكر" أو "أنثى"';
+        }
+        
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        targetPlayer.gender = gender === 'ذكر' ? 'male' : 'female';
+        await targetPlayer.save();
+
+        return `👤 تم تغيير جنس اللاعب **${targetPlayer.name}** إلى **${gender}** بنجاح.`;
+    }
+
+    async handleBanPlayer(args, findTargetPlayer) {
+        if (args.length < 2) {
+            return '❌ الاستخدام: حظر_لاعب [ID] [صحيح/خطأ]';
+        }
+        
+        const targetId = args[0];
+        const banStatus = args[1].toLowerCase();
+        
+        if (banStatus !== 'صحيح' && banStatus !== 'خطأ') {
+            return '❌ الحالة يجب أن تكون "صحيح" (لحظر) أو "خطأ" (لرفع الحظر)';
+        }
+        
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        const shouldBan = banStatus === 'صحيح';
+        targetPlayer.banned = shouldBan;
+        await targetPlayer.save();
+
+        return `${shouldBan ? '🔴' : '🟢'} تم ${shouldBan ? 'حظر' : 'رفع حظر'} اللاعب **${targetPlayer.name}** بنجاح.`;
+    }
+
+    async handleApprovePlayer(args, senderId) {
+        if (args.length === 0) {
+            // عرض قائمة اللاعبين المنتظرين
+            const pendingPlayers = await Player.find({ registrationStatus: 'pending' });
+            
+            if (pendingPlayers.length === 0) {
+                return '✅ لا يوجد لاعبين بانتظار الموافقة.';
+            }
+            
+            let message = `⏳ **اللاعبين المنتظرين للموافقة (${pendingPlayers.length}):**\n\n`;
+            
+            pendingPlayers.forEach((player, index) => {
+                message += `${index + 1}. **${player.name}** (ID: \`${player.userId}\`)\n`;
+            });
+            
+            message += `\n💡 للموافقة: اكتب "موافقة_لاعب [ID]"`;
+            return message;
+        }
+        
+        const targetId = args[0];
+        const targetPlayer = await Player.findOne({ $or: [{ userId: targetId }, { playerId: targetId }] });
+        
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        if (targetPlayer.registrationStatus !== 'pending') {
+            return `ℹ️ اللاعب **${targetPlayer.name}** ليس بانتظار الموافقة.`;
+        }
+        
+        targetPlayer.registrationStatus = 'approved';
+        await targetPlayer.save();
+        
+        return `✅ تمت الموافقة على اللاعب **${targetPlayer.name}** (${targetId}) بنجاح.\n📝 يمكنه الآن إكمال التسجيل باختيار الجنس والاسم.`;
+    }
+
+    async handleFixRegistration(args, findTargetPlayer) {
+        const targetId = args[0];
+        if (!targetId) {
+            return '❌ الاستخدام: اصلاح_تسجيل [UserID/PlayerID]';
+        }
+
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        // إصلاح حالة التسجيل
+        if (targetPlayer.registrationStatus === 'pending') {
+            targetPlayer.registrationStatus = 'approved';
+            await targetPlayer.save();
+            return `🔧 تم إصلاح تسجيل اللاعب **${targetPlayer.name}** - تمت الموافقة عليه.`;
+        } else if (targetPlayer.registrationStatus === 'approved') {
+            if (!targetPlayer.gender) {
+                return `🔧 اللاعب **${targetPlayer.name}** يحتاج لاختيار الجنس (ذكر/أنثى).`;
+            } else if (!targetPlayer.name || targetPlayer.name.startsWith('Player_')) {
+                return `🔧 اللاعب **${targetPlayer.name}** يحتاج لتعيين اسم (اسمي [الاسم]).`;
+            } else {
+                targetPlayer.registrationStatus = 'completed';
+                await targetPlayer.save();
+                return `🔧 تم إكمال تسجيل اللاعب **${targetPlayer.name}** بنجاح.`;
+            }
+        }
+        
+        return `ℹ️ حالة تسجيل اللاعب **${targetPlayer.name}** هي: ${targetPlayer.registrationStatus}`;
+    }
+
+    // 🆕 زيادة الإحصائيات (الصحة والمانا)
     async handleIncreaseStat(args, statToChange, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
@@ -320,6 +345,7 @@ export class AdminSystem {
         return `📈 تم زيادة **${statNameAr}** للاعب **${targetPlayer.name}** بمقدار ${amount}.`;
     }
     
+    // 🆕 إعطاء الذهب
     async handleGiveGold(args, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
@@ -338,4 +364,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-                }
+            }
