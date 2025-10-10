@@ -117,7 +117,144 @@ export class AdminSystem {
         }
     }
     
-    // ... (بقية دوال الإدارة تبقى كما هي)
+    // ===================================
+    // 1. أوامر الإدارة الأساسية
+    // ===================================
+    
+    async handleResetPlayer(args, findTargetPlayer) {
+        const targetId = args[0];
+        if (!targetId) {
+            return '❌ الاستخدام: اعادة_بيانات [UserID/PlayerID]';
+        }
+
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+        
+        const oldName = targetPlayer.name;
+
+        // حذف اللاعب بالكامل لتحرير الاسم
+        await targetPlayer.deleteOne();
+        
+        // إعادة إنشاء كائن جديد بـ 'pending'
+        await Player.createNew(targetPlayer.userId, targetPlayer.name);
+
+        return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
+    }
+
+
+    async handleSetPlayerName(args, findTargetPlayer) {
+        const targetId = args[0];
+        const newName = args.slice(1).join(' ');
+
+        if (!targetId || !newName) {
+            return '❌ الاستخدام: تغيير_اسم [UserID/PlayerID] [الاسم الجديد]';
+        }
+        
+        const targetPlayer = await findTargetPlayer(targetId);
+
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب بالمعرّف ${targetId}.`;
+        }
+        
+        const existingPlayer = await Player.findOne({ name: newName, userId: { $ne: targetPlayer.userId } });
+        if (existingPlayer) {
+            return `❌ الاسم **${newName}** مستخدم بالفعل من قبل لاعب آخر.`;
+        }
+
+        const oldName = targetPlayer.name;
+        
+        targetPlayer.name = newName;
+        await targetPlayer.save();
+        
+        return `✅ تم تحديث اسم اللاعب **${oldName}** بنجاح إلى: **${newName}**.\n(الاسم **${oldName}** أصبح متاحًا الآن).`;
+    }
+
+    async handleSetPlayerGender(args, findTargetPlayer) {
+        const targetId = args[0];
+        const newGenderRaw = args[1] ? args[1].toLowerCase() : null;
+
+        if (!targetId || (newGenderRaw !== 'ذكر' && newGenderRaw !== 'أنثى' && newGenderRaw !== 'male' && newGenderRaw !== 'female')) {
+            return '❌ الاستخدام: تغيير_جنس [UserID/PlayerID] [ذكر/أنثى]';
+        }
+        
+        const targetPlayer = await findTargetPlayer(targetId);
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+
+        const genderCode = (newGenderRaw === 'ذكر' || newGenderRaw === 'male') ? 'male' : 'female';
+        const genderName = (newGenderRaw === 'ذكر' || newGenderRaw === 'male') ? 'ذكر 👦' : 'أنثى 👧';
+        
+        targetPlayer.gender = genderCode;
+        await targetPlayer.save();
+
+        return `🚻 تم تغيير جنس اللاعب **${targetPlayer.name}** إلى **${genderName}** بنجاح.`;
+    }
+
+    async handleBanPlayer(args, findTargetPlayer) {
+        const targetId = args[0];
+        const banStatusRaw = args[1] ? args[1].toLowerCase() : 'true';
+
+        if (!targetId) {
+            return '❌ الاستخدام: حظر_لاعب [UserID/PlayerID] [true/false]';
+        }
+
+        const targetPlayer = await findTargetPlayer(targetId);
+
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+        }
+
+        const isBanning = banStatusRaw === 'true' || banStatusRaw === 'حظر';
+        targetPlayer.banned = isBanning;
+        await targetPlayer.save();
+
+        return `🚫 تم **${isBanning ? 'حظر' : 'رفع الحظر عن'}** اللاعب **${targetPlayer.name}** بنجاح.`;
+    }
+    
+    async handleApprovePlayer(args, senderId) {
+        const RegistrationSystem = (await import('../registration/RegistrationSystem.js')).RegistrationSystem;
+        const registrationSystem = new RegistrationSystem();
+
+        if (args.length === 0) {
+            const pendingPlayers = await registrationSystem.getPendingPlayers();
+            if (pendingPlayers.length === 0) {
+                return '✅ لا يوجد لاعبين بانتظار الموافقة.';
+            }
+
+            let message = '⏳ **اللاعبين المنتظرين للموافقة:**\n\n';
+            pendingPlayers.forEach((p, index) => {
+                message += `${index + 1}. ${p.name} - \`${p.userId}\` - ${new Date(p.createdAt).toLocaleDateString('ar-SA')}\n`;
+            });
+            
+            message += '\nللموافقة، اكتب: موافقة_لاعب [المعرف]';
+            return message;
+        }
+
+        const targetUserId = args[0];
+        return await registrationSystem.approvePlayer(targetUserId, senderId);
+    }
+    
+    async handleFixRegistration(args, senderId) {
+        const RegistrationSystem = (await import('../registration/RegistrationSystem.js')).RegistrationSystem;
+        const registrationSystem = new RegistrationSystem();
+
+        let targetUserId = senderId;
+        if (args.length > 0) {
+            targetUserId = args[0];
+        }
+
+        const success = await registrationSystem.resetRegistration(targetUserId);
+        
+        if (success) {
+            return `✅ **تم إصلاح التسجيل للمستخدم ${targetUserId}**`;
+        } else {
+            return `❌ لم يتم العثور على لاعب بالمعرف: ${targetUserId}`;
+        }
+    }
+
 
     // 🛠️ الإصلاح النهائي لـ دالة إعطاء مورد (handleGiveItem)
     async handleGiveItem(args, findTargetPlayer, itemMap) { 
@@ -152,11 +289,6 @@ export class AdminSystem {
 
         return `🎒 تم إضافة ${quantity} × **${itemInfo.name}** للاعب **${targetPlayer.name}** بنجاح.`;
     }
-
-    // ... (بقية الدوال تبقى كما هي)
-    
-    // ... (handleResetPlayer, handleSetPlayerName, handleSetPlayerGender, handleBanPlayer, handleApprovePlayer, handleFixRegistration, handleIncreaseStat, handleGiveGold)
-    
 
     // 🆕 زيادة الإحصائيات (الصحة والمانا)
     async handleIncreaseStat(args, statToChange, findTargetPlayer) {
@@ -208,4 +340,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-                }
+}
