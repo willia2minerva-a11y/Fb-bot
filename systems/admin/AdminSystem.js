@@ -1,12 +1,7 @@
 // systems/admin/AdminSystem.js
 import Player from '../../core/Player.js';
-// 💡 ملاحظة: يجب التأكد من وجود ملف items.js
-const items = {
-    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
-    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' },
-    'hallowed_bar': { name: 'سبيكة مقدسة', type: 'resource' } 
-}; // Placeholder
+// 💡 إصلاح جوهري: الاستيراد الحقيقي لملف البيانات
+import { items } from '../../data/items.js'; 
 
 
 export class AdminSystem {
@@ -16,7 +11,8 @@ export class AdminSystem {
     }
 
     isAdmin(userId) {
-        const ADMIN_PSID = process.env.ADMIN_PSID;
+        // تأكد من تعيين متغير البيئة ADMIN_PSID بشكل صحيح
+        const ADMIN_PSID = process.env.ADMIN_PSID; 
         const isAdmin = userId === ADMIN_PSID;
         
         if (isAdmin) {
@@ -67,7 +63,7 @@ export class AdminSystem {
             'اصلاح_تسجيل': 'إصلاح تسجيل',
             'اعادة_بيانات': 'اعادة بيانات',
             'اعطاء_ذهب': 'اعطاء ذهب',
-            'اعطاء_مورد': 'اعطاء مورد', // 🛠️ تم تحديث الاسم البرمجي
+            'اعطاء_مورد': 'اعطاء مورد',
             'زيادة_صحة': 'زيادة صحة',
             'زيادة_مانا': 'زيادة مانا',
             'اضف_رد': 'إضافة رد',
@@ -256,7 +252,7 @@ export class AdminSystem {
     }
 
 
-    // 🛠️ الإصلاح النهائي لـ دالة إعطاء مورد (handleGiveItem)
+    // 🛠️ دالة إعطاء مورد (handleGiveItem)
     async handleGiveItem(args, findTargetPlayer, itemMap) { 
         // نحتاج على الأقل 3 وسائط: [ID], [اسم], [كمية] 
         if (args.length < 3) {
@@ -270,9 +266,9 @@ export class AdminSystem {
         const rawItemNameArray = args.slice(1, args.length - 1);
         const rawItemName = rawItemNameArray.join(' ').toLowerCase();
 
-        // 🛠️ التحقق من الصلاحية
+        // 🛠️ التحقق من الصلاحية: الاعتماد على itemMap (المُنشأ من CommandHandler) و items (المُستورد الآن)
         const itemId = itemMap[rawItemName] || rawItemName;
-        const itemInfo = items[itemId]; // استخدام items Placeholder من الأعلى
+        const itemInfo = items[itemId]; // استخدام items المستوردة الآن
 
         if (!itemInfo || isNaN(quantity) || quantity <= 0) {
             // رسالة خطأ جديدة مع القيمة التي لم يتم التعرف عليها
@@ -284,6 +280,7 @@ export class AdminSystem {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
         
+        // يجب أن يحتوي itemInfo على 'id' و 'name' و 'type'
         targetPlayer.addItem(itemInfo.id, itemInfo.name, itemInfo.type, quantity);
         await targetPlayer.save();
 
@@ -338,4 +335,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-                              }
+            }
