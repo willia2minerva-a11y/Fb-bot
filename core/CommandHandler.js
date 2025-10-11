@@ -2,18 +2,10 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
-// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
-const items = {
-    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
-    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } 
-}; 
-const locations = {
-    'forest': { name: 'الغابات' },
-    'hell': { name: 'الجحيم' },
-    'sky': { name: 'السماء' }
-};
+// 💡 إصلاح جوهري: الاستيراد الحقيقي لملفات البيانات
+import { items } from '../data/items.js'; 
+import { locations } from '../data/locations.js'; 
+
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -376,7 +368,7 @@ export default class CommandHandler {
 تجميع/اجمع - جمع الموارد
 
 🛠️ الصناعة والتجارة :
-وصفات - عرض وصفات الصنع المتاحة
+وصفات/صناعة - عرض وصفات الصنع المتاحة
 اصنع/صنع [ID] - صنع عنصر محدد
 
 🎒 **الإدارة:**
@@ -637,4 +629,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                }
+    }
