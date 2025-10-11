@@ -8,6 +8,7 @@ const items = {
     'hallowed_bar': { name: 'سبيكة مقدسة', type: 'resource' } 
 }; // Placeholder
 
+
 export class AdminSystem {
     constructor() {
         this.adminCommands = new Map();
@@ -337,4 +338,4 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
-                                                                 }
+                              }
