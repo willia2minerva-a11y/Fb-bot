@@ -214,10 +214,15 @@ playerSchema.methods.getCurrentLocation = function() {
   return this.currentLocation || 'forest';
 };
 
+// 🛠️ دالة addItem - تم تحديثها لضمان وجود Name و Type دائمًا
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
   if (!this.inventory) {
     this.inventory = [];
   }
+  
+  // 💡 ضمان أن الاسم والنوع لا يكونا null أو undefined قبل الإضافة
+  const itemName = name || id; 
+  const itemType = type || 'unknown'; 
   
   const existingItem = this.inventory.find(item => item.id === id);
   
@@ -226,13 +231,13 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
   } else {
     this.inventory.push({ 
       id, 
-      name, 
-      type, 
+      name: itemName, 
+      type: itemType, 
       quantity 
     });
   }
   
-  if (type === 'resource') {
+  if (itemType === 'resource' || itemType === 'resource') { // النوع 'resource' أو 'resource' (لتغطية أي أخطاء إملائية سابقة)
     if (!this.stats) this.stats = {};
     this.stats.resourcesGathered = (this.stats.resourcesGathered || 0) + quantity;
   }
@@ -438,6 +443,7 @@ playerSchema.statics.getLastNumericId = async function() {
     const lastId = lastPlayer?.playerId ? parseInt(lastPlayer.playerId, 10) : 0;
     return isNaN(lastId) ? 1000 : (lastId >= 1000 ? lastId : 1000); 
 };
+
 
 playerSchema.statics.createNew = async function(userId, name) {
   try {
