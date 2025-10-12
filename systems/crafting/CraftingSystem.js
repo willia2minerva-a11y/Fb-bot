@@ -2,7 +2,6 @@
 // 💡 إصلاح جوهري: الاستيراد الحقيقي لملفات البيانات من المسارات الصحيحة
 import { recipes } from '../../data/recipes.js'; 
 import { items } from '../../data/items.js'; 
-// يمكنك استيراد Player هنا إذا لزم الأمر، لكن الأفضل تمريره كمعامل
 
 export class CraftingSystem {
     constructor() {
@@ -37,7 +36,26 @@ export class CraftingSystem {
             };
         }
         
-        // 1. التحقق من المواد المطلوبة
+        // 1. التحقق من المستوى المطلوب
+        if (player.level < (recipe.requiredLevel || 1)) {
+            return { error: `❌ تحتاج إلى المستوى ${recipe.requiredLevel || 1} لصنع **${recipe.name}**.` };
+        }
+        
+        // 2. التحقق من متطلبات محطة العمل (الفرن أو غيره)
+        let missingTool = false;
+        if (recipe.requiredTool && recipe.requiredTool !== 'crafting_table') {
+            // التحقق مما إذا كان اللاعب يمتلك الأداة المطلوبة (الفرن)
+            if (player.getItemQuantity(recipe.requiredTool) === 0) {
+                 missingTool = true;
+            }
+        }
+        
+        if (missingTool) {
+             const requiredToolName = this.ITEMS[recipe.requiredTool] ? this.ITEMS[recipe.requiredTool].name : recipe.requiredTool;
+             return { error: `❌ تحتاج إلى محطة عمل **${requiredToolName}** لصنع هذا العنصر. (تأكد من بنائها أولاً)` };
+        }
+        
+        // 3. التحقق من المواد المطلوبة
         const requiredMaterials = recipe.materials;
         let missingMaterials = [];
 
@@ -57,27 +75,26 @@ export class CraftingSystem {
             };
         }
 
-        // 2. التحقق من مستوى الصناعة (اختياري)
-        if (player.skills.crafting < (recipe.requiredSkill || 1)) {
-            return { error: `❌ تحتاج إلى مستوى صناعة ${recipe.requiredSkill} لصنع هذا العنصر.` };
-        }
-        
-        // 3. استهلاك المواد والنشاط
-        player.useStamina(cost);
+        // 4. استهلاك المواد والنشاط
         for (const materialId in requiredMaterials) {
             player.removeItem(materialId, requiredMaterials[materialId]);
         }
-
-        // 4. إضافة العنصر المصنوع
+        
+        player.useStamina(cost);
+        
+        // 5. إضافة العنصر المصنوع
         const craftedItemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
-        player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1); 
+        player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1);
+        
+        if (player.stats) {
+            player.stats.itemsCrafted = (player.stats.itemsCrafted || 0) + 1;
+        }
 
-        // 5. حفظ وتحديث الإحصائيات
-        player.stats.itemsCrafted += 1;
+        await player.save();
 
         return { 
             success: true,
-            message: `✅ تم صنع **${craftedItemInfo.name}** بنجاح!\n- تم خصم ${cost} نشاط.`,
+            message: `✅ تم صنع **${craftedItemInfo.name}** بنجاح!\n- تم خصم **${cost}** نشاط.`,
             item: craftedItemInfo 
         };
     }
@@ -103,6 +120,9 @@ export class CraftingSystem {
         message += `╚═══════════════════════════════════════╝\n`;
         
         const typeOrder = {
+            'tool_station': '⚙️ محطات العمل', // 🆕 الفرن
+            'bar': '🪙 السبائك (تعدين بالفرن)', // 🆕 تعدين
+            'food': '🍲 طعام مطبوخ (فرن/طبخ)', // 🆕 طبخ
             'weapon': '⚔️ الأسلحة', 
             'tool': '⛏️ الأدوات', 
             'armor': '🛡️ الدروع', 
@@ -120,9 +140,12 @@ export class CraftingSystem {
                 message += `\n─── ${typeName} (${recipesList.length}) ───\n`;
                 
                 recipesList.forEach(recipe => {
-                    message += `\n✨ ${recipe.name} (Lvl: ${recipe.requiredLevel || 1})\n`;
-                    message += `  ├── المواد المطلوبة:\n`;
+                    const toolName = recipe.requiredTool ? (this.ITEMS[recipe.requiredTool]?.name || 'طاولة صناعة') : 'طاولة صناعة';
                     
+                    message += `\n✨ ${recipe.name} (Lvl: ${recipe.requiredLevel || 1})\n`;
+                    message += `  ├── الأداة المطلوبة: **${toolName}**\n`;
+
+                    // عرض المواد المطلوبة (بما في ذلك الخشب كوقود)
                     for (const materialId in recipe.materials) {
                         const requiredQuantity = recipe.materials[materialId];
                         const ownedQuantity = player.getItemQuantity(materialId);
@@ -138,8 +161,8 @@ export class CraftingSystem {
         
         message += `\n═══════════════════════════════════════\n`;
         message += `💡 للتصنيع: استخدم أمر "اصنع [اسم العنصر]"\n`;
-        message += `مثال: اصنع قوس خشبي`;
+        message += `مثال: اصنع سبيكة نحاس`;
         
         return { message };
     }
-    }
+                 }
