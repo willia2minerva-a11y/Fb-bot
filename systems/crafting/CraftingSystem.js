@@ -2,7 +2,7 @@
 // 💡 إصلاح جوهري: الاستيراد الحقيقي لملفات البيانات من المسارات الصحيحة
 import { recipes } from '../../data/recipes.js'; 
 import { items } from '../../data/items.js'; 
-// يمكنك استيراد Player هنا إذا لزم الأمر، لكن الأفضل تمريره كمعامل
+
 
 export class CraftingSystem {
     constructor() {
@@ -12,138 +12,27 @@ export class CraftingSystem {
         console.log(`🔨 نظام الصناعة تم تهيئته. (وصفات: ${Object.keys(this.RECIPES).length})`);
     }
 
-    // 🛠️ دالة التصنيع - تم تحديثها لضمان استخدام اسم عربي مُترجم وتطبيق النشاط
-    async craftItem(player, itemId) {
-        const recipe = this.RECIPES[itemId];
+    // ===================================
+    // 🛠️ دوال المساعدة (Helpers)
+    // ===================================
 
-        if (!recipe) {
-            const itemName = this.ITEMS[itemId] ? this.ITEMS[itemId].name : itemId;
-            return { error: `❌ لا توجد وصفة معروفة لـ **${itemName}**.` };
-        }
-        
-        // ===========================================
-        // 🆕 تطبيق نظام النشاط (Stamina Check)
-        // ===========================================
-        const cost = 10; // تكلفة ثابتة للصناعة
-        const actualStamina = player.getActualStamina();
-
-        if (actualStamina < cost) {
-            const missingStamina = cost - actualStamina;
-            const recoveryRate = 5; 
-            const timeToRecover = Math.ceil(missingStamina / recoveryRate);
-            
-            return { 
-                error: `😩 **أنت متعب جداً!** الصناعة تتطلب ${cost} نشاط، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد النشاط الكافي في حوالي ${timeToRecover} دقيقة.` 
-            };
-        }
-        
-        // 1. التحقق من المستوى المطلوب
-        if (player.level < (recipe.requiredLevel || 1)) {
-            return { error: `❌ تحتاج إلى المستوى ${recipe.requiredLevel || 1} لصنع **${recipe.name}**.` };
-        }
-        
-        // 2. التحقق من متطلبات محطة العمل (الفرن أو غيره)
-        let missingTool = false;
-        let isToolStationCraft = false; // لتحديد ما إذا كنا نصنع محطة عمل (Tool Station)
-        
-        if (this.ITEMS[itemId]?.type === 'tool_station') {
-            isToolStationCraft = true;
-        }
-
-        if (!isToolStationCraft && recipe.requiredTool && recipe.requiredTool !== 'crafting_table') {
-            // التحقق مما إذا كان اللاعب يمتلك الأداة المطلوبة (الفرن)
-            if (player.getItemQuantity(recipe.requiredTool) === 0) {
-                 missingTool = true;
-            }
-        }
-        
-        if (missingTool) {
-             const requiredToolName = this.ITEMS[recipe.requiredTool] ? this.ITEMS[recipe.requiredTool].name : recipe.requiredTool;
-             return { error: `❌ تحتاج إلى محطة عمل **${requiredToolName}** لصنع هذا العنصر. (تأكد من بنائها أولاً)` };
-        }
-        
-        // 3. التحقق من المواد المطلوبة
-        const requiredMaterials = recipe.materials;
-        let missingMaterials = [];
-
-        for (const materialId in requiredMaterials) {
-            const requiredQuantity = requiredMaterials[materialId];
-            const ownedQuantity = player.getItemQuantity(materialId);
-            
-            if (ownedQuantity < requiredQuantity) {
-                const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
-                missingMaterials.push(`❌ ${materialName}: ${ownedQuantity}/${requiredQuantity}`);
-            }
-        }
-
-        if (missingMaterials.length > 0) {
-            return { 
-                error: `❌ لا تملك المواد الكافية لصنع ${recipe.name}:\n${missingMaterials.join('\n')}` 
-            };
-        }
-
-        // 4. استهلاك المواد والنشاط
-        for (const materialId in requiredMaterials) {
-            player.removeItem(materialId, requiredMaterials[materialId]);
-        }
-        
-        player.useStamina(cost);
-        
-        // 5. إضافة العنصر المصنوع
-        const craftedItemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
-        player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1);
-        
-        if (player.stats) {
-            player.stats.itemsCrafted = (player.stats.itemsCrafted || 0) + 1;
-        }
-
-        await player.save();
-
-        return { 
-            success: true,
-            message: `✅ تم صنع **${craftedItemInfo.name}** بنجاح!\n- تم خصم **${cost}** نشاط.`,
-            item: craftedItemInfo 
-        };
-    }
-    
     /**
-     * دالة مساعدة لتنظيم وعرض الوصفات من نوع معين
+     * يحدد ما إذا كان يجب عرض الوصفة للاعب بناءً على الفلتر والمخزون.
      */
-    _formatRecipes(recipesList, player) {
-        let text = '';
-        recipesList.forEach(recipe => {
-            // 🛠️ إصلاح: إظهار الأداة المطلوبة بشكل صحيح (سواء كانت محطة عمل أو أداة حفر)
-            let requiredToolDisplay = '';
-            if (recipe.requiredTool === 'crafting_table' || !recipe.requiredTool) {
-                requiredToolDisplay = 'طاولة صناعة';
-            } else {
-                 requiredToolDisplay = this.ITEMS[recipe.requiredTool]?.name || recipe.requiredTool;
-                 // 💡 إذا كانت محطة عمل (مثل الفرن)، نعرضها كـ "محطة"
-                 if (this.ITEMS[recipe.requiredTool]?.type === 'tool_station') {
-                     requiredToolDisplay = this.ITEMS[recipe.requiredTool]?.name;
-                 }
-            }
+    _shouldShowRecipe(player, recipe, showFullList) {
+        if (showFullList) return true;
 
-            text += `\n✨ ${recipe.name} (المستوى: ${recipe.requiredLevel || 1})\n`;
-            text += `  ├── الأداة المطلوبة: **${requiredToolDisplay}**\n`;
-
-            for (const materialId in recipe.materials) {
-                const requiredQuantity = recipe.materials[materialId];
-                const ownedQuantity = player.getItemQuantity(materialId);
-                
-                const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
-                const statusIcon = ownedQuantity >= requiredQuantity ? '✅' : '❌';
-                
-                // 🛠️ إصلاح التنسيق: استخدام رمز pipe (│) بدلاً من الشرطة (─)
-                text += `  └── ${statusIcon} ${materialName}: ${ownedQuantity} / ${requiredQuantity}\n`;
+        for (const materialId in recipe.materials) {
+            // يكفي امتلاك قطعة واحدة من أي مادة مطلوبة لعرض الوصفة
+            if (player.getItemQuantity(materialId) > 0) {
+                return true;
             }
-        });
-        return text;
+        }
+        return false;
     }
 
-
     /**
-     * 🛠️ دالة موحدة لفلترة الوصفات (تم تعديلها للعمل مع الفصل)
+     * 🆕 دالة موحدة لفلترة الوصفات
      */
     _getRecipesByType(typeFilter) {
         const recipesList = [];
@@ -171,12 +60,149 @@ export class CraftingSystem {
         }
         return recipesList;
     }
+
+    /**
+     * دالة مساعدة لتنظيم وعرض الوصفات من نوع معين (تنسيق مُحسّن)
+     */
+    _formatRecipes(recipesList, player, title) {
+        let text = `\n═╡ ${title} (${recipesList.length}) ╞═\n`;
+        
+        recipesList.forEach(recipe => {
+            let requiredToolDisplay = '';
+            
+            if (recipe.requiredTool === 'crafting_table' || !recipe.requiredTool) {
+                requiredToolDisplay = 'طاولة صناعة';
+            } else {
+                 requiredToolDisplay = this.ITEMS[recipe.requiredTool]?.name || recipe.requiredTool;
+                 if (this.ITEMS[recipe.requiredTool]?.type === 'tool_station') {
+                     requiredToolDisplay = this.ITEMS[recipe.requiredTool]?.name;
+                 }
+            }
+            
+            // 💡 تنسيق العنصر
+            text += `\n✨ **${recipe.name}** (المستوى: ${recipe.requiredLevel || 1})\n`;
+            text += `  ├── الأداة المطلوبة: **${requiredToolDisplay}**\n`;
+
+            // 💡 تنسيق المواد
+            let materialsText = [];
+            for (const materialId in recipe.materials) {
+                const requiredQuantity = recipe.materials[materialId];
+                const ownedQuantity = player.getItemQuantity(materialId);
+                const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
+                const statusIcon = ownedQuantity >= requiredQuantity ? '✅' : '❌';
+                materialsText.push(`${statusIcon} ${materialName}: ${ownedQuantity}/${requiredQuantity}`);
+            }
+            
+            text += `  └── المواد: ${materialsText.join(' | ')}\n`;
+        });
+        return text;
+    }
     
     /**
-     * 🛠️ دالة عرض الفرن (يتم استدعاؤها بواسطة أمر "فرن")
+     * 🆕 لتحديد ما إذا كان العنصر يُصنع/يُطهى بالفرن. (مطلوبة لتفريق أوامر الطهي والصناعة)
      */
-    showFurnaceRecipes(player) {
-        const furnaceRecipes = this._getRecipesByType('FURNACE');
+    isFurnaceRecipe(itemId) {
+        const recipe = this.RECIPES[itemId];
+        const itemInfo = this.ITEMS[itemId] || {};
+        
+        return recipe && (recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food');
+    }
+
+    // ===================================
+    // 🛠️ دالة التصنيع الرئيسية (Craft Item)
+    // ===================================
+
+    async craftItem(player, itemId) {
+        const recipe = this.RECIPES[itemId];
+
+        if (!recipe) {
+            const itemName = this.ITEMS[itemId] ? this.ITEMS[itemId].name : itemId;
+            return { error: `❌ لا توجد وصفة معروفة لـ **${itemName}**.` };
+        }
+        
+        // 1. التحقق من النشاط
+        const cost = 10; 
+        const actualStamina = player.getActualStamina();
+
+        if (actualStamina < cost) {
+            const missingStamina = cost - actualStamina;
+            const recoveryRate = 5; 
+            const timeToRecover = Math.ceil(missingStamina / recoveryRate);
+            
+            return { error: `😩 **أنت متعب جداً!** الصناعة تتطلب ${cost} نشاط، لديك ${Math.floor(actualStamina)} فقط.\n⏳ ستستعيد النشاط الكافي في حوالي ${timeToRecover} دقيقة.` };
+        }
+        
+        // 2. التحقق من المستوى والأداة
+        if (player.level < (recipe.requiredLevel || 1)) {
+            return { error: `❌ تحتاج إلى المستوى ${recipe.requiredLevel || 1} لصنع **${recipe.name}**.` };
+        }
+        
+        let missingTool = false;
+        let isToolStationCraft = this.ITEMS[itemId]?.type === 'tool_station';
+        
+        if (!isToolStationCraft && recipe.requiredTool && recipe.requiredTool !== 'crafting_table') {
+            if (player.getItemQuantity(recipe.requiredTool) === 0) {
+                 missingTool = true;
+            }
+        }
+        
+        if (missingTool) {
+             const requiredToolName = this.ITEMS[recipe.requiredTool] ? this.ITEMS[recipe.requiredTool].name : recipe.requiredTool;
+             return { error: `❌ تحتاج إلى محطة عمل **${requiredToolName}** لصنع هذا العنصر. (تأكد من بنائها أولاً)` };
+        }
+        
+        // 3. التحقق من المواد
+        const requiredMaterials = recipe.materials;
+        let missingMaterials = [];
+
+        for (const materialId in requiredMaterials) {
+            const requiredQuantity = requiredMaterials[materialId];
+            const ownedQuantity = player.getItemQuantity(materialId);
+            
+            if (ownedQuantity < requiredQuantity) {
+                const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
+                missingMaterials.push(`❌ ${materialName}: ${ownedQuantity}/${requiredQuantity}`);
+            }
+        }
+
+        if (missingMaterials.length > 0) {
+            return { error: `❌ لا تملك المواد الكافية لصنع ${recipe.name}:\n${missingMaterials.join('\n')}` };
+        }
+
+        // 4. استهلاك المواد والنشاط
+        for (const materialId in requiredMaterials) {
+            player.removeItem(materialId, requiredMaterials[materialId]);
+        }
+        
+        player.useStamina(cost);
+        
+        // 5. إضافة العنصر المصنوع
+        const craftedItemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
+        player.addItem(craftedItemInfo.id, craftedItemInfo.name, craftedItemInfo.type, 1);
+        
+        if (player.stats) {
+            player.stats.itemsCrafted = (player.stats.itemsCrafted || 0) + 1;
+        }
+
+        await player.save();
+
+        return { 
+            success: true,
+            message: `✅ تم صنع **${craftedItemInfo.name}** بنجاح!\n- تم خصم **${cost}** نشاط.`,
+            item: craftedItemInfo 
+        };
+    }
+    
+    // ===================================
+    // 🛠️ دالة عرض الفرن (Furnace Display)
+    // ===================================
+
+    showFurnaceRecipes(player, showFullList = false) {
+        const allFurnaceRecipes = this._getRecipesByType('FURNACE');
+        
+        // 💡 تطبيق الفلترة
+        const furnaceRecipes = allFurnaceRecipes.filter(recipe => this._shouldShowRecipe(player, recipe, showFullList));
+
         let message = `╔═════════ 🔥  وصفات الفرن والتعدين ═════════╗\n`;
         
         const isFurnaceBuilt = player.getItemQuantity('furnace') > 0;
@@ -193,33 +219,47 @@ export class CraftingSystem {
         message += `║       🔥 الوقود المطلوب: 1 خشب لكل عملية          ║\n`;
         message += `╚═══════════════════════════════════════╝\n`;
         
-        const cooking = furnaceRecipes.filter(r => r.type === 'food');
-        const smelting = furnaceRecipes.filter(r => r.type === 'bar');
+        const cooking = furnaceRecipes.filter(r => this.ITEMS[r.id]?.type === 'food');
+        const smelting = furnaceRecipes.filter(r => this.ITEMS[r.id]?.type === 'bar');
         
+        let foundRecipes = false;
+
         // 1. السبائك
         if (smelting.length > 0) {
-            message += `\n─── 🪙 السبائك والتعدين (${smelting.length}) ───\n`;
-            message += this._formatRecipes(smelting, player);
+            foundRecipes = true;
+            message += this._formatRecipes(smelting, player, '🪙 السبائك والتعدين');
         }
         
         // 2. الطبخ
         if (cooking.length > 0) {
-            message += `\n─── 🍲 الطبخ والأكل (${cooking.length}) ───\n`;
-            message += this._formatRecipes(cooking, player);
+            foundRecipes = true;
+            message += this._formatRecipes(cooking, player, '🍲 الطبخ والأكل');
         }
 
-        message += `\n═══════════════════════════════════════\n💡 للتصنيع: استخدم أمر "اصنع [اسم العنصر]"`;
+        if (!foundRecipes) {
+            message += `\n❌ لا توجد وصفات متاحة لك حالياً. اجمع المزيد من الخامات/المكونات!\n`;
+        }
+
+        message += `\n═══════════════════════════════════════\n`;
+        message += `💡 للطهي/التعدين: استخدم أمر "اطهو [اسم العنصر]"\n`;
+        if (!showFullList && allFurnaceRecipes.length > furnaceRecipes.length) {
+            message += `💡 لعرض القائمة الكاملة (غير المتاحة حالياً): "فرن كاملة"\n`;
+        }
+        
         return { message };
     }
     
     /**
      * 🛠️ دالة عرض القائمة الرئيسية (طاولة الصناعة) - يتم استدعاؤها بواسطة "صناعة" / "وصفات"
      */
-    showAvailableRecipes(player) {
-        const tableRecipes = this._getRecipesByType('TABLE');
+    showAvailableRecipes(player, showFullList = false) {
+        const allTableRecipes = this._getRecipesByType('TABLE');
+        
+        // 💡 تطبيق الفلترة
+        const tableRecipes = allTableRecipes.filter(recipe => this._shouldShowRecipe(player, recipe, showFullList));
         
         let message = `╔═════════ 🔨  طاولة الصناعة (عادي) ═════════╗\n`;
-        message += `║       📝 الوصفات المتاحة: (${tableRecipes.length})           ║\n`;
+        message += `║       📝 الوصفات المتاحة: (${tableRecipes.length} / ${allTableRecipes.length})           ║\n`;
         message += `╚═══════════════════════════════════════╝\n`;
         
         const categorized = {};
@@ -231,100 +271,33 @@ export class CraftingSystem {
         
         const typeOrder = ['tool_station', 'weapon', 'tool', 'armor', 'accessory', 'potion', 'other'];
         
+        let foundRecipes = false;
+        
         typeOrder.forEach(typeKey => {
             const recipesList = categorized[typeKey] || [];
             if (recipesList.length > 0) {
+                foundRecipes = true;
                 const typeName = {
-                    'tool_station': '⚙️ محطات العمل', // 🆕 الفرن
+                    'tool_station': '⚙️ محطات العمل (مثل الفرن)',
                     'weapon': '⚔️ الأسلحة', 'tool': '⛏️ الأدوات', 'armor': '🛡️ الدروع', 
                     'accessory': '💍 الإكسسوارات', 'potion': '🧪 البوشنات', 'other': '📦 مواد أخرى/متنوعة'
                 }[typeKey];
                 
-                message += `\n─── ${typeName} (${recipesList.length}) ───\n`;
-                message += this._formatRecipes(recipesList, player);
+                message += this._formatRecipes(recipesList, player, typeName);
             }
         });
 
+        if (!foundRecipes) {
+            message += `\n❌ لا توجد وصفات صناعة متاحة لك حالياً. اجمع المزيد من المواد!\n`;
+        }
 
         message += `\n═══════════════════════════════════════\n`;
         message += `💡 للتصنيع: استخدم أمر "اصنع [اسم العنصر]"\n`;
-        message += `💡 للطبخ/التعدين: استخدم أمر "فرن"\n`;
-        
-        return { message };
-    }
-    
-    // ... (بقية الدوال تبقى كما هي)
-            
-    /**
-     * يعرض وصفات طاولة الصناعة (الأسلحة والأدوات).
-     */
-    showCraftingTableRecipes(player) {
-        const tableRecipes = this._getRecipesByType('TABLE');
-        const availableRecipes = {};
-        
-        // تجميع الوصفات حسب النوع
-        tableRecipes.forEach(recipe => {
-            const itemInfo = this.ITEMS[recipe.id] || { type: 'other' };
-            const type = itemInfo.type || 'other';
-
-            if (!availableRecipes[type]) availableRecipes[type] = [];
-            availableRecipes[type].push(recipe);
-        });
-        
-        let message = `╔═════════ 🔨  طاولة الصناعة (عادي) ═════════╗\n`;
-        message += `║       📝 الوصفات المتاحة: (${tableRecipes.length})           ║\n`;
-        message += `╚═══════════════════════════════════════╝\n`;
-        
-        // ... (بقية منطق تقسيم وعرض الأنواع يبقى كما هو)
-        // 💡 سنعيد استخدام جزء من المنطق السابق هنا لتقسيم العرض
-        
-        const typeOrder = {
-            'tool_station': '⚙️ محطات العمل',
-            'weapon': '⚔️ الأسلحة', 
-            'tool': '⛏️ الأدوات', 
-            'armor': '🛡️ الدروع', 
-            'accessory': '💍 الإكسسوارات', 
-            'potion': '🧪 البوشنات', 
-            'other': '📦 مواد أخرى/متنوعة'
-        };
-        
-        for (const typeKey in typeOrder) {
-            const typeName = typeOrder[typeKey];
-            const recipesList = availableRecipes[typeKey] || [];
-            
-            if (recipesList.length > 0) {
-                message += `\n─── ${typeName} (${recipesList.length}) ───\n`;
-                
-                recipesList.forEach(recipe => {
-                    const toolName = recipe.requiredTool ? (this.ITEMS[recipe.requiredTool]?.name || 'طاولة صناعة') : 'طاولة صناعة';
-                    
-                    message += `\n✨ ${recipe.name} (Lvl: ${recipe.requiredLevel || 1})\n`;
-                    message += `  ├── الأداة المطلوبة: **${toolName}**\n`;
-
-                    for (const materialId in recipe.materials) {
-                        const requiredQuantity = recipe.materials[materialId];
-                        const ownedQuantity = player.getItemQuantity(materialId);
-                        
-                        const materialName = this.ITEMS[materialId] ? this.ITEMS[materialId].name : materialId;
-                        const statusIcon = ownedQuantity >= requiredQuantity ? '✅' : '❌';
-                        
-                        message += `  └── ${statusIcon} ${materialName}: ${ownedQuantity} / ${requiredQuantity}\n`;
-                    }
-                });
-            }
+        message += `💡 للطبخ/التعدين: استخدم أمر "فرن" أو "اطهو [اسم العنصر]"\n`;
+        if (!showFullList && allTableRecipes.length > tableRecipes.length) {
+             message += `💡 لعرض القائمة الكاملة (غير المتاحة حالياً): "صناعة كاملة"\n`;
         }
         
-        message += `\n═══════════════════════════════════════\n`;
-        message += `💡 للتصنيع: استخدم أمر "اصنع [اسم العنصر]"\n`;
-        message += `مثال: اصنع قوس خشبي`;
-
         return { message };
     }
-    
-    /**
-     * دالة العرض الموحدة (يتم استدعاؤها بواسطة "صناعة" / "وصفات")
-     */
-    showAvailableRecipes(player) {
-        return this.showCraftingTableRecipes(player);
-    }
-    }
+                            }
