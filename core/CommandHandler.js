@@ -96,6 +96,11 @@ export default class CommandHandler {
                 'اصنع': this.handleCraft.bind(this), 
                 'صنع': this.handleCraft.bind(this),  
                 'فرن': this.handleFurnace.bind(this), 
+                'الفرن': this.handleFurnace.bind(this), // لعرض وصفات الفرن
+                'اطهو': this.handleCook.bind(this), // 🆕 لأمر الطبخ/التعدين
+                'طبخ': this.handleCook.bind(this), // 🆕
+                'طهو': this.handleCook.bind(this),
+
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
@@ -424,23 +429,49 @@ export default class CommandHandler {
         const profileSystem = await this.getSystem('profile');
         return profileSystem.getPlayerInventory(player);
     }
-    // 🆕 معالج أمر الفرن
-    async handleFurnace(player, args) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    async handleShowRecipes(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    // التحقق من أن المستخدم طلب القائمة الكاملة (صناعة كاملة)
+    const showFullList = args.length > 0 && (args[0] === 'كاملة' || args[0] === 'مزيد');
 
-        const craftingSystem = await this.getSystem('crafting');
-        // 💡 استدعاء دالة عرض الفرن الجديدة
-        const result = craftingSystem.showFurnaceRecipes(player); 
-        return result.message;
+    const craftingSystem = await this.getSystem('crafting');
+    const result = craftingSystem.showAvailableRecipes(player, showFullList); 
+    return result.message;
+}
+// امعالجة دالة الفرن
+    async handleFurnace(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    // التحقق من أن المستخدم طلب القائمة الكاملة (فرن كاملة)
+    const showFullList = args.length > 0 && (args[0] === 'كاملة' || args[0] === 'مزيد');
+
+    const craftingSystem = await this.getSystem('crafting');
+    const result = craftingSystem.showFurnaceRecipes(player, showFullList); 
+    return result.message;
+}
+    //دالة الطبخ والتعدين 
+    async handleCook(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+
+    const itemName = args.join(' ').trim();
+    if (!itemName) {
+        return 'يرجى تحديد اسم العنصر الذي تريد طهيه/تعدينه. مثال: اطهو سبيكة نحاس';
     }
 
-    // 🛠️ معالج أمر عرض الوصفات (طاولة الصناعة)
-    async handleShowRecipes(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        const craftingSystem = await this.getSystem('crafting');
-        // 💡 استدعاء دالة عرض الطاولة (الدالة الموحدة)
-        const result = craftingSystem.showAvailableRecipes(player); 
-        return result.message;
+    const craftingSystem = await this.getSystem('crafting');
+    // افترض أن لديك دالة لتحويل الاسم العربي إلى ID:
+    const itemId = this.ARABIC_ITEM_MAP[itemName] || itemName;
+
+    if (!craftingSystem.isFurnaceRecipe(itemId)) {
+        return `❌ **${itemName}** يتم صنعه على طاولة الصناعة. استخدم أمر "اصنع" بدلاً من "اطهو".`;
+    }
+
+    const result = await craftingSystem.craftItem(player, itemId);
+
+    if (result.error) {
+        return result.error;
+    }
+
+    return result.message;
     }
 
 
