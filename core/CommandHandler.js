@@ -95,6 +95,7 @@ export default class CommandHandler {
                 'صناعة': this.handleShowRecipes.bind(this),
                 'اصنع': this.handleCraft.bind(this), 
                 'صنع': this.handleCraft.bind(this),  
+                'فرن': this.handleFurnace.bind(this), 
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
@@ -370,6 +371,7 @@ export default class CommandHandler {
 🛠️ الصناعة والتجارة :
 وصفات/صناعة - عرض وصفات الصنع المتاحة
 اصنع/صنع [ID] - صنع عنصر محدد
+فرن - لإظهار وصفات المعادن والمطبوخات 
 
 🎒 **الإدارة:**
 حالتي/حالة - عرض حالتك الكاملة
@@ -422,6 +424,25 @@ export default class CommandHandler {
         const profileSystem = await this.getSystem('profile');
         return profileSystem.getPlayerInventory(player);
     }
+    // 🆕 معالج أمر الفرن
+    async handleFurnace(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+
+        const craftingSystem = await this.getSystem('crafting');
+        // 💡 استدعاء دالة عرض الفرن الجديدة
+        const result = craftingSystem.showFurnaceRecipes(player); 
+        return result.message;
+    }
+
+    // 🛠️ معالج أمر عرض الوصفات (طاولة الصناعة)
+    async handleShowRecipes(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        const craftingSystem = await this.getSystem('crafting');
+        // 💡 استدعاء دالة عرض الطاولة (الدالة الموحدة)
+        const result = craftingSystem.showAvailableRecipes(player); 
+        return result.message;
+    }
+
 
     // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصلحة للbind
     handleTopPlayers = async (player) => {
