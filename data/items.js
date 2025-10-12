@@ -7,6 +7,10 @@ export const items = {
   herb: { id: 'herb', name: 'عشب طبي', type: 'resource', description: 'عشب يستخدم في صناعة الأدوية.', rarity: 'common' },
   vine: { id: 'vine', name: 'الكرمة', type: 'resource', description: 'يُجمع من الكروم في الغابات.', rarity: 'uncommon' },
   honey: { id: 'honey', name: 'عسل النحل', type: 'resource', description: 'يُجمع من خلايا النحل، يستخدم للتعافي.', rarity: 'uncommon' },
+ 
+  // 🆕 مواد خام للطعام
+  raw_meat: { id: 'raw_meat', name: 'لحم نيئ', type: 'food', description: 'لحم يجب طهيه قبل الأكل لتجنب المرض.', foodValue: { health: 5, stamina: 0 } },
+  mushroom: { id: 'mushroom', name: 'فطر', type: 'food', description: 'فطر بري صالح للأكل (خام).', foodValue: { health: 5, stamina: 5 } },
   
   // الخامات
   copper_ore: { id: 'copper_ore', name: 'خام النحاس', type: 'ore', description: 'أبسط أنواع الخامات.', rarity: 'common' },
@@ -16,6 +20,10 @@ export const items = {
   gold_ore: { id: 'gold_ore', name: 'خام الذهب', type: 'ore', description: 'يستخدم لصناعة الأدوات الذهبية.', rarity: 'uncommon' },
   platinum_ore: { id: 'platinum_ore', name: 'خام البلاتين', type: 'ore', description: 'بديل للذهب، أكثر قوة.', rarity: 'rare' },
   hellstone: { id: 'hellstone', name: 'حجر الجحيم', type: 'ore', description: 'معدن محترق من الجحيم.', rarity: 'rare' },
+  // 🆕 خامات مضافة (لأن سبائكها موجودة)
+  bronze_ore: { id: 'bronze_ore', name: 'خام البرونز', type: 'ore', description: 'خام البرونز، يُستخدم في صهر السبائك.', rarity: 'common' },
+  steel_ore: { id: 'steel_ore', name: 'خام الصلب', type: 'ore', description: 'خام عالي الجودة لسبائك الصلب.', rarity: 'uncommon' },
+  dark_iron_ore: { id: 'dark_iron_ore', name: 'خام الحديد المظلم', type: 'ore', description: 'خام نادر من المناطق المظلمة.', rarity: 'rare' },
   
   // السبائك (Bars)
   copper_bar: { id: 'copper_bar', name: 'سبيكة نحاس', type: 'bar', description: 'سبيكة معدنية أساسية.' },
@@ -30,6 +38,15 @@ export const items = {
   steel_bar: { id: 'steel_bar', name: 'سبيكة صلب', type: 'bar', description: 'معدن أقوى من الحديد.' },
   dark_iron: { id: 'dark_iron', name: 'الحديد المظلم', type: 'bar', description: 'معدن نادر من المناطق المظلمة.' },
 
+  // ===================================
+  // 🆕 الأدوات والمطبوخات (مع قيم الطعام)
+  // ===================================
+  furnace: { id: 'furnace', name: 'الفرن', type: 'tool_station', description: 'يُستخدم لصهر الخامات وطبخ الطعام.', rarity: 'uncommon' },
+  
+  // طعام مطبوخ
+  cooked_meat: { id: 'cooked_meat', name: 'لحم مطبوخ', type: 'food', description: 'طعام شهي، يعيد النشاط والصحة بفعالية.', foodValue: { health: 15, stamina: 25 } },
+  grilled_mushroom: { id: 'grilled_mushroom', name: 'فطر مشوي', type: 'food', description: 'مشوي على نار هادئة، يزيد النشاط.', foodValue: { health: 10, stamina: 15 } },
+  
   // ===================================
   // الأسلحة الضعيفة إلى المتوسطة (Crafted & Found)
   // ===================================
