@@ -2,10 +2,9 @@ import Player from './Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 💡 إصلاح جوهري: الاستيراد الحقيقي لملفات البيانات
+// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
 import { items } from '../data/items.js'; 
 import { locations } from '../data/locations.js'; 
-
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -95,12 +94,13 @@ export default class CommandHandler {
                 'صناعة': this.handleShowRecipes.bind(this),
                 'اصنع': this.handleCraft.bind(this), 
                 'صنع': this.handleCraft.bind(this),  
-                'فرن': this.handleFurnace.bind(this), 
-                'الفرن': this.handleFurnace.bind(this), // لعرض وصفات الفرن
-                'اطهو': this.handleCook.bind(this), // 🆕 لأمر الطبخ/التعدين
-                'طبخ': this.handleCook.bind(this), // 🆕
-                'طهو': this.handleCook.bind(this),
 
+                // 🆕 التجهيز
+                'جهز': this.handleEquip.bind(this), 
+                'تجهيز': this.handleEquip.bind(this),
+                'البس': this.handleEquip.bind(this),
+                'انزع': this.handleUnequip.bind(this),
+                'خلع': this.handleUnequip.bind(this), 
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
@@ -376,7 +376,6 @@ export default class CommandHandler {
 🛠️ الصناعة والتجارة :
 وصفات/صناعة - عرض وصفات الصنع المتاحة
 اصنع/صنع [ID] - صنع عنصر محدد
-فرن - لإظهار وصفات المعادن والمطبوخات 
 
 🎒 **الإدارة:**
 حالتي/حالة - عرض حالتك الكاملة
@@ -429,51 +428,6 @@ export default class CommandHandler {
         const profileSystem = await this.getSystem('profile');
         return profileSystem.getPlayerInventory(player);
     }
-    async handleShowRecipes(player, args) {
-    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-    // التحقق من أن المستخدم طلب القائمة الكاملة (صناعة كاملة)
-    const showFullList = args.length > 0 && (args[0] === 'كاملة' || args[0] === 'مزيد');
-
-    const craftingSystem = await this.getSystem('crafting');
-    const result = craftingSystem.showAvailableRecipes(player, showFullList); 
-    return result.message;
-}
-// امعالجة دالة الفرن
-    async handleFurnace(player, args) {
-    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-    // التحقق من أن المستخدم طلب القائمة الكاملة (فرن كاملة)
-    const showFullList = args.length > 0 && (args[0] === 'كاملة' || args[0] === 'مزيد');
-
-    const craftingSystem = await this.getSystem('crafting');
-    const result = craftingSystem.showFurnaceRecipes(player, showFullList); 
-    return result.message;
-}
-    //دالة الطبخ والتعدين 
-    async handleCook(player, args) {
-    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-
-    const itemName = args.join(' ').trim();
-    if (!itemName) {
-        return 'يرجى تحديد اسم العنصر الذي تريد طهيه/تعدينه. مثال: اطهو سبيكة نحاس';
-    }
-
-    const craftingSystem = await this.getSystem('crafting');
-    // افترض أن لديك دالة لتحويل الاسم العربي إلى ID:
-    const itemId = this.ARABIC_ITEM_MAP[itemName] || itemName;
-
-    if (!craftingSystem.isFurnaceRecipe(itemId)) {
-        return `❌ **${itemName}** يتم صنعه على طاولة الصناعة. استخدم أمر "اصنع" بدلاً من "اطهو".`;
-    }
-
-    const result = await craftingSystem.craftItem(player, itemId);
-
-    if (result.error) {
-        return result.error;
-    }
-
-    return result.message;
-    }
-
 
     // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصلحة للbind
     handleTopPlayers = async (player) => {
@@ -681,4 +635,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-    }
+                }
