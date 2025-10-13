@@ -1,8 +1,8 @@
 // systems/profile/ProfileSystem.js
 import Player from '../../core/Player.js';
-// 💡 يجب التأكد من وجود ملف locations.js
-const locations = {}; // placeholder
-// import { locations } from '../../data/locations.js'; 
+// 💡 يجب استيراد ملف locations.js و items.js
+import { locations } from '../../data/locations.js'; 
+import { items as ITEMS_DATA } from '../../data/items.js'; 
 
 
 export class ProfileSystem {
@@ -25,30 +25,40 @@ export class ProfileSystem {
         const requiredExp = (player.level || 1) * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
         
-        const attackDamage = player.getAttackDamage ? player.getAttackDamage() : 10;
-        const defense = player.getDefense ? player.getDefense() : 5;
+        // 🆕 تمرير بيانات العناصر لحساب الإحصائيات المدمجة
+        const attackDamage = player.getAttackDamage(ITEMS_DATA);
+        const defense = player.getDefense(ITEMS_DATA);
         const rank = this._getPlayerRank(player.level);
         
         // الحصول على اسم الموقع العربي
         const currentLocationId = player.currentLocation || 'forest';
         const currentLocationName = locations[currentLocationId] ? locations[currentLocationId].name : currentLocationId;
         
+        // 🆕 استخراج العناصر المجهزة (للعرض)
+        const weaponName = ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد';
+        const armorName = ITEMS_DATA[player.equipment.armor]?.name || 'لا يوجد';
+        const accessoryName = ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد'; // يفترض إضافة Accessory
+        const toolName = ITEMS_DATA[player.equipment.tool]?.name || 'لا يوجد';
+        
         let statusMessage = `╔═════════════ 👤  ملف اللاعب: ${player.name} ════════════╗\n`;
         statusMessage += `\n📜 معلومات أساسية\n`;
         statusMessage += `├── المعرف (ID): ${player.playerId || 'N/A'}\n`;
-        statusMessage += `├── المستوى: ${player.level}\n`;
+        statusMessage += `├── المستوى: **${player.level}**\n`;
         statusMessage += `├── 🌟 الرانك: ${rank}\n`;
-        statusMessage += `└── 🗺️  الموقع: ${currentLocationName}\n`;
+        statusMessage += `└── 💰 الذهب: ${player.gold}\n`;
 
         statusMessage += `\n💪 الإحصائيات الحيوية\n`;
         statusMessage += `├── ❤️  الصحة: ${player.health}/${player.maxHealth}\n`;
         statusMessage += `├── ⚡  المانا: ${player.mana}/${player.maxMana}\n`;
-        statusMessage += `├── 🏃  النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}\n`;
-        statusMessage += `└── 💰  الذهب: ${player.gold}\n`;
+        statusMessage += `└── 🏃  النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}\n`;
 
-        statusMessage += `\n⚔️ قوة القتال\n`;
-        statusMessage += `├── 🔥  الهجوم: ${attackDamage}\n`;
-        statusMessage += `└── 🛡️  الدفاع: ${defense}\n`;
+        statusMessage += `\n⚔️ قوة القتال والمعدات\n`;
+        statusMessage += `├── 🔥 الهجوم (بالمعدات): **${attackDamage}**\n`;
+        statusMessage += `├── 🛡️ الدفاع (بالمعدات): **${defense}**\n`;
+        statusMessage += `├── ⚔️ السلاح: ${weaponName}\n`;
+        statusMessage += `├── 🛡️ الدرع: ${armorName}\n`;
+        statusMessage += `├── 💍 إكسسوار: ${accessoryName}\n`;
+        statusMessage += `└── ⛏️ الأداة: ${toolName}\n`;
         
         statusMessage += `\n📈 الخبرة\n`;
         statusMessage += `└── 💡  التقدم: ${expPercentage}% (${expProgress}/${requiredExp})\n`;
@@ -58,7 +68,6 @@ export class ProfileSystem {
         return statusMessage;
     }
 
-    // ... (بقية الدوال تبقى كما هي)
     
     getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
@@ -66,21 +75,27 @@ export class ProfileSystem {
         }
         
         let text = `🎒 حقيبة ${player.name}\n\n`;
+        
+        // 🆕 عرض المعدات المجهزة في رأس القائمة
+        if (player.equipment) {
+            text += `⚔️ **المجهز حالياً:**\n`;
+            text += `• سلاح: ${ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد'}\n`;
+            text += `• درع: ${ITEMS_DATA[player.equipment.armor]?.name || 'لا يوجد'}\n`;
+            text += `• إكسسوار: ${ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد'}\n`;
+            text += `• أداة: ${ITEMS_DATA[player.equipment.tool]?.name || 'لا يوجد'}\n`;
+            text += `\n═══════════════════════════════════════\n`;
+        }
+        
+        text += `📦 **المخزون:**\n`;
         player.inventory.forEach(item => {
             text += `• ${item.name} ×${item.quantity}\n`;
         });
-        
-        if (player.equipment) {
-            text += `\n⚔️ المعدات:\n`;
-            text += `• سلاح: ${player.equipment.weapon || 'لا يوجد'}\n`;
-            text += `• درع: ${player.equipment.armor || 'لا يوجد'}\n`;
-            text += `• أداة: ${player.equipment.tool || 'لا يوجد'}\n`;
-        }
         
         return text;
     }
     
     getPlayerProfile(player) {
+        // ... (هذه الدالة تستخدم لبطاقة الصورة وهي لا تحتاج لتعديلات وظيفية هنا)
         const expProgress = player.experience || 0;
         const requiredExp = (player.level || 1) * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
@@ -164,4 +179,4 @@ export class ProfileSystem {
         
         return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: **${newName}**`;
     }
-}
+                             }
