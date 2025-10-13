@@ -118,6 +118,7 @@ const playerSchema = new mongoose.Schema({
   equipment: {
     weapon: { type: String, default: null },
     armor: { type: String, default: null },
+    accessory: { type: String, default: null }, // 🆕 إضافة خانة الإكسسوار
     tool: { type: String, default: null }
   },
   stats: {
@@ -357,59 +358,109 @@ playerSchema.methods.getCooldown = function(action) {
   return Math.ceil((cooldown - new Date()) / 1000 / 60);
 };
 
-playerSchema.methods.equipItem = function(itemId, slot) {
-  const validSlots = ['weapon', 'armor', 'tool'];
-  if (!validSlots.includes(slot)) {
-    return false;
-  }
-  
-  if (!this.equipment) {
-    this.equipment = { weapon: null, armor: null, tool: null };
-  }
-  
-  if (!this.getItemQuantity(itemId)) {
-    return false;
-  }
-  
-  this.equipment[slot] = itemId;
-  return true;
+/**
+ * 🆕 تجهيز عنصر في خانة محددة
+ * @param {string} itemId الـ ID الإنجليزي للعنصر
+ * @param {string} itemType النوع المتوقع للعنصر ('weapon', 'armor', 'accessory', 'tool')
+ * @param {object} itemsData بيانات جميع العناصر المستوردة (للحصول على الاسم والإحصائيات)
+ */
+playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
+    if (this.getItemQuantity(itemId) === 0) {
+        return { error: `❌ لا تملك العنصر ${itemsData[itemId]?.name || itemId} لتجهيزه.` };
+    }
+    
+    // 1. تحديد الخانة بناءً على النوع
+    const slotMap = { 'weapon': 'weapon', 'armor': 'armor', 'accessory': 'accessory', 'tool': 'tool' };
+    const slot = slotMap[itemType] || null;
+    
+    if (!slot) {
+         return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` };
+    }
+
+    // 2. نزع العنصر القديم (إذا كان هناك واحد)
+    const oldItemId = this.equipment[slot];
+    if (oldItemId === itemId) {
+        return { error: `❌ العنصر ${itemsData[itemId]?.name || itemId} مجهز بالفعل في خانة ${slot}.` };
+    }
+    if (oldItemId) {
+        this.equipment[slot] = null; // نزع العنصر القديم أولاً
+    }
+
+    // 3. تجهيز العنصر الجديد
+    this.equipment[slot] = itemId;
+
+    return { 
+        success: true, 
+        message: `✅ تم تجهيز ${itemsData[itemId]?.name || itemId} في خانة ${slot}.`,
+        oldItemId: oldItemId
+    };
 };
 
-playerSchema.methods.unequipItem = function(slot) {
-  const validSlots = ['weapon', 'armor', 'tool'];
-  if (!validSlots.includes(slot)) {
-    return false;
-  }
-  
-  if (!this.equipment) {
-    this.equipment = { weapon: null, armor: null, tool: null };
-  }
-  
-  this.equipment[slot] = null;
-  return true;
+/**
+ * 🆕 نزع عنصر من خانة محددة
+ */
+playerSchema.methods.unequipItem = function(slot, itemsData) {
+    const validSlots = ['weapon', 'armor', 'accessory', 'tool'];
+    if (!validSlots.includes(slot)) {
+        return { error: '❌ الخانة غير صالحة. استخدم: weapon, armor, tool.' };
+    }
+    
+    const unequippedItem = this.equipment[slot];
+    if (!unequippedItem) {
+        return { error: `❌ لا يوجد شيء مجهز في خانة ${slot}.` };
+    }
+    
+    this.equipment[slot] = null;
+    
+    return { 
+        success: true, 
+        message: `✅ تم نزع ${itemsData[unequippedItem]?.name || unequippedItem} من خانة ${slot}.` 
+    };
 };
 
-playerSchema.methods.getAttackDamage = function() {
+
+/**
+ * 🛠️ دالة حساب قوة الهجوم الإجمالية
+ */
+playerSchema.methods.getAttackDamage = function(itemsData) { //itemsData: ITEMS_DATA from items.js
   let baseDamage = 10;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
   baseDamage += ((this.level || 1) - 1) * 2;
   
-  if (this.equipment && this.equipment.weapon) {
-    baseDamage += 5;
+  // 1. إضافة إحصائيات المعدات المجهزة
+  for (const slot in this.equipment) {
+      const equippedItemId = this.equipment[slot];
+      if (equippedItemId) {
+          // 💡 يفترض أن itemStats موجودة تحت itemData[id].stats
+          const itemStats = itemsData[equippedItemId]?.stats || {}; 
+          if (itemStats.damage) {
+              baseDamage += itemStats.damage;
+          }
+      }
   }
   
   return Math.floor(baseDamage * multiplier);
 };
 
-playerSchema.methods.getDefense = function() {
+/**
+ * 🛠️ دالة حساب قوة الدفاع الإجمالية
+ */
+playerSchema.methods.getDefense = function(itemsData) { //itemsData: ITEMS_DATA from items.js
   let baseDefense = 5;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
   baseDefense += ((this.level || 1) - 1) * 1;
   
-  if (this.equipment && this.equipment.armor) {
-    baseDefense += 3;
+  // 1. إضافة إحصائيات المعدات المجهزة
+  for (const slot in this.equipment) {
+      const equippedItemId = this.equipment[slot];
+      if (equippedItemId) {
+          const itemStats = itemsData[equippedItemId]?.stats || {};
+          if (itemStats.defense) {
+              baseDefense += itemStats.defense;
+          }
+      }
   }
   
   return Math.floor(baseDefense * multiplier);
