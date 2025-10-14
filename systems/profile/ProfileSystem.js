@@ -4,7 +4,6 @@ import Player from '../../core/Player.js';
 import { locations } from '../../data/locations.js'; 
 import { items as ITEMS_DATA } from '../../data/items.js'; 
 
-
 export class ProfileSystem {
     
     _getPlayerRank(level) {
@@ -37,7 +36,7 @@ export class ProfileSystem {
         // 🆕 استخراج العناصر المجهزة (للعرض)
         const weaponName = ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد';
         const armorName = ITEMS_DATA[player.equipment.armor]?.name || 'لا يوجد';
-        const accessoryName = ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد'; // يفترض إضافة Accessory
+        const accessoryName = ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد';
         const toolName = ITEMS_DATA[player.equipment.tool]?.name || 'لا يوجد';
         
         let statusMessage = `╔═════════════ 👤  ملف اللاعب: ${player.name} ════════════╗\n`;
@@ -95,7 +94,6 @@ export class ProfileSystem {
     }
     
     getPlayerProfile(player) {
-        // ... (هذه الدالة تستخدم لبطاقة الصورة وهي لا تحتاج لتعديلات وظيفية هنا)
         const expProgress = player.experience || 0;
         const requiredExp = (player.level || 1) * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
@@ -105,7 +103,9 @@ export class ProfileSystem {
         const resourcesGathered = player.stats?.resourcesGathered || 0;
         const battlesWon = player.stats?.battlesWon || 0;
 
-        const weapon = player.equipment?.weapon ? player.equipment.weapon : 'لا يوجد';
+        const weapon = player.equipment?.weapon ? ITEMS_DATA[player.equipment.weapon]?.name : 'لا يوجد';
+        const armor = player.equipment?.armor ? ITEMS_DATA[player.equipment.armor]?.name : 'لا يوجد';
+        const accessory = player.equipment?.accessory ? ITEMS_DATA[player.equipment.accessory]?.name : 'لا يوجد';
 
         return `📋 بروفايل ${player.name}
 ────────────────
@@ -114,6 +114,8 @@ export class ProfileSystem {
 ❤️ الصحة: ${player.health}/${player.maxHealth}
 💰 الذهب: ${player.gold}
 ⚔️ السلاح: ${weapon}
+🛡️ الدرع: ${armor}
+💍 الإكسسوار: ${accessory}
 
 🎯 الإحصائيات:
 • ⚔️ المعارك: ${battlesWon} فوز
@@ -179,4 +181,4 @@ export class ProfileSystem {
         
         return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: **${newName}**`;
     }
-                             }
+            }
