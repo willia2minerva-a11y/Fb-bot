@@ -102,6 +102,9 @@ export default class CommandHandler {
                 'البس': this.handleEquip.bind(this),
                 'انزع': this.handleUnequip.bind(this),
                 'خلع': this.handleUnequip.bind(this), 
+                'معداتي': this.handleEquipment.bind(this),
+                'تجهيزاتي': this.handleEquipment.bind(this),
+                'معدات': this.handleEquipment.bind(this),
 
                 // القتال
                 'مغامرة': this.handleAdventure.bind(this),
@@ -182,7 +185,7 @@ export default class CommandHandler {
             command = 'زيادة_صحة';
             args = args.slice(1);
         } else if (fullCommand === 'زيادة مانا') {
-            command = 'زيادة_مانا';
+            command = 'زيادة_مانa';
             args = args.slice(1);
         }
         // يمكن إضافة المزيد من الأوامر المركبة هنا...
@@ -386,7 +389,12 @@ export default class CommandHandler {
 ⚔️ **القتال:**
 مغامرة/قتال - بدء معركة ضد وحش في المنطقة
 هجوم/اضرب - الهجوم في المعركة الحالية
-هروب/اهرب - محاولة الهروب من المعركة`;
+هروب/اهرب - محاولة الهروب من المعركة
+
+🛡️ **التجهيز:**
+معداتي - عرض المعدات المجهزة حالياً
+جهز [اسم العنصر] - تجهيز عنصر من المخزون
+انزع [اسم الخانة] - نزع عنصر مجهز`;
         }
 
         if (isAdmin) {
@@ -594,20 +602,143 @@ export default class CommandHandler {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
         const itemName = args.join(' ');
-        if (!itemName) return '❌ يرجى تحديد العنصر المراد تجهيزه. مثال: جهز سيف';
+        if (!itemName) {
+            return `❌ يرجى تحديد العنصر المراد تجهيزه. 
+            
+💡 أمثلة:
+• جهز سيف حديدي
+• البس درع جلدي
+• جهز خاتم سحري`;
+        }
         
-        // TODO: تنفيذ منطق التجهيز
-        return `🔧 نظام التجهيز قيد التطوير...`;
+        // البحث عن العنصر في المخزون باستخدام خريطة الترجمة
+        const itemId = this.ARABIC_ITEM_MAP[itemName.toLowerCase()];
+        
+        if (!itemId) {
+            return `❌ لم يتم العثور على العنصر "${itemName}" في مخزونك أو غير معروف.`;
+        }
+        
+        // التحقق من وجود العنصر في المخزون
+        const itemQuantity = player.getItemQuantity(itemId);
+        if (itemQuantity === 0) {
+            return `❌ لا تملك العنصر "${items[itemId]?.name || itemName}" في مخزونك.`;
+        }
+        
+        // الحصول على بيانات العنصر
+        const itemData = items[itemId];
+        if (!itemData) {
+            return `❌ بيانات العنصر "${itemName}" غير موجودة.`;
+        }
+        
+        // التحقق من أن العنصر يمكن تجهيزه
+        const equipableTypes = ['weapon', 'armor', 'accessory', 'tool'];
+        if (!equipableTypes.includes(itemData.type)) {
+            return `❌ العنصر "${itemData.name}" من نوع "${itemData.type}" لا يمكن تجهيزه.`;
+        }
+        
+        // تجهيز العنصر
+        const result = player.equipItem(itemId, itemData.type, items);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        // حفظ حالة اللاعب
+        await player.save();
+        
+        // إضافة رسالة بالإحصائيات إذا كانت موجودة
+        let statsMessage = '';
+        if (itemData.stats) {
+            statsMessage = `\n📊 إحصائيات مضافة:`;
+            if (itemData.stats.damage) statsMessage += `\n• 🔥 ضرر: +${itemData.stats.damage}`;
+            if (itemData.stats.defense) statsMessage += `\n• 🛡️ دفاع: +${itemData.stats.defense}`;
+            if (itemData.stats.health) statsMessage += `\n• ❤️ صحة: +${itemData.stats.health}`;
+            if (itemData.stats.mana) statsMessage += `\n• ⚡ مانا: +${itemData.stats.mana}`;
+        }
+        
+        return `✅ ${result.message}${statsMessage}`;
     }
 
     async handleUnequip(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        const itemName = args.join(' ');
-        if (!itemName) return '❌ يرجى تحديد العنصر المراد نزعه. مثال: انزع سيف';
+        const slotName = args.join(' ').toLowerCase();
+        if (!slotName) {
+            return `❌ يرجى تحديد الخانة المراد نزعها. 
+            
+💡 الخانات المتاحة:
+• انزع سلاح
+• خلع درع  
+• انزع اكسسوار
+• خلع اداة`;
+        }
         
-        // TODO: تنفيذ منطق نزع التجهيز
-        return `🔧 نظام نزع التجهيز قيد التطوير...`;
+        // تحويل الأسماء العربية إلى إنجليزية
+        const slotTranslations = {
+            'سلاح': 'weapon',
+            'سيف': 'weapon',
+            'درع': 'armor',
+            'ترس': 'armor',
+            'اكسسوار': 'accessory',
+            'إكسسوار': 'accessory',
+            'خاتم': 'accessory',
+            'قلادة': 'accessory',
+            'اداة': 'tool',
+            'أداة': 'tool',
+            'فأس': 'tool',
+            'منجل': 'tool',
+            'معول': 'tool'
+        };
+        
+        const englishSlot = slotTranslations[slotName] || slotName;
+        
+        // التحقق من صحة الخانة
+        const validSlots = ['weapon', 'armor', 'accessory', 'tool'];
+        if (!validSlots.includes(englishSlot)) {
+            return `❌ الخانة "${slotName}" غير صالحة. الخانات المتاحة: سلاح, درع, اكسسوار, اداة`;
+        }
+        
+        // نزع العنصر
+        const result = player.unequipItem(englishSlot, items);
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        // حفظ حالة اللاعب
+        await player.save();
+        
+        return `✅ ${result.message}`;
+    }
+
+    async handleEquipment(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const weapon = player.equipment.weapon ? items[player.equipment.weapon]?.name : 'لا يوجد';
+        const armor = player.equipment.armor ? items[player.equipment.armor]?.name : 'لا يوجد';
+        const accessory = player.equipment.accessory ? items[player.equipment.accessory]?.name : 'لا يوجد';
+        const tool = player.equipment.tool ? items[player.equipment.tool]?.name : 'لا يوجد';
+        
+        // حساب الإحصائيات الحالية
+        const attack = player.getAttackDamage(items);
+        const defense = player.getDefense(items);
+        
+        let equipmentMessage = `⚔️ **المعدات المجهزة حالياً:**\n\n`;
+        equipmentMessage += `• ⚔️ السلاح: ${weapon}\n`;
+        equipmentMessage += `• 🛡️ الدرع: ${armor}\n`;
+        equipmentMessage += `• 💍 الإكسسوار: ${accessory}\n`;
+        equipmentMessage += `• ⛏️ الأداة: ${tool}\n\n`;
+        
+        equipmentMessage += `📊 **الإحصائيات الحالية:**\n`;
+        equipmentMessage += `• 🔥 قوة الهجوم: ${attack}\n`;
+        equipmentMessage += `• 🛡️ قوة الدفاع: ${defense}\n\n`;
+        
+        equipmentMessage += `💡 **الأوامر المتاحة:**\n`;
+        equipmentMessage += `• \`جهز [اسم العنصر]\` - لتجهيز عنصر من المخزون\n`;
+        equipmentMessage += `• \`انزع [اسم الخانة]\` - لنزع عنصر مجهز\n`;
+        equipmentMessage += `• الخانات: سلاح, درع, اكسسوار, اداة`;
+        
+        return equipmentMessage;
     }
 
     async handleAdventure(player) {
