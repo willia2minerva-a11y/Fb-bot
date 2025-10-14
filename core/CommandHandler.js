@@ -3,6 +3,7 @@ import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
 // 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
+// (يفترض أن هذه الملفات موجودة الآن في بيئتك)
 import { items } from '../data/items.js'; 
 import { locations } from '../data/locations.js'; 
 
@@ -60,9 +61,9 @@ export default class CommandHandler {
                 'اوامر': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers,
-                'افضل': this.handleTopPlayers, 
-                'لاعبين': this.handleShowPlayers, 
+                'توب': this.handleTopPlayers, // 🛠️ Arrow Function
+                'افضل': this.handleTopPlayers, // 🛠️ Arrow Function
+                'لاعبين': this.handleShowPlayers, // 🛠️ Arrow Function
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -374,7 +375,7 @@ export default class CommandHandler {
 تجميع/اجمع - جمع الموارد
 
 🛠️ الصناعة والتجارة :
-وصفات/صناعة - عرض وصفات الصنع المتاحة
+وصفات - عرض وصفات الصنع المتاحة
 اصنع/صنع [ID] - صنع عنصر محدد
 
 🎒 **الإدارة:**
