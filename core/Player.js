@@ -118,7 +118,7 @@ const playerSchema = new mongoose.Schema({
   equipment: {
     weapon: { type: String, default: null },
     armor: { type: String, default: null },
-    accessory: { type: String, default: null }, // 🆕 إضافة خانة الإكسسوار
+    accessory: { type: String, default: null },
     tool: { type: String, default: null }
   },
   stats: {
@@ -154,9 +154,6 @@ const playerSchema = new mongoose.Schema({
 
 playerSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
-  
-  // ❌ تم إزالة منطق تعيين playerId من هنا ليعمل بالتسلسل الرقمي في AdminSystem
-  
   next();
 });
 
@@ -238,7 +235,7 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     });
   }
   
-  if (itemType === 'resource' || itemType === 'resource') { // النوع 'resource' أو 'resource' (لتغطية أي أخطاء إملائية سابقة)
+  if (itemType === 'resource' || itemType === 'resource') {
     if (!this.stats) this.stats = {};
     this.stats.resourcesGathered = (this.stats.resourcesGathered || 0) + quantity;
   }
@@ -402,7 +399,7 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
 playerSchema.methods.unequipItem = function(slot, itemsData) {
     const validSlots = ['weapon', 'armor', 'accessory', 'tool'];
     if (!validSlots.includes(slot)) {
-        return { error: '❌ الخانة غير صالحة. استخدم: weapon, armor, tool.' };
+        return { error: '❌ الخانة غير صالحة. استخدم: weapon, armor, accessory, tool.' };
     }
     
     const unequippedItem = this.equipment[slot];
@@ -418,11 +415,10 @@ playerSchema.methods.unequipItem = function(slot, itemsData) {
     };
 };
 
-
 /**
  * 🛠️ دالة حساب قوة الهجوم الإجمالية
  */
-playerSchema.methods.getAttackDamage = function(itemsData) { //itemsData: ITEMS_DATA from items.js
+playerSchema.methods.getAttackDamage = function(itemsData) {
   let baseDamage = 10;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
@@ -432,7 +428,6 @@ playerSchema.methods.getAttackDamage = function(itemsData) { //itemsData: ITEMS_
   for (const slot in this.equipment) {
       const equippedItemId = this.equipment[slot];
       if (equippedItemId) {
-          // 💡 يفترض أن itemStats موجودة تحت itemData[id].stats
           const itemStats = itemsData[equippedItemId]?.stats || {}; 
           if (itemStats.damage) {
               baseDamage += itemStats.damage;
@@ -446,7 +441,7 @@ playerSchema.methods.getAttackDamage = function(itemsData) { //itemsData: ITEMS_
 /**
  * 🛠️ دالة حساب قوة الدفاع الإجمالية
  */
-playerSchema.methods.getDefense = function(itemsData) { //itemsData: ITEMS_DATA from items.js
+playerSchema.methods.getDefense = function(itemsData) {
   let baseDefense = 5;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
@@ -495,7 +490,6 @@ playerSchema.statics.getLastNumericId = async function() {
     return isNaN(lastId) ? 1000 : (lastId >= 1000 ? lastId : 1000); 
 };
 
-
 playerSchema.statics.createNew = async function(userId, name) {
   try {
     const player = new this({
@@ -539,6 +533,7 @@ playerSchema.statics.createNew = async function(userId, name) {
       equipment: {
         weapon: null,
         armor: null,
+        accessory: null,
         tool: null
       },
       stats: {
