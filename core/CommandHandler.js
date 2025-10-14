@@ -61,9 +61,9 @@ export default class CommandHandler {
                 'اوامر': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers, // 🛠️ Arrow Function
-                'افضل': this.handleTopPlayers, // 🛠️ Arrow Function
-                'لاعبين': this.handleShowPlayers, // 🛠️ Arrow Function
+                'توب': this.handleTopPlayers.bind(this),
+                'افضل': this.handleTopPlayers.bind(this),
+                'لاعبين': this.handleShowPlayers.bind(this),
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -146,7 +146,6 @@ export default class CommandHandler {
         
         return itemMap;
     }
-
 
     async getSystem(systemName) {
         if (!this.systems[systemName]) {
@@ -430,8 +429,7 @@ export default class CommandHandler {
         return profileSystem.getPlayerInventory(player);
     }
 
-    // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصلحة للbind
-    handleTopPlayers = async (player) => {
+    async handleTopPlayers(player) {
         try {
             const topPlayers = await Player.getTopPlayers(5);
             
@@ -459,7 +457,7 @@ export default class CommandHandler {
         }
     }
     
-    handleShowPlayers = async (player) => {
+    async handleShowPlayers(player) {
         try {
             if (!this.adminSystem.isAdmin(player.userId)) {
                  return '❌ هذا الأمر خاص بالمدراء.';
@@ -492,7 +490,6 @@ export default class CommandHandler {
         }
     }
 
-
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
@@ -519,7 +516,6 @@ export default class CommandHandler {
         
         return message;
     }
-
 
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -592,6 +588,26 @@ export default class CommandHandler {
         }
         
         return result.message;
+    }
+
+    async handleEquip(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const itemName = args.join(' ');
+        if (!itemName) return '❌ يرجى تحديد العنصر المراد تجهيزه. مثال: جهز سيف';
+        
+        // TODO: تنفيذ منطق التجهيز
+        return `🔧 نظام التجهيز قيد التطوير...`;
+    }
+
+    async handleUnequip(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const itemName = args.join(' ');
+        if (!itemName) return '❌ يرجى تحديد العنصر المراد نزعه. مثال: انزع سيف';
+        
+        // TODO: تنفيذ منطق نزع التجهيز
+        return `🔧 نظام نزع التجهيز قيد التطوير...`;
     }
 
     async handleAdventure(player) {
