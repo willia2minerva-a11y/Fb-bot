@@ -3,17 +3,9 @@ import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
 // 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
-// (هنا نستخدم متغيرات افتراضية للتوافق إذا لم يكن الاستيراد متوفراً)
-const items = {
-    'wooden_bow': { name: 'قوس خشبي', type: 'weapon' },
-    'iron_bar': { name: 'سبيكة حديد', type: 'resource' },
-    'wyvern_wings': { name: 'أجنحة الوايفرن', type: 'accessory' } 
-}; 
-const locations = {
-    'forest': { name: 'الغابات' },
-    'hell': { name: 'الجحيم' },
-    'sky': { name: 'السماء' }
-};
+// (يتم افتراض الاستيراد الحقيقي لملفات البيانات)
+import { items } from '../data/items.js'; 
+import { locations } from '../data/locations.js'; 
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -69,9 +61,9 @@ export default class CommandHandler {
                 'اوامر': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers,
-                'افضل': this.handleTopPlayers, 
-                'لاعبين': this.handleShowPlayers, 
+                'توب': this.handleTopPlayers, // 🛠️ Arrow Function
+                'افضل': this.handleTopPlayers, // 🛠️ Arrow Function
+                'لاعبين': this.handleShowPlayers, // 🛠️ Arrow Function
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -644,4 +636,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-    }
+                }
