@@ -1,5 +1,6 @@
 // utils/ProfileCardGenerator.js
 import { createCanvas, loadImage, registerFont } from 'canvas';
+import itemsData from '../data/items.js';
 import fs from 'fs';
 import path from 'path';
 // 💡 إصلاح مشكلة الخط: تسجيل الخط المطلوب (Cinzel)
