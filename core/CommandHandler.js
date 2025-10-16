@@ -1,27 +1,11 @@
 import Player from './Player.js';
-// ❌ تعليق استيراد ProfileCardGenerator مؤقتاً
-// import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
+import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// ✅ استيراد البيانات مع معالجة الأخطاء
-let items = {};
-let locations = {};
-
-try {
-    const itemsModule = await import('../data/items.js');
-    items = itemsModule.items;
-    console.log('✅ تم تحميل items بنجاح');
-} catch (error) {
-    console.error('❌ فشل تحميل items:', error);
-}
-
-try {
-    const locationsModule = await import('../data/locations.js');
-    locations = locationsModule.locations;
-    console.log('✅ تم تحميل locations بنجاح');
-} catch (error) {
-    console.error('❌ فشل تحميل locations:', error);
-}
+// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
+// (يتم افتراض الاستيراد الحقيقي لملفات البيانات)
+import { items } from '../data/items.js'; 
+import { locations } from '../data/locations.js'; 
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -43,8 +27,7 @@ async function getSystem(systemName) {
             return new SystemClass();
         }
     } catch (error) {
-        console.error(`❌ فشل تحميل نظام ${systemName}:`, error);
-        return null;
+        // Fallback for missing systems
     }
 }
 
@@ -54,10 +37,7 @@ export default class CommandHandler {
 
         try {
             this.adminSystem = new AdminSystem();
-            // ❌ تعطيل cardGenerator مؤقتاً
-            this.cardGenerator = null;
-            console.log('⚠️ نظام البطاقات المرئية معطل مؤقتاً');
-            
+            this.cardGenerator = new ProfileCardGenerator();
             this.systems = {};
             
             // 🆕 خريطة الترجمة الشاملة (للعناصر والموارد والمواقع)
@@ -81,9 +61,9 @@ export default class CommandHandler {
                 'اوامر': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers.bind(this),
-                'افضل': this.handleTopPlayers.bind(this),
-                'لاعبين': this.handleShowPlayers.bind(this),
+                'توب': this.handleTopPlayers, // 🛠️ Arrow Function
+                'افضل': this.handleTopPlayers, // 🛠️ Arrow Function
+                'لاعبين': this.handleShowPlayers, // 🛠️ Arrow Function
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -166,6 +146,7 @@ export default class CommandHandler {
         
         return itemMap;
     }
+
 
     async getSystem(systemName) {
         if (!this.systems[systemName]) {
@@ -387,13 +368,13 @@ export default class CommandHandler {
         if (player.isApproved()) {
             helpMessage += `
 
-🗺️ الاستكشاف :
+🗺️ **الاستكشاف:**
 خريطة/الموقع - عرض الخريطة
 بوابات - عرض البوابات القريبة (دخول المغارات)
 انتقل/سافر [مكان] - السفر إلى موقع محدد
 تجميع/اجمع - جمع الموارد
 
-🛠️ الصناعة والتجارة :
+🛠️ **الصناعة والتجارة:**
 وصفات/صناعة - عرض وصفات الصنع المتاحة
 اصنع/صنع [ID] - صنع عنصر محدد
 
@@ -435,37 +416,15 @@ export default class CommandHandler {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
         try {
-            // ✅ بديل نصي للبطاقة المرئية
-            const weapon = player.equipment.weapon ? items[player.equipment.weapon]?.name : 'لا يوجد';
-            const armor = player.equipment.armor ? items[player.equipment.armor]?.name : 'لا يوجد';
-            const accessory = player.equipment.accessory ? items[player.equipment.accessory]?.name : 'لا يوجد';
-            const tool = player.equipment.tool ? items[player.equipment.tool]?.name : 'لا يوجد';
-            
-            const attack = player.getAttackDamage(items);
-            const defense = player.getDefense(items);
-            
-            let profileText = `📋 **بطاقة بروفايل ${player.name}**\n\n`;
-            profileText += `🎯 **المستوى:** ${player.level} (${player.experience}/${player.experienceToNextLevel} XP)\n`;
-            profileText += `❤️ **الصحة:** ${player.health}/${player.maxHealth}\n`;
-            profileText += `💰 **الذهب:** ${player.gold}\n`;
-            profileText += `📍 **الموقع:** ${player.currentLocation}\n`;
-            profileText += `🎒 **العناصر:** ${Object.keys(player.inventory).length}\n\n`;
-            
-            profileText += `⚔️ **المعدات:**\n`;
-            profileText += `• 🗡️ السلاح: ${weapon}\n`;
-            profileText += `• 🛡️ الدرع: ${armor}\n`;
-            profileText += `• 💍 الإكسسوار: ${accessory}\n`;
-            profileText += `• ⛏️ الأداة: ${tool}\n\n`;
-            
-            profileText += `📊 **الإحصائيات:**\n`;
-            profileText += `• 🔥 قوة الهجوم: ${attack}\n`;
-            profileText += `• 🛡️ قوة الدفاع: ${defense}\n`;
-            
-            return profileText;
-            
+            const cardGenerator = this.cardGenerator; 
+            const imagePath = await cardGenerator.generateCard(player); 
+            return {
+                type: 'image',
+                path: imagePath,
+                caption: `📋 بطاقة بروفايلك يا ${player.name}!`
+            };
         } catch (error) {
-            console.error('❌ خطأ في إنشاء البطاقة:', error);
-            return `❌ حدث خطأ في إنشاء البطاقة. حاول لاحقاً.`;
+            return `❌ حدث خطأ في إنشاء البطاقة: ${error.message}`;
         }
     }
 
@@ -475,7 +434,8 @@ export default class CommandHandler {
         return profileSystem.getPlayerInventory(player);
     }
 
-    async handleTopPlayers(player) {
+    // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصلحة للbind
+    handleTopPlayers = async (player) => {
         try {
             const topPlayers = await Player.getTopPlayers(5);
             
@@ -503,7 +463,7 @@ export default class CommandHandler {
         }
     }
     
-    async handleShowPlayers(player) {
+    handleShowPlayers = async (player) => {
         try {
             if (!this.adminSystem.isAdmin(player.userId)) {
                  return '❌ هذا الأمر خاص بالمدراء.';
@@ -534,6 +494,7 @@ export default class CommandHandler {
         }
     }
 
+
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
@@ -560,6 +521,7 @@ export default class CommandHandler {
         
         return message;
     }
+
 
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -612,7 +574,6 @@ export default class CommandHandler {
     async handleCraft(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
-        // 🆕 إذا لم يتم تمرير وسائط، اعرض الوصفات
         if (args.length === 0) {
             return this.handleShowRecipes(player); 
         }
@@ -633,6 +594,119 @@ export default class CommandHandler {
         
         return result.message;
     }
+
+    async handleEquip(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const itemName = args.join(' ');
+        if (!itemName) {
+            return `❌ يرجى تحديد العنصر المراد تجهيزه.`;
+        }
+        
+        const itemId = this.ARABIC_ITEM_MAP[itemName.toLowerCase()] || itemName.toLowerCase();
+        
+        if (!itemId || !items[itemId]) {
+            return `❌ العنصر **${itemName}** غير موجود في النظام أو غير معروف.`;
+        }
+        
+        const itemInfo = items[itemId];
+        
+        const validEquipTypes = ['weapon', 'armor', 'accessory', 'tool'];
+        const equipType = itemInfo.type;
+        
+        if (!equipableTypes.includes(equipType)) {
+            return `❌ لا يمكن تجهيز **${itemInfo.name}**! هذا العنصر من نوع ${equipType}.`;
+        }
+        
+        const result = player.equipItem(itemId, equipType, items); 
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        await player.save();
+        
+        let statsMessage = '';
+        if (itemInfo.stats) {
+            statsMessage = `\n📊 إحصائيات مضافة:`;
+            if (itemInfo.stats.damage) statsMessage += `\n• 🔥 ضرر: +${itemInfo.stats.damage}`;
+            if (itemInfo.stats.defense) statsMessage += `\n• 🛡️ دفاع: +${itemInfo.stats.defense}`;
+        }
+        
+        return `✅ تم تجهيز **${itemInfo.name}** في خانة ${equipType} بنجاح.${statsMessage}`;
+    }
+
+    async handleUnequip(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const slotName = args.join(' ').toLowerCase();
+        if (!slotName) {
+            return `❌ يرجى تحديد الخانة المراد نزعها. (سلاح، درع، إكسسوار، أداة)`;
+        }
+        
+        const slotTranslations = {
+            'سلاح': 'weapon',
+            'سيف': 'weapon',
+            'درع': 'armor',
+            'ترس': 'armor',
+            'اكسسوار': 'accessory',
+            'إكسسوار': 'accessory',
+            'خاتم': 'accessory',
+            'قلادة': 'accessory',
+            'اداة': 'tool',
+            'أداة': 'tool',
+            'فأس': 'tool',
+            'منجل': 'tool',
+            'معول': 'tool'
+        };
+        
+        const englishSlot = slotTranslations[slotName] || slotName;
+        
+        const validSlots = ['weapon', 'armor', 'accessory', 'tool'];
+        if (!validSlots.includes(englishSlot)) {
+            return `❌ الخانة "${slotName}" غير صالحة. الخانات المتاحة: سلاح, درع, اكسسوار, اداة`;
+        }
+        
+        const result = player.unequipItem(englishSlot, items); // تمرير items
+        
+        if (result.error) {
+            return result.error;
+        }
+        
+        await player.save();
+        
+        return result.message;
+    }
+
+    async handleEquipment(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const weapon = player.equipment.weapon ? items[player.equipment.weapon]?.name : 'لا يوجد';
+        const armor = player.equipment.armor ? items[player.equipment.armor]?.name : 'لا يوجد';
+        const accessory = player.equipment.accessory ? items[player.equipment.accessory]?.name : 'لا يوجد';
+        const tool = player.equipment.tool ? items[player.equipment.tool]?.name : 'لا يوجد';
+        
+        const attack = player.getAttackDamage(items);
+        const defense = player.getDefense(items);
+        
+        let equipmentMessage = `⚔️ **المعدات المجهزة حالياً:**\n\n`;
+        equipmentMessage += `• ⚔️ السلاح: ${weapon}\n`;
+        equipmentMessage += `• 🛡️ الدرع: ${armor}\n`;
+        equipmentMessage += `• 💍 الإكسسوار: ${accessory}\n`;
+        equipmentMessage += `• ⛏️ الأداة: ${tool}\n\n`;
+        
+        equipmentMessage += `📊 **الإحصائيات الحالية:**\n`;
+        equipmentMessage += `• 🔥 قوة الهجوم: ${attack}\n`;
+        equipmentMessage += `• 🛡️ قوة الدفاع: ${defense}\n\n`;
+        
+        equipmentMessage += `💡 **الأوامر المتاحة:**\n`;
+        equipmentMessage += `• \`جهز [اسم العنصر]\` - لتجهيز عنصر من المخزون\n`;
+        equipmentMessage += `• \`انزع [اسم الخانة]\` - لنزع عنصر مجهز\n`;
+        equipmentMessage += `• الخانات: سلاح, درع, اكسسوار, اداة`;
+        
+        return equipmentMessage;
+    }
+
 
     async handleAdventure(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -676,4 +750,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                    }
+                }
