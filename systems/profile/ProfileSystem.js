@@ -1,8 +1,7 @@
 // systems/profile/ProfileSystem.js
 import Player from '../../core/Player.js';
-// 💡 يجب استيراد ملف locations.js و items.js
 import { locations } from '../../data/locations.js'; 
-import { items as ITEMS_DATA } from '../../data/items.js'; 
+import { items as ITEMS_DATA } from '../../data/items.js';
 
 export class ProfileSystem {
     
@@ -24,16 +23,13 @@ export class ProfileSystem {
         const requiredExp = (player.level || 1) * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
         
-        // 🆕 تمرير بيانات العناصر لحساب الإحصائيات المدمجة
         const attackDamage = player.getAttackDamage(ITEMS_DATA);
         const defense = player.getDefense(ITEMS_DATA);
         const rank = this._getPlayerRank(player.level);
         
-        // الحصول على اسم الموقع العربي
         const currentLocationId = player.currentLocation || 'forest';
         const currentLocationName = locations[currentLocationId] ? locations[currentLocationId].name : currentLocationId;
         
-        // 🆕 استخراج العناصر المجهزة (للعرض)
         const weaponName = ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد';
         const armorName = ITEMS_DATA[player.equipment.armor]?.name || 'لا يوجد';
         const accessoryName = ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد';
@@ -75,7 +71,6 @@ export class ProfileSystem {
         
         let text = `🎒 حقيبة ${player.name}\n\n`;
         
-        // 🆕 عرض المعدات المجهزة في رأس القائمة
         if (player.equipment) {
             text += `⚔️ **المجهز حالياً:**\n`;
             text += `• سلاح: ${ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد'}\n`;
