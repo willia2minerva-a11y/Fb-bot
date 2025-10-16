@@ -1,9 +1,7 @@
 // utils/ProfileCardGenerator.js
 import { createCanvas, loadImage, registerFont } from 'canvas';
-// 🛠️ استخدام require بدلاً من import المباشر لملحقات النظام لتجنب ERR_DLOPEN_FAILED
-const fs = require('fs');
-const path = require('path');
-
+import fs from 'fs';
+import path from 'path';
 // 💡 إصلاح مشكلة الخط: تسجيل الخط المطلوب (Cinzel)
 try {
     // 🛠️ استخدام مسار نسبي آمن للخط المتغير (يجب أن يكون هذا المسار صحيحاً لديك)
