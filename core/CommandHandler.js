@@ -1,11 +1,27 @@
 import Player from './Player.js';
-import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
+// ❌ تعليق استيراد ProfileCardGenerator مؤقتاً
+// import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 
-// 💡 يجب التأكد من وجود ملفات البيانات هذه في المسار الصحيح
-// (يتم افتراض الاستيراد الحقيقي لملفات البيانات)
-import { items } from '../data/items.js'; 
-import { locations } from '../data/locations.js'; 
+// ✅ استيراد البيانات مع معالجة الأخطاء
+let items = {};
+let locations = {};
+
+try {
+    const itemsModule = await import('../data/items.js');
+    items = itemsModule.items;
+    console.log('✅ تم تحميل items بنجاح');
+} catch (error) {
+    console.error('❌ فشل تحميل items:', error);
+}
+
+try {
+    const locationsModule = await import('../data/locations.js');
+    locations = locationsModule.locations;
+    console.log('✅ تم تحميل locations بنجاح');
+} catch (error) {
+    console.error('❌ فشل تحميل locations:', error);
+}
 
 // أنظمة بديلة محسنة (Fallbacks)
 async function getSystem(systemName) {
@@ -27,7 +43,8 @@ async function getSystem(systemName) {
             return new SystemClass();
         }
     } catch (error) {
-        // Fallback for missing systems
+        console.error(`❌ فشل تحميل نظام ${systemName}:`, error);
+        return null;
     }
 }
 
@@ -37,7 +54,10 @@ export default class CommandHandler {
 
         try {
             this.adminSystem = new AdminSystem();
-            this.cardGenerator = new ProfileCardGenerator();
+            // ❌ تعطيل cardGenerator مؤقتاً
+            this.cardGenerator = null;
+            console.log('⚠️ نظام البطاقات المرئية معطل مؤقتاً');
+            
             this.systems = {};
             
             // 🆕 خريطة الترجمة الشاملة (للعناصر والموارد والمواقع)
@@ -61,9 +81,9 @@ export default class CommandHandler {
                 'اوامر': this.handleHelp.bind(this),
                 'حالتي': this.handleStatus.bind(this),
                 'حالة': this.handleStatus.bind(this), 
-                'توب': this.handleTopPlayers, // 🛠️ Arrow Function
-                'افضل': this.handleTopPlayers, // 🛠️ Arrow Function
-                'لاعبين': this.handleShowPlayers, // 🛠️ Arrow Function
+                'توب': this.handleTopPlayers.bind(this),
+                'افضل': this.handleTopPlayers.bind(this),
+                'لاعبين': this.handleShowPlayers.bind(this),
 
                 'بروفايلي': this.handleProfile.bind(this),
                 'بروفايل': this.handleProfile.bind(this), 
@@ -146,7 +166,6 @@ export default class CommandHandler {
         
         return itemMap;
     }
-
 
     async getSystem(systemName) {
         if (!this.systems[systemName]) {
@@ -390,7 +409,6 @@ export default class CommandHandler {
 هروب/اهرب - محاولة الهروب من المعركة
 
 🛡️ **التجهيز:**
-معداتي - عرض المعدات المجهزة حالياً
 جهز [اسم العنصر] - تجهيز عنصر من المخزون
 انزع [اسم الخانة] - نزع عنصر مجهز`;
         }
@@ -417,15 +435,37 @@ export default class CommandHandler {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
         try {
-            const cardGenerator = this.cardGenerator; 
-            const imagePath = await cardGenerator.generateCard(player); 
-            return {
-                type: 'image',
-                path: imagePath,
-                caption: `📋 بطاقة بروفايلك يا ${player.name}!`
-            };
+            // ✅ بديل نصي للبطاقة المرئية
+            const weapon = player.equipment.weapon ? items[player.equipment.weapon]?.name : 'لا يوجد';
+            const armor = player.equipment.armor ? items[player.equipment.armor]?.name : 'لا يوجد';
+            const accessory = player.equipment.accessory ? items[player.equipment.accessory]?.name : 'لا يوجد';
+            const tool = player.equipment.tool ? items[player.equipment.tool]?.name : 'لا يوجد';
+            
+            const attack = player.getAttackDamage(items);
+            const defense = player.getDefense(items);
+            
+            let profileText = `📋 **بطاقة بروفايل ${player.name}**\n\n`;
+            profileText += `🎯 **المستوى:** ${player.level} (${player.experience}/${player.experienceToNextLevel} XP)\n`;
+            profileText += `❤️ **الصحة:** ${player.health}/${player.maxHealth}\n`;
+            profileText += `💰 **الذهب:** ${player.gold}\n`;
+            profileText += `📍 **الموقع:** ${player.currentLocation}\n`;
+            profileText += `🎒 **العناصر:** ${Object.keys(player.inventory).length}\n\n`;
+            
+            profileText += `⚔️ **المعدات:**\n`;
+            profileText += `• 🗡️ السلاح: ${weapon}\n`;
+            profileText += `• 🛡️ الدرع: ${armor}\n`;
+            profileText += `• 💍 الإكسسوار: ${accessory}\n`;
+            profileText += `• ⛏️ الأداة: ${tool}\n\n`;
+            
+            profileText += `📊 **الإحصائيات:**\n`;
+            profileText += `• 🔥 قوة الهجوم: ${attack}\n`;
+            profileText += `• 🛡️ قوة الدفاع: ${defense}\n`;
+            
+            return profileText;
+            
         } catch (error) {
-            return `❌ حدث خطأ في إنشاء البطاقة: ${error.message}`;
+            console.error('❌ خطأ في إنشاء البطاقة:', error);
+            return `❌ حدث خطأ في إنشاء البطاقة. حاول لاحقاً.`;
         }
     }
 
@@ -494,7 +534,6 @@ export default class CommandHandler {
         }
     }
 
-
     async handleMap(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         const worldSystem = await this.getSystem('world');
@@ -521,7 +560,6 @@ export default class CommandHandler {
         
         return message;
     }
-
 
     async handleTravel(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -638,4 +676,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                                        }
+                    }
