@@ -89,7 +89,6 @@ const playerSchema = new mongoose.Schema({
     default: 50,
     min: 0
   },
-  // 🆕 خصائص النشاط (Stamina)
   stamina: {
     type: Number,
     default: 100,
@@ -104,7 +103,6 @@ const playerSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
   },
-  // نهاية خصائص النشاط
   currentLocation: {
     type: String,
     default: 'forest'
@@ -192,6 +190,12 @@ playerSchema.methods.useStamina = function(amount) {
     return false;
 };
 
+// 🆕 استعادة النشاط
+playerSchema.methods.restoreStamina = function(amount) {
+    this.stamina = Math.min((this.stamina || 0) + amount, this.maxStamina || 100);
+    return this.stamina;
+};
+
 playerSchema.methods.isApproved = function() {
   return this.registrationStatus === 'completed';
 };
@@ -218,7 +222,6 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     this.inventory = [];
   }
   
-  // 💡 ضمان أن الاسم والنوع لا يكونا null أو undefined قبل الإضافة
   const itemName = name || id; 
   const itemType = type || 'unknown'; 
   
@@ -357,16 +360,12 @@ playerSchema.methods.getCooldown = function(action) {
 
 /**
  * 🆕 تجهيز عنصر في خانة محددة
- * @param {string} itemId الـ ID الإنجليزي للعنصر
- * @param {string} itemType النوع المتوقع للعنصر ('weapon', 'armor', 'accessory', 'tool')
- * @param {object} itemsData بيانات جميع العناصر المستوردة (للحصول على الاسم والإحصائيات)
  */
 playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
     if (this.getItemQuantity(itemId) === 0) {
         return { error: `❌ لا تملك العنصر ${itemsData[itemId]?.name || itemId} لتجهيزه.` };
     }
     
-    // 1. تحديد الخانة بناءً على النوع
     const slotMap = { 'weapon': 'weapon', 'armor': 'armor', 'accessory': 'accessory', 'tool': 'tool' };
     const slot = slotMap[itemType] || null;
     
@@ -374,16 +373,14 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
          return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` };
     }
 
-    // 2. نزع العنصر القديم (إذا كان هناك واحد)
     const oldItemId = this.equipment[slot];
     if (oldItemId === itemId) {
         return { error: `❌ العنصر ${itemsData[itemId]?.name || itemId} مجهز بالفعل في خانة ${slot}.` };
     }
     if (oldItemId) {
-        this.equipment[slot] = null; // نزع العنصر القديم أولاً
+        this.equipment[slot] = null;
     }
 
-    // 3. تجهيز العنصر الجديد
     this.equipment[slot] = itemId;
 
     return { 
@@ -424,10 +421,9 @@ playerSchema.methods.getAttackDamage = function(itemsData) {
   
   baseDamage += ((this.level || 1) - 1) * 2;
   
-  // 1. إضافة إحصائيات المعدات المجهزة
   for (const slot in this.equipment) {
       const equippedItemId = this.equipment[slot];
-      if (equippedItemId) {
+      if (equippedItemId && itemsData[equippedItemId]) {
           const itemStats = itemsData[equippedItemId]?.stats || {}; 
           if (itemStats.damage) {
               baseDamage += itemStats.damage;
@@ -447,10 +443,9 @@ playerSchema.methods.getDefense = function(itemsData) {
   
   baseDefense += ((this.level || 1) - 1) * 1;
   
-  // 1. إضافة إحصائيات المعدات المجهزة
   for (const slot in this.equipment) {
       const equippedItemId = this.equipment[slot];
-      if (equippedItemId) {
+      if (equippedItemId && itemsData[equippedItemId]) {
           const itemStats = itemsData[equippedItemId]?.stats || {};
           if (itemStats.defense) {
               baseDefense += itemStats.defense;
@@ -480,7 +475,6 @@ playerSchema.methods.restoreMana = function(amount) {
 
 // ========== دوال ثابتة (Static Methods) ==========
 
-// 🆕 دالة للحصول على آخر ID رقمي مستخدم
 playerSchema.statics.getLastNumericId = async function() {
     const lastPlayer = await this.findOne({ playerId: { $ne: null } })
         .sort({ createdAt: -1 })
