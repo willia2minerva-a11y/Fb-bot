@@ -387,7 +387,12 @@ export default class CommandHandler {
 ⚔️ **القتال:**
 مغامرة/قتال - بدء معركة ضد وحش في المنطقة
 هجوم/اضرب - الهجوم في المعركة الحالية
-هروب/اهرب - محاولة الهروب من المعركة`;
+هروب/اهرب - محاولة الهروب من المعركة
+
+🛡️ **التجهيز:**
+معداتي - عرض المعدات المجهزة حالياً
+جهز [اسم العنصر] - تجهيز عنصر من المخزون
+انزع [اسم الخانة] - نزع عنصر مجهز`;
         }
 
         if (isAdmin) {
@@ -430,8 +435,7 @@ export default class CommandHandler {
         return profileSystem.getPlayerInventory(player);
     }
 
-    // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصلحة للbind
-    handleTopPlayers = async (player) => {
+    async handleTopPlayers(player) {
         try {
             const topPlayers = await Player.getTopPlayers(5);
             
@@ -459,7 +463,7 @@ export default class CommandHandler {
         }
     }
     
-    handleShowPlayers = async (player) => {
+    async handleShowPlayers(player) {
         try {
             if (!this.adminSystem.isAdmin(player.userId)) {
                  return '❌ هذا الأمر خاص بالمدراء.';
@@ -473,13 +477,11 @@ export default class CommandHandler {
             playerList += `║     📋 قائمة اللاعبين النشطين (${activePlayers.length})       ║\n`;
             playerList += `╚═══════════════════════════════════╝\n`;
             playerList += `\`\`\`markdown\n`;
-            // 🆕 إضافة ID
             playerList += `| ID | المستوى | الاسم | الذهب | الموقع \n`;
             playerList += `|----|---------|--------|-------|--------\n`;
             
             activePlayers.forEach((p, index) => {
                 const locationName = this.ARABIC_ITEM_MAP[p.currentLocation] || p.currentLocation;
-                // 🆕 استخدام playerId
                 playerList += `| ${p.playerId || 'N/A'} | L${p.level} | ${p.name} | 💰${p.gold} | ${locationName}\n`;
             });
             playerList += `\`\`\`\n`;
@@ -636,4 +638,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                    }
+                                        }
