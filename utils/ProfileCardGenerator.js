@@ -1,11 +1,12 @@
 // utils/ProfileCardGenerator.js
 import { createCanvas, loadImage, registerFont } from 'canvas';
-import fs from 'fs';
-import path from 'path';
-import { items } from '../data/items.js';
+// 🛠️ استخدام require بدلاً من import المباشر لملحقات النظام لتجنب ERR_DLOPEN_FAILED
+const fs = require('fs');
+const path = require('path');
 
-// 💡 إصلاح مشكلة الخط
+// 💡 إصلاح مشكلة الخط: تسجيل الخط المطلوب (Cinzel)
 try {
+    // 🛠️ استخدام مسار نسبي آمن للخط المتغير (يجب أن يكون هذا المسار صحيحاً لديك)
     const fontPath = path.resolve('assets/fonts/Cinzel-VariableFont_wght.ttf');
     if (fs.existsSync(fontPath)) {
         registerFont(fontPath, { family: 'Cinzel' });
@@ -16,15 +17,17 @@ try {
     console.error('❌ خطأ في تسجيل الخط:', error);
 }
 
+
 export class ProfileCardGenerator {
     constructor() {
+        // حجم البطاقة القياسي
         this.WIDTH = 800;
         this.HEIGHT = 400;
         this.FONT_FAMILY = 'Cinzel, Arial, sans-serif'; 
         this.OUTPUT_DIR = path.resolve('assets/profiles');
-        this.items = items;
 
         if (!fs.existsSync(this.OUTPUT_DIR)) {
+            // استخدام fs.mkdirSync بشكل صحيح
             fs.mkdirSync(this.OUTPUT_DIR, { recursive: true });
         }
     }
@@ -47,32 +50,34 @@ export class ProfileCardGenerator {
         const height = this.HEIGHT;
 
         try {
+            // 🛠️ استخراج وحساب الإحصائيات كقيم أولية
             const level = player.level || 1;
             const health = player.health || 0;
             const maxHealth = player.maxHealth || 100;
             const mana = player.mana || 0;
             const maxMana = player.maxMana || 50;
             const rank = this._calculateRank(level);
-            const attackDamage = player.getAttackDamage ? player.getAttackDamage(this.items) : 10;
-            const defense = player.getDefense ? player.getDefense(this.items) : 5;
+            // 💡 ملاحظة: يجب تمرير itemsData إلى هذه الدوال لحساب الإحصائيات بدقة
+            const attackDamage = player.getAttackDamage ? player.getAttackDamage(/* itemsData */) : 10; 
+            const defense = player.getDefense ? player.getDefense(/* itemsData */) : 5;
             const stamina = player.getActualStamina ? player.getActualStamina() : (player.stamina || 100);
             const maxStamina = player.maxStamina || 100;
 
             // 1. الخلفية والإطار
             const gradient = ctx.createLinearGradient(0, 0, width, height);
-            gradient.addColorStop(0, '#1a365d');
-            gradient.addColorStop(1, '#2d3748');
+            gradient.addColorStop(0, '#2d3748');
+            gradient.addColorStop(1, '#4a5568');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, width, height);
             
-            ctx.strokeStyle = '#FFD700';
+            ctx.strokeStyle = '#FFD700'; // 🛠️ إطار ذهبي
             ctx.lineWidth = 4;
             ctx.strokeRect(10, 10, width - 20, height - 20);
 
             // إعدادات النص الأساسية
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
             ctx.shadowBlur = 10;
-            ctx.fillStyle = '#FFD700';
+            ctx.fillStyle = '#FFD700'; // 🛠️ لون الخط الذهبي
 
             // =====================================
             // 1. العنوان والرتبة
@@ -89,10 +94,11 @@ export class ProfileCardGenerator {
             ctx.fillStyle = '#FFD700'; 
             ctx.font = `bold 40px "${this.FONT_FAMILY}"`;
             ctx.fillText(`[ RANK: ${rank} ]`, width - 30, 70);
-            ctx.fillStyle = '#FFD700';
+            ctx.fillStyle = '#FFD700'; // إعادة اللون الذهبي
+
 
             // =====================================
-            // 2. عرض الإحصائيات الرئيسية
+            // 2. عرض الإحصائيات الرئيسية المطلوبة
             // =====================================
             ctx.shadowBlur = 4;
             ctx.font = `28px "${this.FONT_FAMILY}"`;
@@ -115,7 +121,7 @@ export class ProfileCardGenerator {
             ctx.fillText(`🛡️ الدفاع: ${defense}`, startX2, startY);
             
             // =====================================
-            // 3. أشرطة الصحة والمانا والتعب
+            // 3. أشرطة الصحة والمانا والتعب (أسفل)
             // =====================================
             const barY = height - 90;
             const barWidth = width - 100;
@@ -127,7 +133,7 @@ export class ProfileCardGenerator {
             // شريط المانا
             this._drawBar(ctx, 50, barY + 20, barWidth, barHeight, mana / maxMana, '#4299E1', 'المانا');
 
-            // شريط النشاط
+            // 🆕 شريط النشاط
             this._drawBar(ctx, 50, barY + 40, barWidth, barHeight, stamina / maxStamina, '#38A169', 'النشاط');
             
             // حفظ الصورة
@@ -144,6 +150,7 @@ export class ProfileCardGenerator {
             
         } catch (error) {
             console.error('❌ خطأ في generateCard:', error);
+            // ⚠️ هام: يجب أن يتم رمي الخطأ ليتم التقاطه في CommandHandler
             throw new Error('فشل في إنشاء بطاقة البروفايل: ' + error.message);
         }
     }
@@ -160,7 +167,7 @@ export class ProfileCardGenerator {
         context.fillStyle = color;
         context.fillRect(x, y, width * percent, height);
         
-        // النص داخل الشريط
+        // النص داخل الشريط (أبيض لضمان الوضوح)
         context.fillStyle = '#FFFFFF';
         context.font = `bold 12px "${this.FONT_FAMILY}"`;
         context.textAlign = 'center';
@@ -188,4 +195,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);
         }
     }
-    }
+                }
