@@ -242,6 +242,7 @@ export default class CommandHandler {
                 }
 
                 const handler = this.commands[command]; 
+                // 💡 يجب استخدام call(this, ...) لضمان عمل دوال bind و دوال Arrow Function
                 const result = await handler.call(this, player, args, id);
                 
                 if (typeof result === 'string') {
@@ -390,6 +391,7 @@ export default class CommandHandler {
 هروب/اهرب - محاولة الهروب من المعركة
 
 🛡️ **التجهيز:**
+معداتي - عرض المعدات المجهزة حالياً
 جهز [اسم العنصر] - تجهيز عنصر من المخزون
 انزع [اسم الخانة] - نزع عنصر مجهز`;
         }
@@ -434,7 +436,7 @@ export default class CommandHandler {
         return profileSystem.getPlayerInventory(player);
     }
 
-    // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصلحة للbind
+    // 🆕 دوال خاصة بالخصائص (Arrow Functions) - مُصححة للbind
     handleTopPlayers = async (player) => {
         try {
             const topPlayers = await Player.getTopPlayers(5);
@@ -603,10 +605,11 @@ export default class CommandHandler {
             return `❌ يرجى تحديد العنصر المراد تجهيزه.`;
         }
         
+        // 1. ترجمة الاسم العربي إلى ID
         const itemId = this.ARABIC_ITEM_MAP[itemName.toLowerCase()] || itemName.toLowerCase();
         
         if (!itemId || !items[itemId]) {
-            return `❌ العنصر **${itemName}** غير موجود في النظام أو غير معروف.`;
+            return `❌ لم يتم العثور على العنصر "${itemName}" في مخزونك أو غير معروف.`;
         }
         
         const itemInfo = items[itemId];
@@ -614,10 +617,11 @@ export default class CommandHandler {
         const validEquipTypes = ['weapon', 'armor', 'accessory', 'tool'];
         const equipType = itemInfo.type;
         
-        if (!equipableTypes.includes(equipType)) {
-            return `❌ لا يمكن تجهيز **${itemInfo.name}**! هذا العنصر من نوع ${equipType}.`;
+        if (!validEquipTypes.includes(equipType)) {
+            return `❌ العنصر "${itemInfo.name}" من نوع ${equipType} لا يمكن تجهيزه.`;
         }
         
+        // 3. تنفيذ التجهيز عبر دالة اللاعب (يجب تمرير itemsData لحساب الإحصائيات)
         const result = player.equipItem(itemId, equipType, items); 
         
         if (result.error) {
@@ -750,4 +754,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;
     }
-                }
+            }
