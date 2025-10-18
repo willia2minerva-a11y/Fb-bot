@@ -75,56 +75,65 @@ export class ProfileCardGenerator {
             const stamina = player.getActualStamina ? player.getActualStamina() : player.stamina || 100;
             const maxStamina = player.maxStamina || 100;
 
-            // ✍️ إعداد النص
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-            ctx.shadowBlur = 5;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
+            // ✍️ إعداد النص - بدون ظل
+            ctx.shadowColor = 'rgba(0, 0, 0, 0)';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
 
-            // 🔸 العنوان الرئيسي (Labels) - أبيض بحجم كبير
+            // 🔸 الاسم (NAME) - أبيض كبير في الأعلى
             ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold 42px "${this.FONT_FAMILY}"`;
             ctx.textAlign = 'left';
-            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
+            ctx.fillText('Name:', 50, 80);
             
-            // العناوين الرئيسية
-            ctx.fillText('NAME:', 50, 80);
-            ctx.fillText('LEVEL:', 50, 150);
-            ctx.fillText('HP:', 50, 220);
-            ctx.fillText('ATK:', 400, 220);
-            ctx.fillText('DEF:', 50, 290);
-            ctx.fillText('STA:', 400, 290);
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold 46px "${this.FONT_FAMILY}"`;
+            ctx.fillText(player.name || 'Unknown', 180, 80);
+
+            // 🔸 المستوى (LEVEL) - أبيض تحت الاسم
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold 42px "${this.FONT_FAMILY}"`;
+            ctx.fillText('Level:', 50, 150);
+            
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold 46px "${this.FONT_FAMILY}"`;
+            ctx.fillText(level.toString(), 180, 150);
+
+            // 🔹 الإحصائيات - أبيض وذهبي
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
+
+            // الصف الأول: HP و ATK
+            ctx.fillText('HP:', 50, 240);
+            ctx.fillText('ATK:', 400, 240);
+            
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold 38px "${this.FONT_FAMILY}"`;
+            ctx.fillText(`${health}/${maxHealth}`, 120, 240);     // HP value
+            ctx.fillText(`${attack}`, 500, 240);                  // ATK value
+
+            // الصف الثاني: DEF و STA
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
+            ctx.fillText('DEF:', 50, 300);
+            ctx.fillText('STA:', 400, 300);
+            
+            ctx.fillStyle = '#FFD700';
+            ctx.font = `bold 38px "${this.FONT_FAMILY}"`;
+            ctx.fillText(`${defense}`, 120, 300);                 // DEF value
+            ctx.fillText(`${Math.floor(stamina)}/${maxStamina}`, 500, 300); // STA value
+
+            // الصف الثالث: MP و TIER
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
             ctx.fillText('MP:', 50, 360);
             ctx.fillText('TIER:', 400, 360);
-
-            // 🔸 القيم - ذهبي بحجم كبير
+            
             ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 40px "${this.FONT_FAMILY}"`;
-            
-            // القيم مع محاذاة مناسبة
-            ctx.fillText(player.name || 'Unknown', 200, 80);      // NAME value
-            ctx.fillText(level.toString(), 200, 150);             // LEVEL value
-            
-            // إحصائيات HP, ATK, DEF, STA, MP, TIER
             ctx.font = `bold 38px "${this.FONT_FAMILY}"`;
-            ctx.fillText(`${health}/${maxHealth}`, 120, 220);     // HP value
-            ctx.fillText(`${attack}`, 500, 220);                  // ATK value
-            ctx.fillText(`${defense}`, 120, 290);                 // DEF value
-            ctx.fillText(`${Math.floor(stamina)}/${maxStamina}`, 500, 290); // STA value
             ctx.fillText(`${mana}/${maxMana}`, 120, 360);         // MP value
             ctx.fillText(rank, 500, 360);                         // TIER value
-
-            // 🔸 إضافة حدود وزخارف إضافية
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(20, 20, width - 40, height - 40);
-            
-            // خط فاصل
-            ctx.beginPath();
-            ctx.moveTo(30, 180);
-            ctx.lineTo(width - 30, 180);
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 2;
-            ctx.stroke();
 
             // 🖼️ حفظ الصورة النهائية
             const filename = `${player.userId}_profile_${Date.now()}.png`;
@@ -165,4 +174,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);
         }
     }
-                }
+}
