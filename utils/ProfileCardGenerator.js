@@ -7,7 +7,7 @@ import path from 'path';
 
 // 💡 إصلاح مشكلة الخط: تسجيل الخط المطلوب (Cinzel)
 try {
-    const fontPath = path.resolve('assets/fonts/Cinzel-VariableFont_wght.ttf');  
+    const fontPath = path.resolve('assets/fonts/Cinzel-Regular.ttf');  
     if (fs.existsSync(fontPath)) {  
         registerFont(fontPath, { family: 'Cinzel' });  
     } else {  
@@ -101,26 +101,26 @@ export class ProfileCardGenerator {
             ctx.textAlign = 'left';  
             
             // الاسم
-            const nameX = 380;
+            const nameX = 420;
             const nameY = 180;
-            ctx.font = `bold 80px "${this.FONT_FAMILY}"`;  
+            ctx.font = `bold 120px "${this.FONT_FAMILY}"`;  
             ctx.fillText(player.name || "مقاتل مجهول", nameX, nameY);  
             
             // المستوى
-            const levelX = 450;
-            const levelY = 220;
-            ctx.font = `60px "${this.FONT_FAMILY}"`;  
+            const levelX = 470;
+            const levelY = 240;
+            ctx.font = `100px "${this.FONT_FAMILY}"`;  
             ctx.fillText(`${level}`, levelX, levelY);  
 
             // 3.2 إحصائيات القوة والرتبة (موقع تقديري)
             
-            const statsCol1X = 450; // بداية العمود الأول للإحصائيات
-            const statsCol2X = 580; // بداية العمود الثاني للإحصائيات
+            const statsCol1X = 500; // بداية العمود الأول للإحصائيات
+            const statsCol2X = 640; // بداية العمود الثاني للإحصائيات
             const statsStartY = 270;
             const statsLineHeight = 55;
 
             // Health / MP / DEF
-            ctx.font = `60px "${this.FONT_FAMILY}"`;  
+            ctx.font = `90px "${this.FONT_FAMILY}"`;  
             ctx.textAlign = 'left';
 
             // HP
