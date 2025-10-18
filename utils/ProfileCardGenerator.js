@@ -1,158 +1,154 @@
-// utils/ProfileCardGenerator.js
+// utils/ProfileCardGenerator.js (باستخدام مكتبة Sharp)
 
-import { createCanvas, loadImage, registerFont } from 'canvas';
-import { items as itemsData } from '../data/items.js';
+import sharp from 'sharp';
+import { items as itemsData } from '../data/items.js'; 
 import fs from 'fs';
 import path from 'path';
 
-// 💡 تسجيل الخطوط
-try {
-    const fontPath = path.resolve('assets/fonts/Cinzel-Bold.ttf');
-    if (fs.existsSync(fontPath)) {
-        registerFont(fontPath, { family: 'Cinzel' });
-    } else {
-        console.warn('⚠️ خط Cinzel غير موجود. استخدام Arial كبديل.');
-    }
-} catch (error) {
-    console.error('❌ خطأ في تسجيل الخط:', error);
-}
-
 export class ProfileCardGenerator {
 
-    constructor() {
-        this.WIDTH = 800;
-        this.HEIGHT = 480;
-        this.FONT_FAMILY = 'Cinzel, Arial, sans-serif';
-        this.OUTPUT_DIR = path.resolve('assets/profiles');
-        this.BACKGROUNDS_DIR = path.resolve('assets/images');
+    constructor() {  
+        this.WIDTH = 800;  
+        this.HEIGHT = 480; 
+        // 💡 نستخدم خطوطاً شائعة لضمان التوافق على خادم Render
+        this.FONT_FAMILY = 'Impact, Tahoma, Arial'; 
+        this.OUTPUT_DIR = path.resolve('assets/profiles');  
+        this.BACKGROUNDS_DIR = path.resolve('assets/images'); 
 
-        if (!fs.existsSync(this.OUTPUT_DIR)) {
-            fs.mkdirSync(this.OUTPUT_DIR, { recursive: true });
-        }
-    }
+        if (!fs.existsSync(this.OUTPUT_DIR)) {  
+            fs.mkdirSync(this.OUTPUT_DIR, { recursive: true });  
+        }  
+    }  
 
-    _calculateRank(level) {
+    _calculateRank(level) {  
         if (level >= 90) return 'SS';
         if (level >= 75) return 'S';
         if (level >= 60) return 'A';
         if (level >= 45) return 'B';
         if (level >= 30) return 'C';
         return 'E';
+    }  
+
+    // 🆕 دالة مساعدة لتوليد نص كملف SVG
+    // تم ضبط الإحداثيات هنا لتناسب التصميم المرفق (البني الخشبي)
+    _generateSvgTextLayer(text, size, x, y, color = '#FFFFFF', fontWeight = 'bold') {
+        return Buffer.from(`
+            <svg width="${this.WIDTH}" height="${this.HEIGHT}">
+                <style>
+                    .text { 
+                        font-family: ${this.FONT_FAMILY}; 
+                        font-size: ${size}px; 
+                        fill: ${color}; 
+                        font-weight: ${fontWeight}; 
+                        /* لضبط موضع النص بدقة أكبر */
+                        text-anchor: start; 
+                        dominant-baseline: hanging; 
+                        /* إضافة ظل خفيف لتحسين الوضوح على الخلفية الداكنة */
+                        text-shadow: 1px 1px 3px #000000;
+                    }
+                </style>
+                <text x="${x}" y="${y}" class="text">${text}</text>
+            </svg>
+        `);
     }
 
-    async generateCard(player) {
-        const canvas = createCanvas(this.WIDTH, this.HEIGHT);
-        const ctx = canvas.getContext('2d');
-        const width = this.WIDTH;
-        const height = this.HEIGHT;
+    async generateCard(player) {  
+        const width = this.WIDTH;  
+        const height = this.HEIGHT;  
 
-        try {
-            // 🔸 تحديد الخلفية حسب الجنس
-            const gender = player.gender || 'male';
+        try {  
+            // 1. تحديد الخلفية وتحميلها باستخدام Sharp
+            const gender = player.gender || 'male'; 
             const backgroundFileName = `profile_card_${gender}.png`;
             const backgroundPath = path.join(this.BACKGROUNDS_DIR, backgroundFileName);
-
+            
+            // 🆕 استخدام Sharp لتحميل الخلفية
+            let imageProcessor;
             if (fs.existsSync(backgroundPath)) {
-                const bg = await loadImage(backgroundPath);
-                ctx.drawImage(bg, 0, 0, width, height);
+                 imageProcessor = sharp(backgroundPath).resize(width, height);
             } else {
-                const gradient = ctx.createLinearGradient(0, 0, width, height);
-                gradient.addColorStop(0, '#3b2f2f');
-                gradient.addColorStop(1, '#5b4636');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, width, height);
+                 // إذا لم توجد الصورة، يتم إنشاء خلفية بنية احتياطية
+                 imageProcessor = sharp({
+                    create: {
+                        width: width,
+                        height: height,
+                        channels: 3,
+                        background: { r: 59, g: 47, b: 47, alpha: 1 } // لون بني داكن
+                    }
+                 }).png();
             }
 
-            // 🧮 الحسابات
-            const level = player.level || 1;
-            const rank = this._calculateRank(level);
-            const attack = player.getAttackDamage ? player.getAttackDamage(itemsData) : 10;
-            const defense = player.getDefense ? player.getDefense(itemsData) : 5;
-            const health = player.health || 0;
-            const maxHealth = player.maxHealth || 100;
-            const mana = player.mana || 0;
-            const maxMana = player.maxMana || 50;
-            const stamina = player.getActualStamina ? player.getActualStamina() : player.stamina || 100;
-            const maxStamina = player.maxStamina || 100;
-
-            // ✍️ إعداد النص - بدون ظل
-            ctx.shadowColor = 'rgba(0, 0, 0, 0)';
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-
-            // 🔸 الاسم (NAME) - أبيض كبير في الأعلى
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `bold 42px "${this.FONT_FAMILY}"`;
-            ctx.textAlign = 'left';
-            ctx.fillText('Name:', 50, 80);
+            // 2. حساب الإحصائيات 
+            const level = player.level || 1;  
+            const rank = this._calculateRank(level);  
+            const attack = player.getAttackDamage ? player.getAttackDamage(itemsData) : 10;   
+            const defense = player.getDefense ? player.getDefense(itemsData) : 5;  
+            const health = player.health || 0;  
+            const maxHealth = player.maxHealth || 100;  
+            const mana = player.mana || 0;  
+            const maxMana = player.maxMana || 50;  
+            const stamina = player.getActualStamina ? player.getActualStamina() : player.stamina || 100;  
+            const maxStamina = player.maxStamina || 100;  
             
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 46px "${this.FONT_FAMILY}"`;
-            ctx.fillText(player.name || 'Unknown', 180, 80);
-
-            // 🔸 المستوى (LEVEL) - أبيض تحت الاسم
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `bold 42px "${this.FONT_FAMILY}"`;
-            ctx.fillText('Level:', 50, 150);
             
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 46px "${this.FONT_FAMILY}"`;
-            ctx.fillText(level.toString(), 180, 150);
+            // 3. دمج النصوص عبر SVG
+            const layers = [];
 
-            // 🔹 الإحصائيات - أبيض وذهبي
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
-
-            // الصف الأول: HP و ATK
-            ctx.fillText('HP:', 50, 240);
-            ctx.fillText('ATK:', 400, 240);
+            // 3.1 الاسم والمستوى (أكبر خط)
             
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 38px "${this.FONT_FAMILY}"`;
-            ctx.fillText(`${health}/${maxHealth}`, 120, 240);     // HP value
-            ctx.fillText(`${attack}`, 500, 240);                  // ATK value
-
-            // الصف الثاني: DEF و STA
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
-            ctx.fillText('DEF:', 50, 300);
-            ctx.fillText('STA:', 400, 300);
+            // الاسم (ذهبي)
+            layers.push({ 
+                input: this._generateSvgTextLayer(player.name || 'مقاتل مجهول', 40, 360, 45, '#FFD700'), 
+                left: 0, top: 0 
+            });
             
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 38px "${this.FONT_FAMILY}"`;
-            ctx.fillText(`${defense}`, 120, 300);                 // DEF value
-            ctx.fillText(`${Math.floor(stamina)}/${maxStamina}`, 500, 300); // STA value
+            // المستوى (أبيض)
+            layers.push({ 
+                input: this._generateSvgTextLayer(level.toString(), 35, 490, 120, '#FFFFFF'), 
+                left: 0, top: 0 
+            });
 
-            // الصف الثالث: MP و TIER
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = `bold 36px "${this.FONT_FAMILY}"`;
-            ctx.fillText('MP:', 50, 360);
-            ctx.fillText('TIER:', 400, 360);
+            // 3.2 إحصائيات القوة والخصائص (مواقع محسنة)
             
-            ctx.fillStyle = '#FFD700';
-            ctx.font = `bold 38px "${this.FONT_FAMILY}"`;
-            ctx.fillText(`${mana}/${maxMana}`, 120, 360);         // MP value
-            ctx.fillText(rank, 500, 360);                         // TIER value
+            // HP: (الصحة) - أبيض
+            layers.push({ input: this._generateSvgTextLayer(`${health}/${maxHealth}`, 30, 360, 240), left: 0, top: 0 }); 
 
-            // 🖼️ حفظ الصورة النهائية
+            // DEF: (الدفاع) - أبيض
+            layers.push({ input: this._generateSvgTextLayer(`${defense}`, 30, 360, 300), left: 0, top: 0 });
+            
+            // MP: (المانا) - أبيض
+            layers.push({ input: this._generateSvgTextLayer(`${mana}/${maxMana}`, 30, 360, 360), left: 0, top: 0 });
+
+            // ATK: (الهجوم) - أبيض
+            layers.push({ input: this._generateSvgTextLayer(`${attack}`, 30, 580, 240), left: 0, top: 0 });
+
+            // STA: (النشاط) - أبيض
+            layers.push({ input: this._generateSvgTextLayer(`${Math.floor(stamina)}/${maxStamina}`, 30, 580, 300), left: 0, top: 0 }); 
+
+            // TIER: (الرتبة) - ذهبي
+            layers.push({ input: this._generateSvgTextLayer(rank, 30, 580, 360, '#FFD700'), left: 0, top: 0 });
+
+            // 4. دمج الطبقات وإخراج الصورة
+            const outputBuffer = await imageProcessor
+                .composite(layers)
+                .png()
+                .toBuffer();
+            
+            // 5. حفظ الملف
             const filename = `${player.userId}_profile_${Date.now()}.png`;
             const outputPath = path.join(this.OUTPUT_DIR, filename);
 
-            return new Promise((resolve, reject) => {
-                const out = fs.createWriteStream(outputPath);
-                const stream = canvas.createPNGStream();
-                stream.pipe(out);
-                out.on('finish', () => resolve(outputPath));
-                out.on('error', reject);
-            });
+            await fs.promises.writeFile(outputPath, outputBuffer);
 
-        } catch (error) {
-            console.error('❌ خطأ في generateCard:', error);
-            throw new Error('فشل في إنشاء بطاقة البروفايل: ' + error.message);
-        }
-    }
+            return outputPath;
+            
+        } catch (error) {  
+            console.error('❌ خطأ في generateCard (Sharp):', error);  
+            throw new Error('فشل في إنشاء بطاقة البروفايل (Sharp). تأكد من وجود ملفات الخلفية في المسار الصحيح وتثبيت مكتبة sharp. تفاصيل: ' + error.message);
+        }  
+    }  
 
+    // ... (دالة التنظيف بدون تغيير)
     async cleanupOldFiles() {
         try {
             const files = fs.readdirSync(this.OUTPUT_DIR);
@@ -174,4 +170,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);
         }
     }
-}
+                         }
