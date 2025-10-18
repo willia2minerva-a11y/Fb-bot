@@ -320,8 +320,9 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
     const slot = slotMap[itemType] || null;
 
     if (!slot) {
-        return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.`; }
-    }
+        
+      return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` }; 
+    }                                                                 
 
     const oldItemId = this.equipment[slot];
     if (oldItemId === itemId) {
