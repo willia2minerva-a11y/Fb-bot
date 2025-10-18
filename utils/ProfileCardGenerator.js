@@ -101,26 +101,26 @@ export class ProfileCardGenerator {
             ctx.textAlign = 'left';  
             
             // الاسم
-            const nameX = 350;
-            const nameY = 85;
-            ctx.font = `bold 40px "${this.FONT_FAMILY}"`;  
+            const nameX = 380;
+            const nameY = 180;
+            ctx.font = `bold 80px "${this.FONT_FAMILY}"`;  
             ctx.fillText(player.name || "مقاتل مجهول", nameX, nameY);  
             
             // المستوى
-            const levelX = 350;
-            const levelY = 165;
-            ctx.font = `35px "${this.FONT_FAMILY}"`;  
+            const levelX = 450;
+            const levelY = 220;
+            ctx.font = `60px "${this.FONT_FAMILY}"`;  
             ctx.fillText(`${level}`, levelX, levelY);  
 
             // 3.2 إحصائيات القوة والرتبة (موقع تقديري)
             
-            const statsCol1X = 380; // بداية العمود الأول للإحصائيات
+            const statsCol1X = 450; // بداية العمود الأول للإحصائيات
             const statsCol2X = 580; // بداية العمود الثاني للإحصائيات
             const statsStartY = 270;
             const statsLineHeight = 55;
 
             // Health / MP / DEF
-            ctx.font = `28px "${this.FONT_FAMILY}"`;  
+            ctx.font = `60px "${this.FONT_FAMILY}"`;  
             ctx.textAlign = 'left';
 
             // HP
