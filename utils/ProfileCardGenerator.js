@@ -7,7 +7,7 @@ import path from 'path';
 
 // 💡 تسجيل الخطوط
 try {
-    const fontPath = path.resolve('assets/fonts/Cinzel-VariableFont_wght.ttf');
+    const fontPath = path.resolve('assets/fonts/Cinzel-Bold.ttf');
     if (fs.existsSync(fontPath)) {
         registerFont(fontPath, { family: 'Cinzel' });
     } else {
