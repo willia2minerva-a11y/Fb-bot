@@ -7,7 +7,6 @@ import path from 'path';
 
 // 💡 التأكد من تسجيل الخطوط بشكل صحيح.
 try {
-    // يجب أن يتطابق هذا المسار مع موقع ملف الخط لديك.
     const fontPath = path.resolve('assets/fonts/Cinzel-VariableFont_wght.ttf');  
     if (fs.existsSync(fontPath)) {  
         registerFont(fontPath, { family: 'Cinzel' });  
@@ -26,6 +25,7 @@ export class ProfileCardGenerator {
         this.HEIGHT = 480; 
         this.FONT_FAMILY = 'Cinzel, Arial, sans-serif';   
         this.OUTPUT_DIR = path.resolve('assets/profiles');  
+        // 🆕 تم تعديل المسار هنا ليكون أكثر مرونة
         this.BACKGROUNDS_DIR = path.resolve('assets/images'); 
 
         if (!fs.existsSync(this.OUTPUT_DIR)) {  
@@ -59,7 +59,7 @@ export class ProfileCardGenerator {
                 backgroundImage = await loadImage(backgroundPath);
                 ctx.drawImage(backgroundImage, 0, 0, width, height);
             } else {
-                // خلفية احتياطية في حال فشل تحميل الصورة
+                // خلفية احتياطية
                 const gradient = ctx.createLinearGradient(0, 0, width, height);  
                 gradient.addColorStop(0, '#2d3748');  
                 gradient.addColorStop(1, '#4a5568');  
@@ -75,65 +75,67 @@ export class ProfileCardGenerator {
             const maxMana = player.maxMana || 50;  
             const rank = this._calculateRank(level);  
             
-            // 💡 تمرير itemsData
             const attackDamage = player.getAttackDamage ? player.getAttackDamage(itemsData) : 10;   
             const defense = player.getDefense ? player.getDefense(itemsData) : 5;  
             
             const stamina = player.getActualStamina ? player.getActualStamina() : (player.stamina || 100);  
             const maxStamina = player.maxStamina || 100;  
 
-            // 🆕 إعدادات النص المحسنة
-            ctx.shadowColor = 'rgba(0,0,0,0.7)';  
-            ctx.shadowBlur = 8; 
-            ctx.fillStyle = '#FFD700'; // لون ذهبي ساطع
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; 
-            ctx.lineWidth = 1;
+            // 🆕 إعدادات النص (الألوان والأحجام)
+            // استخدام الأبيض لضمان الوضوح وتقليل الظل الأسود
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';  
+            ctx.shadowBlur = 4; // ظل خفيف
+            ctx.fillStyle = '#FFFFFF'; // لون النص الرئيسي: أبيض ساطع
+            ctx.strokeStyle = '#000000'; // خط خارجي أسود خفيف
+            ctx.lineWidth = 0.5;
 
 
             // =====================================  
             // 3. كتابة البيانات على أماكنها في الصورة 
             // =====================================  
             
-            // 3.1 الاسم والمستوى
+            // 3.1 الاسم والمستوى (أكبر خط)
             
             // الاسم
             ctx.textAlign = 'left';  
             ctx.font = `bold 40px "${this.FONT_FAMILY}"`;  
-            ctx.fillText(player.name || "مقاتل مجهول", 350, 85);  
+            ctx.fillText(player.name || "مقاتل مجهول", 350, 80); // موقع الاسم 
             
             // المستوى
-            ctx.font = `35px "${this.FONT_FAMILY}"`;  
-            ctx.fillText(`${level}`, 480, 165); 
+            ctx.font = `bold 40px "${this.FONT_FAMILY}"`;  
+            ctx.fillText(`${level}`, 480, 160); // موقع المستوى 
 
+
+            // 3.2 إحصائيات القوة والخصائص (خط أصغر)
             
-            // 3.2 إحصائيات القوة والخصائص (مواقع محسنة)
-            
-            ctx.shadowBlur = 5;
-            ctx.fillStyle = '#FFD700'; 
-            ctx.font = `30px "${this.FONT_FAMILY}"`;  
+            ctx.shadowBlur = 3;
+            ctx.fillStyle = '#FFFFFF'; // أبيض
+            ctx.font = `25px "${this.FONT_FAMILY}"`; // حجم خط أصغر للإحصائيات 
             ctx.textAlign = 'left';
 
-            // HP: (الصحة)
-            ctx.fillText(`${health}/${maxHealth}`, 380, 275);
+            // الإحداثيات تم تعديلها لتتناسب مع أبعاد الأيقونات في الصورة
+            
+            // HP: (الصحة) - العمود الأول
+            ctx.fillText(`${health}/${maxHealth}`, 365, 275); 
 
             // DEF: (الدفاع)
-            ctx.fillText(`${defense}`, 380, 340); // تم تعديل الموقع ليتناسب مع الصف الثالث
+            ctx.fillText(`${defense}`, 365, 335);
             
             // MP: (المانا)
-            ctx.fillText(`${mana}/${maxMana}`, 380, 405); // تم تعديل الموقع ليتناسب مع الصف الرابع
+            ctx.fillText(`${mana}/${maxMana}`, 365, 395);
 
             
-            // ATK: (الهجوم)
-            ctx.fillText(`${attackDamage}`, 580, 275);
+            // ATK: (الهجوم) - العمود الثاني
+            ctx.fillText(`${attackDamage}`, 575, 275);
 
             // STA: (النشاط)
-            ctx.fillText(`${Math.floor(stamina)}/${maxStamina}`, 580, 340); // تم تعديل الموقع
+            ctx.fillText(`${Math.floor(stamina)}/${maxStamina}`, 575, 335); 
 
             // TIER: (الرتبة)
-            ctx.font = `30px "${this.FONT_FAMILY}"`;
-            ctx.fillStyle = '#FFFFFF'; // لون أبيض للرانك لتمييزه
-            ctx.shadowBlur = 0;
-            ctx.fillText(`${rank}`, 580, 405); // تم تعديل الموقع
+            ctx.font = `bold 28px "${this.FONT_FAMILY}"`;
+            ctx.fillStyle = '#FFD700'; // لون ذهبي للرتبة
+            ctx.fillText(`${rank}`, 575, 395);
+            
             
             // 4. حفظ الصورة 
             const filename = `${player.userId}_profile_${Date.now()}.png`;  
@@ -154,7 +156,7 @@ export class ProfileCardGenerator {
     }  
 
     _drawBar(context, x, y, width, height, percent, color, label) {  
-        // دالة لم تعد مستخدمة في هذا التصميم.
+        // دالة لم تعد مستخدمة.
     }  
 
     async cleanupOldFiles() {  
@@ -178,4 +180,4 @@ export class ProfileCardGenerator {
             console.error('❌ خطأ في تنظيف الملفات:', error);  
         }  
     }  
-}
+            }
