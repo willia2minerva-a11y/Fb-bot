@@ -89,6 +89,7 @@ const playerSchema = new mongoose.Schema({
     default: 50,
     min: 0
   },
+  // 🆕 خصائص النشاط (Stamina)
   stamina: {
     type: Number,
     default: 100,
@@ -103,6 +104,7 @@ const playerSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
   },
+  // نهاية خصائص النشاط
   currentLocation: {
     type: String,
     default: 'forest'
@@ -116,7 +118,7 @@ const playerSchema = new mongoose.Schema({
   equipment: {
     weapon: { type: String, default: null },
     armor: { type: String, default: null },
-    accessory: { type: String, default: null },
+    accessory: { type: String, default: null }, // 🆕 إضافة خانة الإكسسوار
     tool: { type: String, default: null }
   },
   stats: {
@@ -152,6 +154,9 @@ const playerSchema = new mongoose.Schema({
 
 playerSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  
+  // ❌ تم إزالة منطق تعيين playerId من هنا ليعمل بالتسلسل الرقمي في AdminSystem
+  
   next();
 });
 
@@ -190,12 +195,6 @@ playerSchema.methods.useStamina = function(amount) {
     return false;
 };
 
-// 🆕 استعادة النشاط
-playerSchema.methods.restoreStamina = function(amount) {
-    this.stamina = Math.min((this.stamina || 0) + amount, this.maxStamina || 100);
-    return this.stamina;
-};
-
 playerSchema.methods.isApproved = function() {
   return this.registrationStatus === 'completed';
 };
@@ -222,6 +221,7 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     this.inventory = [];
   }
   
+  // 💡 ضمان أن الاسم والنوع لا يكونا null أو undefined قبل الإضافة
   const itemName = name || id; 
   const itemType = type || 'unknown'; 
   
@@ -238,7 +238,7 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     });
   }
   
-  if (itemType === 'resource' || itemType === 'resource') {
+  if (itemType === 'resource' || itemType === 'resource') { // النوع 'resource' أو 'resource' (لتغطية أي أخطاء إملائية سابقة)
     if (!this.stats) this.stats = {};
     this.stats.resourcesGathered = (this.stats.resourcesGathered || 0) + quantity;
   }
@@ -360,12 +360,16 @@ playerSchema.methods.getCooldown = function(action) {
 
 /**
  * 🆕 تجهيز عنصر في خانة محددة
+ * @param {string} itemId الـ ID الإنجليزي للعنصر
+ * @param {string} itemType النوع المتوقع للعنصر ('weapon', 'armor', 'accessory', 'tool')
+ * @param {object} itemsData بيانات جميع العناصر المستوردة (للحصول على الاسم والإحصائيات)
  */
 playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
     if (this.getItemQuantity(itemId) === 0) {
         return { error: `❌ لا تملك العنصر ${itemsData[itemId]?.name || itemId} لتجهيزه.` };
     }
     
+    // 1. تحديد الخانة بناءً على النوع
     const slotMap = { 'weapon': 'weapon', 'armor': 'armor', 'accessory': 'accessory', 'tool': 'tool' };
     const slot = slotMap[itemType] || null;
     
@@ -373,14 +377,16 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
          return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` };
     }
 
+    // 2. نزع العنصر القديم (إذا كان هناك واحد)
     const oldItemId = this.equipment[slot];
     if (oldItemId === itemId) {
         return { error: `❌ العنصر ${itemsData[itemId]?.name || itemId} مجهز بالفعل في خانة ${slot}.` };
     }
     if (oldItemId) {
-        this.equipment[slot] = null;
+        this.equipment[slot] = null; // نزع العنصر القديم أولاً
     }
 
+    // 3. تجهيز العنصر الجديد
     this.equipment[slot] = itemId;
 
     return { 
@@ -396,7 +402,7 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
 playerSchema.methods.unequipItem = function(slot, itemsData) {
     const validSlots = ['weapon', 'armor', 'accessory', 'tool'];
     if (!validSlots.includes(slot)) {
-        return { error: '❌ الخانة غير صالحة. استخدم: weapon, armor, accessory, tool.' };
+        return { error: '❌ الخانة غير صالحة. استخدم: weapon, armor, tool.' };
     }
     
     const unequippedItem = this.equipment[slot];
@@ -412,48 +418,52 @@ playerSchema.methods.unequipItem = function(slot, itemsData) {
     };
 };
 
+
 /**
  * 🛠️ دالة حساب قوة الهجوم الإجمالية
  */
-playerSchema.methods.getAttackDamage = function(itemsData) {
-  let baseDamage = 10;
+playerSchema.methods.getAttackDamage = function(itemsData) { //itemsData: ITEMS_DATA from items.js
+  let totalDamage = 10;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
-  baseDamage += ((this.level || 1) - 1) * 2;
+  totalDamage += ((this.level || 1) - 1) * 2;
   
+  // 1. إضافة إحصائيات المعدات المجهزة
   for (const slot in this.equipment) {
       const equippedItemId = this.equipment[slot];
-      if (equippedItemId && itemsData[equippedItemId]) {
+      if (equippedItemId) {
+          // 💡 البحث عن الإحصائيات في بيانات itemsData
           const itemStats = itemsData[equippedItemId]?.stats || {}; 
           if (itemStats.damage) {
-              baseDamage += itemStats.damage;
+              totalDamage += itemStats.damage;
           }
       }
   }
   
-  return Math.floor(baseDamage * multiplier);
+  return Math.floor(totalDamage * multiplier);
 };
 
 /**
  * 🛠️ دالة حساب قوة الدفاع الإجمالية
  */
-playerSchema.methods.getDefense = function(itemsData) {
-  let baseDefense = 5;
+playerSchema.methods.getDefense = function(itemsData) { //itemsData: ITEMS_DATA from items.js
+  let totalDefense = 5;
   let multiplier = (this.skills && this.skills.combat) || 1;
   
-  baseDefense += ((this.level || 1) - 1) * 1;
+  totalDefense += ((this.level || 1) - 1) * 1;
   
+  // 1. إضافة إحصائيات المعدات المجهزة
   for (const slot in this.equipment) {
       const equippedItemId = this.equipment[slot];
-      if (equippedItemId && itemsData[equippedItemId]) {
+      if (equippedItemId) {
           const itemStats = itemsData[equippedItemId]?.stats || {};
           if (itemStats.defense) {
-              baseDefense += itemStats.defense;
+              totalDefense += itemStats.defense;
           }
       }
   }
   
-  return Math.floor(baseDefense * multiplier);
+  return Math.floor(totalDefense * multiplier);
 };
 
 playerSchema.methods.getGatherEfficiency = function() {
@@ -475,6 +485,7 @@ playerSchema.methods.restoreMana = function(amount) {
 
 // ========== دوال ثابتة (Static Methods) ==========
 
+// 🆕 دالة للحصول على آخر ID رقمي مستخدم
 playerSchema.statics.getLastNumericId = async function() {
     const lastPlayer = await this.findOne({ playerId: { $ne: null } })
         .sort({ createdAt: -1 })
@@ -483,6 +494,7 @@ playerSchema.statics.getLastNumericId = async function() {
     const lastId = lastPlayer?.playerId ? parseInt(lastPlayer.playerId, 10) : 0;
     return isNaN(lastId) ? 1000 : (lastId >= 1000 ? lastId : 1000); 
 };
+
 
 playerSchema.statics.createNew = async function(userId, name) {
   try {
