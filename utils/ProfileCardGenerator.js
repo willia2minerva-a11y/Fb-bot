@@ -98,7 +98,7 @@ export class ProfileCardGenerator {
             
             // الاسم (ذهبي)
             layers.push({ 
-                input: this._generateSvgTextLayer(player.name || 'مقاتل مجهول', 230, 500, 30, '#FFD700'), 
+                input: this._generateSvgTextLayer(player.name || 'مقاتل مجهول', 30, 470, 180, '#FFD700'), 
                 left: 0, top: 0 
             });
             
