@@ -1,6 +1,5 @@
 // Player.js
 import mongoose from 'mongoose';
-// 💡 ملاحظة: يجب تعديل هذا المسار ليناسب بنية مشروعك الفعلية، نفترض أنه داخل مجلد 'models'
 import { items } from '../data/items.js'; 
 
 // 🆕 تصدير بيانات العناصر لاستخدامها في دوال playerSchema.pre('save')
@@ -32,9 +31,20 @@ const playerSchema = new mongoose.Schema({
     maxStamina: { type: Number, default: 100, min: 1 },
     lastStaminaAction: { type: Date, default: Date.now },
     currentLocation: { type: String, default: 'forest' },
+    lastGateEntered: { type: String, default: null },
+    lastGateEnteredAt: { type: Date, default: null },
     inventory: [inventoryItemSchema],
-    skills: { gathering: { type: Number, default: 1, min: 1 }, combat: { type: Number, default: 1, min: 1 }, crafting: { type: Number, default: 1, min: 1 } },
-    equipment: { weapon: { type: String, default: null }, armor: { type: String, default: null }, accessory: { type: String, default: null }, tool: { type: String, default: null } },
+    skills: { 
+        gathering: { type: Number, default: 1, min: 1 }, 
+        combat: { type: Number, default: 1, min: 1 }, 
+        crafting: { type: Number, default: 1, min: 1 } 
+    },
+    equipment: { 
+        weapon: { type: String, default: null }, 
+        armor: { type: String, default: null }, 
+        accessory: { type: String, default: null }, 
+        tool: { type: String, default: null } 
+    },
     stats: {
         battlesWon: { type: Number, default: 0, min: 0 },
         battlesLost: { type: Number, default: 0, min: 0 },
@@ -44,7 +54,11 @@ const playerSchema = new mongoose.Schema({
         itemsCrafted: { type: Number, default: 0, min: 0 }
     },
     lastAction: { type: Date, default: Date.now },
-    cooldowns: { gather: { type: Date, default: null }, battle: { type: Date, default: null }, craft: { type: Date, default: null } },
+    cooldowns: { 
+        gather: { type: Date, default: null }, 
+        battle: { type: Date, default: null }, 
+        craft: { type: Date, default: null } 
+    },
     banned: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
@@ -267,6 +281,8 @@ playerSchema.methods.getEquippedItemStats = function(itemsData) {
         maxHealth: 0,
         maxMana: 0,
         maxStamina: 0,
+        critChance: 0,
+        healthRegen: 0,
     };
 
     if (!itemsData) return totalStats;
@@ -281,6 +297,8 @@ playerSchema.methods.getEquippedItemStats = function(itemsData) {
             totalStats.maxHealth += itemStats.maxHealth || 0;
             totalStats.maxMana += itemStats.maxMana || 0;
             totalStats.maxStamina += itemStats.maxStamina || 0;
+            totalStats.critChance += itemStats.critChance || 0;
+            totalStats.healthRegen += itemStats.healthRegen || 0;
         }
     }
     return totalStats;
@@ -306,6 +324,32 @@ playerSchema.methods.recalculateMaxStats = function(equippedStats) {
     this.health = Math.min(this.health, newMaxHealth);
     this.mana = Math.min(this.mana, newMaxMana);
     this.stamina = Math.min(this.stamina, newMaxStamina);
+};
+
+// 🆕 حساب الإحصائيات الإجمالية
+playerSchema.methods.getTotalStats = function(itemsData) {
+    const baseStats = {
+        damage: 10 + ((this.level || 1) - 1) * 2,
+        defense: 5 + ((this.level || 1) - 1) * 1,
+        maxHealth: 100 + ((this.level || 1) - 1) * 20,
+        maxMana: 50 + ((this.level || 1) - 1) * 10,
+        maxStamina: 100,
+        critChance: 5, // أساسي
+        healthRegen: 1, // أساسي
+    };
+
+    const equippedStats = this.getEquippedItemStats(itemsData);
+    
+    // دمج الإحصائيات
+    return {
+        damage: baseStats.damage + (equippedStats.damage || 0),
+        defense: baseStats.defense + (equippedStats.defense || 0),
+        maxHealth: baseStats.maxHealth + (equippedStats.maxHealth || 0),
+        maxMana: baseStats.maxMana + (equippedStats.maxMana || 0),
+        maxStamina: baseStats.maxStamina + (equippedStats.maxStamina || 0),
+        critChance: baseStats.critChance + (equippedStats.critChance || 0),
+        healthRegen: baseStats.healthRegen + (equippedStats.healthRegen || 0),
+    };
 };
 
 /**
@@ -379,13 +423,10 @@ playerSchema.methods.getAttackDamage = function(itemsData) {
     // 💡 الإصلاح: التحقق من itemsData وإرجاع القيمة الأساسية لتفادي الانهيار
     if (!itemsData) { return 10 + ((this.level || 1) - 1) * 2; } 
     
-    const baseDamage = 10 + ((this.level || 1) - 1) * 2;
+    const totalStats = this.getTotalStats(itemsData);
     const multiplier = (this.skills && this.skills.combat) || 1;
     
-    // استخدام الدالة المساعدة
-    const equippedDamage = this.getEquippedItemStats(itemsData).damage;
-
-    return Math.floor((baseDamage + equippedDamage) * multiplier);
+    return Math.floor(totalStats.damage * multiplier);
 };
 
 /**
@@ -395,13 +436,10 @@ playerSchema.methods.getDefense = function(itemsData) {
     // 💡 الإصلاح: التحقق من itemsData وإرجاع القيمة الأساسية لتفادي الانهيار
     if (!itemsData) { return 5 + ((this.level || 1) - 1) * 1; }
     
-    const baseDefense = 5 + ((this.level || 1) - 1) * 1;
+    const totalStats = this.getTotalStats(itemsData);
     const multiplier = (this.skills && this.skills.combat) || 1;
     
-    // استخدام الدالة المساعدة
-    const equippedDefense = this.getEquippedItemStats(itemsData).defense;
-
-    return Math.floor((baseDefense + equippedDefense) * multiplier);
+    return Math.floor(totalStats.defense * multiplier);
 };
 
 playerSchema.methods.getGatherEfficiency = function() {
