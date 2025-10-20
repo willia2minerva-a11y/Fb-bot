@@ -98,35 +98,35 @@ export class ProfileCardGenerator {
             
             // الاسم (ذهبي)
             layers.push({ 
-                input: this._generateSvgTextLayer(player.name || 'مقاتل مجهول', 30, 470, 180, '#FFD700'), 
+                input: this._generateSvgTextLayer(player.name || 'مقاتل مجهول', 40, 450, 180, '#FFD700'), 
                 left: 0, top: 0 
             });
             
             // المستوى (أبيض)
             layers.push({ 
-                input: this._generateSvgTextLayer(level.toString(), 35, 500, 230, '#FFFFFF'), 
+                input: this._generateSvgTextLayer(level.toString(), 30, 500, 240, '#FFFFFF'), 
                 left: 0, top: 0 
             });
 
             // 3.2 إحصائيات القوة والخصائص (مواقع محسنة)
             
             // HP: (الصحة) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${health}/${maxHealth}`, 20, 490, 310), left: 0, top: 0 }); 
+            layers.push({ input: this._generateSvgTextLayer(`${health}`, 25, 490, 305), left: 0, top: 0 }); 
 
             // DEF: (الدفاع) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${defense}`, 20, 500, 350), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(`${defense}`, 25, 500, 340), left: 0, top: 0 });
             
             // MP: (المانا) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${mana}/${maxMana}`, 20, 490, 407), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(`${mana}`, 25, 490, 405), left: 0, top: 0 });
 
             // ATK: (الهجوم) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${attack}`, 20, 670, 310), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(`${attack}`, 25, 670, 305), left: 0, top: 0 });
 
             // STA: (النشاط) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${Math.floor(stamina)}/${maxStamina}`, 20, 670, 350), left: 0, top: 0 }); 
+            layers.push({ input: this._generateSvgTextLayer(`${Math.floor(stamina)}`, 25, 670, 340), left: 0, top: 0 }); 
 
             // TIER: (الرتبة) - ذهبي
-            layers.push({ input: this._generateSvgTextLayer(rank, 20, 690, 405, '#FFD700'), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(rank, 30, 690, 405, '#FFD700'), left: 0, top: 0 });
 
             // 4. دمج الطبقات وإخراج الصورة
             const outputBuffer = await imageProcessor
