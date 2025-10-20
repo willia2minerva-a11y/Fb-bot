@@ -170,20 +170,64 @@ export const resources = {
     ]
   }
 };
-};    gatherTime: 14000, 
-    experience: 18,
-    items: [
-      { itemId: 'platinum_ore', min: 1, max: 1, chance: 1 }
-    ]
-  },
-  hellstone: {
-    id: 'hellstone',
-    name: 'حجر الجحيم',
-    locations: ['hell'],
-    gatherTime: 20000, 
-    experience: 30,
-    items: [
-      { itemId: 'hellstone', min: 1, max: 1, chance: 1 }
-    ]
-  },
+   platinum_ore: {
+  id: 'platinum_ore',
+  name: 'خام البلاتين',
+  locations: ['desert', 'sky'],
+  gatherTime: 14000, 
+  experience: 18,
+  items: [
+    { itemId: 'platinum_ore', min: 1, max: 1, chance: 1 }
+  ]
+},
+hellstone: {
+  id: 'hellstone',
+  name: 'حجر الجحيم',
+  locations: ['hell'],
+  gatherTime: 20000, 
+  experience: 30,
+  items: [
+    { itemId: 'hellstone', min: 1, max: 1, chance: 1 }
+  ]
+},
+mana_crystal: {
+  id: 'mana_crystal',
+  name: 'بلورة المانا',
+  locations: ['magic_forest', 'dungeon'],
+  gatherTime: 16000,
+  experience: 25,
+  items: [
+    { itemId: 'mana_crystal', min: 1, max: 1, chance: 0.9 }
+  ]
+},
+shadow_essence: {
+  id: 'shadow_essence',
+  name: 'جوهر الظل',
+  locations: ['shadow_realm', 'hell'],
+  gatherTime: 22000,
+  experience: 40,
+  items: [
+    { itemId: 'shadow_essence', min: 1, max: 1, chance: 0.8 }
+  ]
+},
+light_stone: {
+  id: 'light_stone',
+  name: 'حجر النور',
+  locations: ['sky', 'holy_temple'],
+  gatherTime: 18000,
+  experience: 28,
+  items: [
+    { itemId: 'light_stone', min: 1, max: 1, chance: 0.85 }
+  ]
+},
+cursed_fragment: {
+  id: 'cursed_fragment',
+  name: 'شظية ملعونة',
+  locations: ['underground_jungle', 'hell', 'dungeon'],
+  gatherTime: 25000,
+  experience: 45,
+  items: [
+    { itemId: 'cursed_fragment', min: 1, max: 1, chance: 0.7 }
+  ]
+}
 };
