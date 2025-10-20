@@ -99,36 +99,36 @@ export class ProfileCardGenerator {
             // الاسم (ذهبي)
             const playerName = (player.name || 'مقاتل مجهول').toUpperCase(); // سيحول 'erwin' إلى 'ERWIN'
            layers.push({ 
-               input: this._generateSvgTextLayer(playerName, 40, 460, 180, '#FFD700'), 
+               input: this._generateSvgTextLayer(playerName, 45, 455, 183, '#FFD700'), 
                left: 0, top: 0 
             });
 
 
             // المستوى (أبيض)
             layers.push({ 
-                input: this._generateSvgTextLayer(level.toString(), 30, 500, 242, '#FFFFFF'), 
+                input: this._generateSvgTextLayer(level.toString(), 30, 500, 245, '#FFFFFF'), 
                 left: 0, top: 0 
             });
 
             // 3.2 إحصائيات القوة والخصائص (مواقع محسنة)
             
             // HP: (الصحة) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${health}`, 25, 493, 310), left: 0, top: 0 }); 
+            layers.push({ input: this._generateSvgTextLayer(`${health}`, 25, 493, 314), left: 0, top: 0 }); 
 
             // DEF: (الدفاع) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${defense}`, 25, 504, 358), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(`${defense}`, 25, 504, 360), left: 0, top: 0 });
             
             // MP: (المانا) - أبيض
             layers.push({ input: this._generateSvgTextLayer(`${mana}`, 25, 493, 407), left: 0, top: 0 });
 
             // ATK: (الهجوم) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${attack}`, 25, 674, 310), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(`${attack}`, 25, 674, 314), left: 0, top: 0 });
 
             // STA: (النشاط) - أبيض
-            layers.push({ input: this._generateSvgTextLayer(`${Math.floor(stamina)}`, 25, 671, 358), left: 0, top: 0 }); 
+            layers.push({ input: this._generateSvgTextLayer(`${Math.floor(stamina)}`, 25, 671, 360), left: 0, top: 0 }); 
 
             // TIER: (الرتبة) - ذهبي
-            layers.push({ input: this._generateSvgTextLayer(rank, 30, 680, 407, '#FFD700'), left: 0, top: 0 });
+            layers.push({ input: this._generateSvgTextLayer(rank, 25, 680, 407, '#FFD700'), left: 0, top: 0 });
 
             // 4. دمج الطبقات وإخراج الصورة
             const outputBuffer = await imageProcessor
