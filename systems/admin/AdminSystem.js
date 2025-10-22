@@ -493,29 +493,53 @@ export class AdminSystem {
     // 🆕 3. الردود التلقائية (المحسنة)
     // ===================================
 
-    async handleAddAutoResponse(args, senderId) {
-        if (!this.isAdmin(senderId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
+    async handleShowAutoResponses(args, senderId) {
+    if (!this.isAdmin(senderId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
+    }
 
-        const input = args.join(' ');
-        const parts = input.split('||');
+    const allResponses = this.autoResponseSystem.getAllResponses();
+    const totalResponses = Object.keys(allResponses).length;
+    
+    if (totalResponses === 0) {
+        return '📝 لا توجد ردود تلقائية مضافة حالياً.';
+    }
 
-        if (parts.length < 2) {
-            return '❌ الاستخدام: اضف_رد [الكلمة المفتاحية] || [الرد]\nمثال: اضف_رد مرحبا || أهلاً وسهلاً بك! 🌟';
-        }
+    // تحديد الصفحة المطلوبة
+    const page = parseInt(args[0]) || 1;
+    const perPage = 10; // 10 ردود في الصفحة الواحدة
+    const totalPages = Math.ceil(totalResponses / perPage);
 
-        const keyword = parts[0].trim().toLowerCase();
-        const response = parts.slice(1).join('||').trim();
+    if (page < 1 || page > totalPages) {
+        return `❌ الصفحة ${page} غير موجودة. إجمالي الصفحات: ${totalPages}`;
+    }
 
-        if (!keyword || !response) {
-            return '❌ يجب تحديد الكلمة المفتاحية والرد.';
-        }
+    let message = `🤖 **الردود التلقائية (${totalResponses}) - الصفحة ${page} من ${totalPages}:**\n\n`;
 
-        // استخدام نظام الردود التلقائي المستورد
-        this.autoResponseSystem.addResponse(keyword, response);
+    const startIndex = (page - 1) * perPage;
+    const endIndex = startIndex + perPage;
 
-        return `✅ تم إضافة رد تلقائي بنجاح!\n\n🔑 **الكلمة المفتاحية:** ${keyword}\n💬 **الرد:** ${response}\n\n💡 الآن عندما يكتب أي لاعب "${keyword}" سيرد البوت تلقائياً.`;
+    const responsesArray = Object.entries(allResponses);
+    let index = startIndex + 1;
+    
+    for (let i = startIndex; i < endIndex && i < responsesArray.length; i++) {
+        const [keyword, response] = responsesArray[i];
+        // تقصير الرد إذا كان طويلاً جداً
+        const shortResponse = response.length > 50 ? response.substring(0, 50) + '...' : response;
+        message += `${index}. 🔑 **${keyword}**\n   💬 ${shortResponse}\n\n`;
+        index++;
+    }
+
+    message += `📄 **التنقل بين الصفحات:**\n`;
+    message += `• استخدم \`عرض_الردود 1\` للصفحة الأولى\n`;
+    message += `• استخدم \`عرض_الردود 2\` للصفحة الثانية\n`;
+    message += `• وهكذا...\n\n`;
+    
+    message += `💡 **الأوامر:**\n`;
+    message += `• \`اضف_رد [كلمة] || [رد]\` - إضافة رد\n`;
+    message += `• \`ازل_رد [كلمة]\` - حذف رد`;
+
+    return message;
     }
 
     async handleRemoveAutoResponse(args, senderId) {
