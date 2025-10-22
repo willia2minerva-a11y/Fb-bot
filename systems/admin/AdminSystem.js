@@ -394,16 +394,24 @@ export class AdminSystem {
                 return '📭 لا توجد طلبات سحب معلقة.';
             }
 
-            let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
-            
-            pendingPlayers.forEach((p, index) => {
-                message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
-                message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
-                message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
-                message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
-            });
-    }
+                    let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
+        
+        pendingPlayers.forEach((p, index) => {
+            message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
+            message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
+            message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
+            message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
+        });
 
+        return message; // ✅ إضافة return
+
+    } catch (error) { // ✅ إضافة catch
+        console.error('Error fetching pending withdrawals:', error);
+        return '❌ حدث خطأ أثناء جلب طلبات السحب.';
+    }
+} // ✅ إغلاق الدالة بشكل صحيح
+
+async handleProcessWithdrawal(args, senderId) {
     async handleProcessWithdrawal(args, senderId) {
     if (!this.isAdmin(senderId)) {
         return '❌ هذا الأمر خاص بالمدراء فقط.';
