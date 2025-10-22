@@ -388,77 +388,79 @@ export class AdminSystem {
                 message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
             });
 
-            return message;
-
-        } catch (error) {
-            console.error('Error fetching pending withdrawals:', error);
-            return '❌ حدث خطأ أثناء جلب طلبات السحب.';
-        }
+    async handleProcessWithdrawal(args, senderId) {
+    if (!this.isAdmin(senderId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
     }
 
-    async handleProcessWithdrawal(args, senderId) {
-        if (!this.isAdmin(senderId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
+    if (args.length < 2) {
+        return '❌ الاستخدام: معالجة_سحب [player_id] [قبول/رفض]\nمثال: معالجة_سحب 123456 قبول';
+    }
+
+    const targetPlayerId = args[0];
+    const action = args[1].toLowerCase();
+
+    try {
+        // البحث بجميع الطرق الممكنة
+        let targetPlayer = await Player.findOne({ userId: targetPlayerId });
+        if (!targetPlayer) {
+            targetPlayer = await Player.findOne({ playerId: targetPlayerId });
         }
-
-        if (args.length < 2) {
-            return '❌ usage: معالجة_سحب [player_id] [قبول/رفض]';
+        if (!targetPlayer) {
+            targetPlayer = await Player.findOne({ name: new RegExp(targetPlayerId, 'i') });
         }
-
-        const targetPlayerId = args[0];
-        const action = args[1].toLowerCase();
-
-        try {
-            const targetPlayer = await Player.findOne({ userId: targetPlayerId });
             
-            if (!targetPlayer) {
-                return '❌ اللاعب غير موجود.';
-            }
-
-            if (!targetPlayer.pendingWithdrawal || targetPlayer.pendingWithdrawal.status !== 'pending') {
-                return '❌ لا يوجد طلب سحب معلق لهذا اللاعب.';
-            }
-
-            const withdrawalAmount = targetPlayer.pendingWithdrawal.amount;
-
-            if (action === 'قبول' || action === 'موافقة') {
-                targetPlayer.pendingWithdrawal.status = 'completed';
-                
-                const transaction = targetPlayer.transactions.find(t => 
-                    t.type === 'withdrawal' && t.status === 'pending'
-                );
-                if (transaction) {
-                    transaction.status = 'completed';
-                    transaction.description = `سحب مكتمل - ${withdrawalAmount} غولد`;
-                }
-
-                await targetPlayer.save();
-
-                return `✅ تمت معالجة طلب السحب بنجاح!\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n⏰ وقت الطلب: ${targetPlayer.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n\n💡 **ملاحظة:** يرجى إرسال المبلغ للاعب خارجياً.`;
-
-            } else if (action === 'رفض' || action === 'رفض') {
-                targetPlayer.gold += withdrawalAmount;
-                targetPlayer.pendingWithdrawal.status = 'rejected';
-                
-                const transaction = targetPlayer.transactions.find(t => 
-                    t.type === 'withdrawal' && t.status === 'pending'
-                );
-                if (transaction) {
-                    transaction.status = 'rejected';
-                }
-
-                await targetPlayer.save();
-
-                return `❌ تم رفض طلب السحب.\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n💎 تم إعادة المبلغ للرصيد.`;
-
-            } else {
-                return '❌ إجراء غير معروف. استخدم: قبول أو رفض';
-            }
-
-        } catch (error) {
-            console.error('Error processing withdrawal:', error);
-            return '❌ حدث خطأ أثناء معالجة طلب السحب.';
+        if (!targetPlayer) {
+            return `❌ لم يتم العثور على اللاعب "${targetPlayerId}"\n💡 جرب:\n• معرف المستخدم\n• المعرف التسلسلي\n• اسم اللاعب`;
         }
+
+        if (!targetPlayer.pendingWithdrawal || targetPlayer.pendingWithdrawal.status !== 'pending') {
+            return '❌ لا يوجد طلب سحب معلق لهذا اللاعب.';
+        }
+
+        const withdrawalAmount = targetPlayer.pendingWithdrawal.amount;
+
+        if (action === 'قبول' || action === 'موافقة') {
+            targetPlayer.pendingWithdrawal.status = 'completed';
+            
+            // تحديث المعاملة
+            const transaction = targetPlayer.transactions.find(t => 
+                t.type === 'withdrawal' && t.status === 'pending'
+            );
+            if (transaction) {
+                transaction.status = 'completed';
+                transaction.description = `سحب مكتمل - ${withdrawalAmount} غولد`;
+            }
+
+            await targetPlayer.save();
+
+            return `✅ تمت معالجة طلب السحب بنجاح!\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n🆔 المعرف: ${targetPlayer.userId}`;
+
+        } else if (action === 'رفض' || action === 'رفض') {
+            targetPlayer.gold += withdrawalAmount;
+            targetPlayer.pendingWithdrawal.status = 'rejected';
+            
+            // تحديث المعاملة
+            const transaction = targetPlayer.transactions.find(t => 
+                t.type === 'withdrawal' && t.status === 'pending'
+            );
+            if (transaction) {
+                transaction.status = 'rejected';
+                transaction.description = `سحب مرفوض - ${withdrawalAmount} غولد`;
+            }
+
+            await targetPlayer.save();
+
+            return `❌ تم رفض طلب السحب.\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n💎 تم إعادة المبلغ للرصيد.`;
+
+        } else {
+            return '❌ إجراء غير معروف. استخدم: قبول أو رفض';
+        }
+
+    } catch (error) {
+        console.error('Error processing withdrawal:', error);
+        return '❌ حدث خطأ أثناء معالجة طلب السحب.';
+    }
     }
 
     async handleAddGold(args, senderId) {
@@ -504,10 +506,56 @@ export class AdminSystem {
     }
 
     // ===================================
-    // 🆕 3. الردود التلقائية (المحسنة)
-    // ===================================
+// 🆕 3. الردود التلقائية (المحسنة)
+// ===================================
 
-    async handleShowAutoResponses(args, senderId) {
+async handleAddAutoResponse(args, senderId) {
+    if (!this.isAdmin(senderId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
+    }
+
+    const input = args.join(' ');
+    const parts = input.split('||');
+
+    if (parts.length < 2) {
+        return '❌ الاستخدام: اضف_رد [الكلمة المفتاحية] || [الرد]\nمثال: اضف_رد مرحبا || أهلاً وسهلاً بك!';
+    }
+
+    const keyword = parts[0].trim().toLowerCase();
+    const response = parts.slice(1).join('||').trim();
+
+    if (!keyword || !response) {
+        return '❌ يجب تحديد الكلمة المفتاحية والرد.';
+    }
+
+    // استخدام نظام الردود التلقائي المستورد
+    this.autoResponseSystem.addResponse(keyword, response);
+
+    return `✅ تم إضافة رد تلقائي بنجاح!\n\n🔑 الكلمة المفتاحية: ${keyword}\n💬 الرد: ${response}\n\n💡 الآن عندما يكتب أي لاعب "${keyword}" سيرد البوت تلقائياً.`;
+}
+
+async handleRemoveAutoResponse(args, senderId) {
+    if (!this.isAdmin(senderId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
+    }
+
+    const keyword = args.join(' ').toLowerCase().trim();
+
+    if (!keyword) {
+        return '❌ الاستخدام: ازل_رد [الكلمة المفتاحية]';
+    }
+
+    // استخدام نظام الردود التلقائي المستورد
+    const removed = this.autoResponseSystem.removeResponse(keyword);
+    
+    if (!removed) {
+        return `❌ لا يوجد رد تلقائي للكلمة المفتاحية "${keyword}".`;
+    }
+
+    return `✅ تم حذف الرد التلقائي للكلمة "${keyword}" بنجاح.`;
+}
+
+async handleShowAutoResponses(args, senderId) {
     if (!this.isAdmin(senderId)) {
         return '❌ هذا الأمر خاص بالمدراء فقط.';
     }
@@ -521,90 +569,33 @@ export class AdminSystem {
 
     // تحديد الصفحة المطلوبة
     const page = parseInt(args[0]) || 1;
-    const perPage = 10; // 10 ردود في الصفحة الواحدة
+    const perPage = 8;
     const totalPages = Math.ceil(totalResponses / perPage);
 
     if (page < 1 || page > totalPages) {
         return `❌ الصفحة ${page} غير موجودة. إجمالي الصفحات: ${totalPages}`;
     }
 
-    let message = `🤖 **الردود التلقائية (${totalResponses}) - الصفحة ${page} من ${totalPages}:**\n\n`;
+    let message = `🤖 الردود التلقائية (${totalResponses}) - الصفحة ${page} من ${totalPages}:\n\n`;
 
     const startIndex = (page - 1) * perPage;
     const endIndex = startIndex + perPage;
 
     const responsesArray = Object.entries(allResponses);
-    let index = startIndex + 1;
     
     for (let i = startIndex; i < endIndex && i < responsesArray.length; i++) {
         const [keyword, response] = responsesArray[i];
-        // تقصير الرد إذا كان طويلاً جداً
-        const shortResponse = response.length > 50 ? response.substring(0, 50) + '...' : response;
-        message += `${index}. 🔑 **${keyword}**\n   💬 ${shortResponse}\n\n`;
-        index++;
+        const shortResponse = response.length > 60 ? response.substring(0, 60) + '...' : response;
+        message += `${i + 1}. ${keyword}\n   ${shortResponse}\n\n`;
     }
 
-    message += `📄 **التنقل بين الصفحات:**\n`;
-    message += `• استخدم \`عرض_الردود 1\` للصفحة الأولى\n`;
-    message += `• استخدم \`عرض_الردود 2\` للصفحة الثانية\n`;
-    message += `• وهكذا...\n\n`;
-    
-    message += `💡 **الأوامر:**\n`;
-    message += `• \`اضف_رد [كلمة] || [رد]\` - إضافة رد\n`;
-    message += `• \`ازل_رد [كلمة]\` - حذف رد`;
+    message += `📄 للتنقل: عرض_الردود [رقم الصفحة]\n`;
+    message += `💡 الأوامر: اضف_رد | ازل_رد`;
 
     return message;
-    }
+}
 
-    async handleRemoveAutoResponse(args, senderId) {
-        if (!this.isAdmin(senderId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        const keyword = args.join(' ').toLowerCase().trim();
-
-        if (!keyword) {
-            return '❌ الاستخدام: ازل_رد [الكلمة المفتاحية]';
-        }
-
-        // استخدام نظام الردود التلقائي المستورد
-        const removed = this.autoResponseSystem.removeResponse(keyword);
-        
-        if (!removed) {
-            return `❌ لا يوجد رد تلقائي للكلمة المفتاحية "${keyword}".`;
-        }
-
-        return `✅ تم حذف الرد التلقائي للكلمة "${keyword}" بنجاح.`;
-    }
-
-    async handleShowAutoResponses(args, senderId) {
-        if (!this.isAdmin(senderId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        const allResponses = this.autoResponseSystem.getAllResponses();
-        
-        if (Object.keys(allResponses).length === 0) {
-            return '📝 لا توجد ردود تلقائية مضافة حالياً.';
-        }
-
-        let message = `🤖 **الردود التلقائية (${Object.keys(allResponses).length}):**\n\n`;
-
-        let index = 1;
-        for (const [keyword, response] of Object.entries(allResponses)) {
-            // تقصير الرد إذا كان طويلاً جداً
-            const shortResponse = response.length > 100 ? response.substring(0, 100) + '...' : response;
-            message += `${index}. 🔑 **${keyword}**\n   💬 ${shortResponse}\n\n`;
-            index++;
-        }
-
-        message += `💡 **لإضافة رد:** اضف_رد [كلمة] || [رد]\n💡 **لحذف رد:** ازل_رد [كلمة]`;
-
-        return message;
-    }
-
-    // 🆕 دالة مساعدة للبحث عن رد تلقائي (محدثة لاستخدام النظام المستورد)
-    findAutoResponse(message) {
-        return this.autoResponseSystem.findAutoResponse(message);
-    }
-                }
+// 🆕 دالة مساعدة للبحث عن رد تلقائي
+findAutoResponse(message) {
+    return this.autoResponseSystem.findAutoResponse(message);
+                                           }
