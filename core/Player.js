@@ -25,22 +25,22 @@ const playerSchema = new mongoose.Schema({
     level: { type: Number, default: 1, min: 1 },
     experience: { type: Number, default: 0, min: 0 },
     // في Player.js - أضف هذه الحقول إلى playerSchema
-    gold: { type: Number, default: 50, min: 0 }, // الغولد داخل اللعبة
-    withdrawalThreshold: { type: Number, default: 100 }, // الحد الأدنى للسحب
-    transactions: [{
-      id: { type: String, required: true },
-      type: { type: String, enum: ['withdrawal', 'deposit', 'transfer_sent', 'transfer_received'], required: true },
-      amount: { type: Number, required: true },
-      status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
-      targetPlayer: { type: String, default: null }, // للتحويلات
-      description: { type: String, default: '' },
-      createdAt: { type: Date, default: Date.now }
-    }],
-    pendingWithdrawal: {
-     amount: { type: Number, default: 0 },
-     requestedAt: { type: Date, default: null },
-     status: { type: String, enum: ['pending', 'processing', 'completed', 'rejected'], default: 'pending' }
-    },
+    // في playerSchema في Player.js - أضف هذه الحقول:
+gold: { type: Number, default: 50, min: 0 },
+transactions: [{
+    id: { type: String, required: true },
+    type: { type: String, enum: ['withdrawal', 'deposit', 'transfer_sent', 'transfer_received'], required: true },
+    amount: { type: Number, required: true },
+    status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
+    targetPlayer: { type: String, default: null },
+    description: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
+}],
+pendingWithdrawal: {
+    amount: { type: Number, default: 0 },
+    requestedAt: { type: Date, default: null },
+    status: { type: String, enum: ['pending', 'processing', 'completed', 'rejected'], default: 'pending' }
+             },
     health: { type: Number, default: 100, min: 0 },
     maxHealth: { type: Number, default: 100, min: 1 },
     mana: { type: Number, default: 50, min: 0 },
@@ -110,6 +110,50 @@ playerSchema.methods.getActualStamina = function() {
     }  
       
     return actualStamina;
+};
+// في playerSchema.methods في Player.js - أضف هذه الدوال:
+
+// دالة طلب سحب
+playerSchema.methods.requestWithdrawal = function(amount) {
+    if (this.gold < amount) {
+        return { error: '❌ لا تملك رصيد كافٍ للسحب.' };
+    }
+
+    this.gold -= amount;
+    this.pendingWithdrawal = {
+        amount: amount,
+        requestedAt: new Date(),
+        status: 'pending'
+    };
+
+    // إضافة المعاملة
+    this.transactions.push({
+        id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'withdrawal',
+        amount: amount,
+        status: 'pending',
+        description: `طلب سحب ${amount} غولد`
+    });
+
+    return { success: true, newBalance: this.gold };
+};
+
+// دالة إضافة معاملة إيداع
+playerSchema.methods.addDepositTransaction = function(amount, description = 'إيداع') {
+    this.transactions.push({
+        id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'deposit',
+        amount: amount,
+        status: 'completed',
+        description: description
+    });
+};
+
+// دالة الحصول على سجل المعاملات
+playerSchema.methods.getTransactionHistory = function(limit = 10) {
+    return this.transactions
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, limit);
 };
 
 // 🆕 استخدام النشاط
