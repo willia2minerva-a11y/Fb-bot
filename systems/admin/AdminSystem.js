@@ -113,11 +113,25 @@ export class AdminSystem {
     }
 
     async handleAdminCommand(command, args, senderId, player, itemMap) {
-        const findTargetPlayer = async (id) => {
-            return await Player.findOne({ $or: [{ userId: id }, { playerId: id }] });
-        };
+    const findTargetPlayer = async (id) => {
+        if (!id) return null;
         
-        switch (command) {
+        // البحث بـ userId (المعرف الأساسي)
+        let targetPlayer = await Player.findOne({ userId: id });
+        if (targetPlayer) return targetPlayer;
+        
+        // البحث بـ playerId (المعرف التسلسلي)
+        targetPlayer = await Player.findOne({ playerId: id });
+        if (targetPlayer) return targetPlayer;
+        
+        // البحث في الاسم (إذا كان المدير يريد البحث بالاسم)
+        targetPlayer = await Player.findOne({ name: new RegExp(id, 'i') });
+        
+        return targetPlayer;
+    };
+    
+    switch (command) {
+        
             case 'مدير': return this.getAdminHelp();
             case 'موافقة_لاعب': return await this.handleApprovePlayer(args, senderId);
             case 'اعادة_بيانات': return await this.handleResetPlayer(args, findTargetPlayer);
@@ -333,19 +347,19 @@ export class AdminSystem {
         const amount = parseInt(args[1], 10);
 
         if (!targetId || isNaN(amount) || amount <= 0) {
-            return '❌ الاستخدام: اعطاء_ذهب [UserID/PlayerID] [الكمية]';
+            return '❌ الاستخدام: اعطاء_ذهب [UserID/PlayerID/الاسم] [الكمية]';
         }
 
         const targetPlayer = await findTargetPlayer(targetId);
         if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
+            return `❌ لم يتم العثور على اللاعب "${targetId}".\n💡 جرب:\n• معرف المستخدم (UserID)\n• المعرف التسلسلي (PlayerID)\n• اسم اللاعب`;
         }
-        
-        targetPlayer.addGold(amount);
-        await targetPlayer.save();
+    
+       targetPlayer.addGold(amount);
+       await targetPlayer.save();
 
-        return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
-    }
+       return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح.\n🆔 المعرف: ${targetPlayer.userId}\n💎 الرصيد الجديد: ${targetPlayer.gold}`;
+   }
 
     // ===================================
     // 🆕 2. النظام الاقتصادي (الجديد)
