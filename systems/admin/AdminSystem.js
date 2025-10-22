@@ -1,17 +1,19 @@
 // systems/admin/AdminSystem.js
 import Player from '../../core/Player.js';
-// 💡 إصلاح جوهري: الاستيراد الحقيقي لملف البيانات
 import { items } from '../../data/items.js'; 
+import { AutoResponseSystem } from '../autoResponse/AutoResponseSystem.js';
 
+// تخزين الردود التلقائية
+const autoResponses = new Map();
 
 export class AdminSystem {
     constructor() {
         this.adminCommands = new Map();
+        this.autoResponseSystem = new AutoResponseSystem(); // 🆕 نظام الردود التلقائي
         console.log('👑 نظام المدير تم تهيئته');
     }
 
     isAdmin(userId) {
-        // تأكد من تعيين متغير البيئة ADMIN_PSID بشكل صحيح
         const ADMIN_PSID = process.env.ADMIN_PSID; 
         const isAdmin = userId === ADMIN_PSID;
         
@@ -22,6 +24,11 @@ export class AdminSystem {
         return isAdmin;
     }
 
+    // دالة لتوليد معرف فريد
+    generateUniqueId() {
+        return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
     async setupAdminPlayer(userId, userName) {
         try {
             let player = await Player.findOne({ userId });
@@ -30,12 +37,10 @@ export class AdminSystem {
                 player = await Player.createNew(userId, userName);
             }
             
-            // 🆕 تعيين الـ ID التسلسلي إذا لم يكن معيناً
             if (!player.playerId) {
                 const lastId = await Player.getLastNumericId();
                 player.playerId = (lastId + 1).toString();
             }
-
 
             player.registrationStatus = 'completed';
             player.gender = 'male';
@@ -66,9 +71,13 @@ export class AdminSystem {
             'اعطاء_مورد': 'اعطاء مورد',
             'زيادة_صحة': 'زيادة صحة',
             'زيادة_مانا': 'زيادة مانا',
-            'اضف_رد': 'إضافة رد',
-            'ازل_رد': 'إزالة رد',
-            'عرض_الردود': 'عرض الردود',
+            // 🆕 الأوامر الجديدة
+            'اضف_رد': 'إضافة رد تلقائي',
+            'ازل_رد': 'إزالة رد تلقائي',
+            'عرض_الردود': 'عرض جميع الردود',
+            'طلبات_سحب': 'عرض طلبات السحب',
+            'معالجة_سحب': 'معالجة طلب سحب',
+            'اضافة_غولد': 'إضافة غولد للاعب',
             'مدير': 'مدير'
         };
     }
@@ -83,6 +92,16 @@ export class AdminSystem {
 • حظر_لاعب [ID] [صحيح/خطأ]: لحظر/رفع الحظر.
 • تغيير_جنس [ID] [ذكر/أنثى]: يغير جنس اللاعب.
 • موافقة_لاعب [ID]: عرض القائمة أو الموافقة على ID محدد.
+
+💰 **النظام الاقتصادي (الجديد)**
+• طلبات_سحب: عرض طلبات السحب المعلقة
+• معالجة_سحب [ID] [قبول/رفض]: معالجة طلب سحب لاعب
+• اضافة_غولد [ID] [المبلغ]: إضافة غولد للاعب (للإيداع)
+
+🤖 **إدارة الردود التلقائية**
+• اضف_رد [الكلمة المفتاحية] || [الرد]: إضافة رد تلقائي
+• ازل_رد [الكلمة المفتاحية]: إزالة رد تلقائي
+• عرض_الردود: عرض جميع الردود التلقائية
 
 🎁 **أوامر المنح (المنح):**
 • اعطاء_ذهب [ID] [الكمية]: يمنح ذهباً.
@@ -109,12 +128,21 @@ export class AdminSystem {
             case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
             case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
             case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
+            
+            // 🆕 الأوامر الجديدة
+            case 'طلبات_سحب': return await this.handlePendingWithdrawals(args, senderId);
+            case 'معالجة_سحب': return await this.handleProcessWithdrawal(args, senderId);
+            case 'اضافة_غولد': return await this.handleAddGold(args, senderId);
+            case 'اضف_رد': return await this.handleAddAutoResponse(args, senderId);
+            case 'ازل_رد': return await this.handleRemoveAutoResponse(args, senderId);
+            case 'عرض_الردود': return await this.handleShowAutoResponses(args, senderId);
+            
             default: return '❌ أمر مدير غير معروف';
         }
     }
     
     // ===================================
-    // 1. أوامر الإدارة الأساسية
+    // 1. أوامر الإدارة الأساسية (موجودة سابقاً)
     // ===================================
     
     async handleResetPlayer(args, findTargetPlayer) {
@@ -129,16 +157,11 @@ export class AdminSystem {
         }
         
         const oldName = targetPlayer.name;
-
-        // حذف اللاعب بالكامل لتحرير الاسم
         await targetPlayer.deleteOne();
-        
-        // إعادة إنشاء كائن جديد بـ 'pending'
         await Player.createNew(targetPlayer.userId, targetPlayer.name);
 
         return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
     }
-
 
     async handleSetPlayerName(args, findTargetPlayer) {
         const targetId = args[0];
@@ -149,7 +172,6 @@ export class AdminSystem {
         }
         
         const targetPlayer = await findTargetPlayer(targetId);
-
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب بالمعرّف ${targetId}.`;
         }
@@ -160,7 +182,6 @@ export class AdminSystem {
         }
 
         const oldName = targetPlayer.name;
-        
         targetPlayer.name = newName;
         await targetPlayer.save();
         
@@ -198,7 +219,6 @@ export class AdminSystem {
         }
 
         const targetPlayer = await findTargetPlayer(targetId);
-
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
@@ -251,27 +271,20 @@ export class AdminSystem {
         }
     }
 
-
-    // 🛠️ دالة إعطاء مورد (handleGiveItem)
     async handleGiveItem(args, findTargetPlayer, itemMap) { 
-        // نحتاج على الأقل 3 وسائط: [ID], [اسم], [كمية] 
         if (args.length < 3) {
             return `❌ صيغة خاطئة. الاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]`;
         }
         
-        const targetId = args[0]; // الوسيط الأول هو ID اللاعب
-        const quantity = parseInt(args[args.length - 1], 10); // الوسيط الأخير هو الكمية
-        
-        // استخراج الاسم المركب: كل شيء بين ID اللاعب والكمية
+        const targetId = args[0];
+        const quantity = parseInt(args[args.length - 1], 10);
         const rawItemNameArray = args.slice(1, args.length - 1);
         const rawItemName = rawItemNameArray.join(' ').toLowerCase();
 
-        // 🛠️ التحقق من الصلاحية: الاعتماد على itemMap (المُنشأ من CommandHandler) و items (المُستورد الآن)
         const itemId = itemMap[rawItemName] || rawItemName;
-        const itemInfo = items[itemId]; // استخدام items المستوردة الآن
+        const itemInfo = items[itemId];
 
         if (!itemInfo || isNaN(quantity) || quantity <= 0) {
-            // رسالة خطأ جديدة مع القيمة التي لم يتم التعرف عليها
             return `❌ صيغة خاطئة أو العنصر غير موجود.\nالاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]\n(تحقق: هل العنصر **${rawItemName}** موجود؟ هل الكمية رقم؟)`;
         }
 
@@ -280,7 +293,6 @@ export class AdminSystem {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
         
-        // يجب أن يحتوي itemInfo على 'id' و 'name' و 'type'
         targetPlayer.addItem(itemInfo.id, itemInfo.name, itemInfo.type, quantity);
         await targetPlayer.save();
 
@@ -296,7 +308,6 @@ export class AdminSystem {
         }
         
         const targetPlayer = await findTargetPlayer(targetId);
-
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
@@ -335,4 +346,227 @@ export class AdminSystem {
 
         return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
     }
+
+    // ===================================
+    // 🆕 2. النظام الاقتصادي (الجديد)
+    // ===================================
+
+    async handlePendingWithdrawals(args, senderId) {
+        if (!this.isAdmin(senderId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        try {
+            const pendingPlayers = await Player.find({
+                'pendingWithdrawal.status': 'pending'
+            });
+
+            if (pendingPlayers.length === 0) {
+                return '📭 لا توجد طلبات سحب معلقة.';
             }
+
+            let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
+            
+            pendingPlayers.forEach((p, index) => {
+                message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
+                message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
+                message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
+                message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
+            });
+
+            return message;
+
+        } catch (error) {
+            console.error('Error fetching pending withdrawals:', error);
+            return '❌ حدث خطأ أثناء جلب طلبات السحب.';
+        }
+    }
+
+    async handleProcessWithdrawal(args, senderId) {
+        if (!this.isAdmin(senderId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        if (args.length < 2) {
+            return '❌ usage: معالجة_سحب [player_id] [قبول/رفض]';
+        }
+
+        const targetPlayerId = args[0];
+        const action = args[1].toLowerCase();
+
+        try {
+            const targetPlayer = await Player.findOne({ userId: targetPlayerId });
+            
+            if (!targetPlayer) {
+                return '❌ اللاعب غير موجود.';
+            }
+
+            if (!targetPlayer.pendingWithdrawal || targetPlayer.pendingWithdrawal.status !== 'pending') {
+                return '❌ لا يوجد طلب سحب معلق لهذا اللاعب.';
+            }
+
+            const withdrawalAmount = targetPlayer.pendingWithdrawal.amount;
+
+            if (action === 'قبول' || action === 'موافقة') {
+                targetPlayer.pendingWithdrawal.status = 'completed';
+                
+                const transaction = targetPlayer.transactions.find(t => 
+                    t.type === 'withdrawal' && t.status === 'pending'
+                );
+                if (transaction) {
+                    transaction.status = 'completed';
+                    transaction.description = `سحب مكتمل - ${withdrawalAmount} غولد`;
+                }
+
+                await targetPlayer.save();
+
+                return `✅ تمت معالجة طلب السحب بنجاح!\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n⏰ وقت الطلب: ${targetPlayer.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n\n💡 **ملاحظة:** يرجى إرسال المبلغ للاعب خارجياً.`;
+
+            } else if (action === 'رفض' || action === 'رفض') {
+                targetPlayer.gold += withdrawalAmount;
+                targetPlayer.pendingWithdrawal.status = 'rejected';
+                
+                const transaction = targetPlayer.transactions.find(t => 
+                    t.type === 'withdrawal' && t.status === 'pending'
+                );
+                if (transaction) {
+                    transaction.status = 'rejected';
+                }
+
+                await targetPlayer.save();
+
+                return `❌ تم رفض طلب السحب.\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n💎 تم إعادة المبلغ للرصيد.`;
+
+            } else {
+                return '❌ إجراء غير معروف. استخدم: قبول أو رفض';
+            }
+
+        } catch (error) {
+            console.error('Error processing withdrawal:', error);
+            return '❌ حدث خطأ أثناء معالجة طلب السحب.';
+        }
+    }
+
+    async handleAddGold(args, senderId) {
+        if (!this.isAdmin(senderId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        if (args.length < 2) {
+            return '❌ usage: اضافة_غولد [player_id] [amount]';
+        }
+
+        const targetPlayerId = args[0];
+        const amount = parseInt(args[1]);
+
+        if (!amount || amount <= 0) {
+            return '❌ يرجى تحديد مبلغ صحيح.';
+        }
+
+        try {
+            const targetPlayer = await Player.findOne({ userId: targetPlayerId });
+            if (!targetPlayer) {
+                return '❌ اللاعب غير موجود.';
+            }
+
+            targetPlayer.gold += amount;
+            
+            targetPlayer.transactions.push({
+                id: this.generateUniqueId(),
+                type: 'deposit',
+                amount: amount,
+                status: 'completed',
+                description: `إيداع من المدير`
+            });
+
+            await targetPlayer.save();
+
+            return `✅ تمت إضافة ${amount} غولد للاعب ${targetPlayer.name} بنجاح!\n💰 الرصيد الجديد: ${targetPlayer.gold} غولد`;
+
+        } catch (error) {
+            console.error('Error adding gold:', error);
+            return '❌ حدث خطأ أثناء إضافة الغولد.';
+        }
+    }
+
+    // ===================================
+    // 🆕 3. الردود التلقائية (المحسنة)
+    // ===================================
+
+    async handleAddAutoResponse(args, senderId) {
+        if (!this.isAdmin(senderId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        const input = args.join(' ');
+        const parts = input.split('||');
+
+        if (parts.length < 2) {
+            return '❌ الاستخدام: اضف_رد [الكلمة المفتاحية] || [الرد]\nمثال: اضف_رد مرحبا || أهلاً وسهلاً بك! 🌟';
+        }
+
+        const keyword = parts[0].trim().toLowerCase();
+        const response = parts.slice(1).join('||').trim();
+
+        if (!keyword || !response) {
+            return '❌ يجب تحديد الكلمة المفتاحية والرد.';
+        }
+
+        // استخدام نظام الردود التلقائي المستورد
+        this.autoResponseSystem.addResponse(keyword, response);
+
+        return `✅ تم إضافة رد تلقائي بنجاح!\n\n🔑 **الكلمة المفتاحية:** ${keyword}\n💬 **الرد:** ${response}\n\n💡 الآن عندما يكتب أي لاعب "${keyword}" سيرد البوت تلقائياً.`;
+    }
+
+    async handleRemoveAutoResponse(args, senderId) {
+        if (!this.isAdmin(senderId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        const keyword = args.join(' ').toLowerCase().trim();
+
+        if (!keyword) {
+            return '❌ الاستخدام: ازل_رد [الكلمة المفتاحية]';
+        }
+
+        // استخدام نظام الردود التلقائي المستورد
+        const removed = this.autoResponseSystem.removeResponse(keyword);
+        
+        if (!removed) {
+            return `❌ لا يوجد رد تلقائي للكلمة المفتاحية "${keyword}".`;
+        }
+
+        return `✅ تم حذف الرد التلقائي للكلمة "${keyword}" بنجاح.`;
+    }
+
+    async handleShowAutoResponses(args, senderId) {
+        if (!this.isAdmin(senderId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        const allResponses = this.autoResponseSystem.getAllResponses();
+        
+        if (Object.keys(allResponses).length === 0) {
+            return '📝 لا توجد ردود تلقائية مضافة حالياً.';
+        }
+
+        let message = `🤖 **الردود التلقائية (${Object.keys(allResponses).length}):**\n\n`;
+
+        let index = 1;
+        for (const [keyword, response] of Object.entries(allResponses)) {
+            // تقصير الرد إذا كان طويلاً جداً
+            const shortResponse = response.length > 100 ? response.substring(0, 100) + '...' : response;
+            message += `${index}. 🔑 **${keyword}**\n   💬 ${shortResponse}\n\n`;
+            index++;
+        }
+
+        message += `💡 **لإضافة رد:** اضف_رد [كلمة] || [رد]\n💡 **لحذف رد:** ازل_رد [كلمة]`;
+
+        return message;
+    }
+
+    // 🆕 دالة مساعدة للبحث عن رد تلقائي (محدثة لاستخدام النظام المستورد)
+    findAutoResponse(message) {
+        return this.autoResponseSystem.findAutoResponse(message);
+    }
+                }
