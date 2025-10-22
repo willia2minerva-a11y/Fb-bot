@@ -18,7 +18,8 @@ async function getSystem(systemName) {
             'registration': '../systems/registration/RegistrationSystem.js',  
             'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',   
             'travel': '../systems/world/TravelSystem.js',  
-            'crafting': '../systems/crafting/CraftingSystem.js'  
+            'crafting': '../systems/crafting/CraftingSystem.js',
+            'Transaction':'..systems/economy/TransactionSystem.js'
         };  
 
         if (systems[systemName]) {  
@@ -131,7 +132,15 @@ export default class CommandHandler {
                 'اضرب': this.handleAttack.bind(this),   
                   
                 'هروب': this.handleEscape.bind(this),  
-                'اهرب': this.handleEscape.bind(this)   
+                'اهرب': this.handleEscape.bind(this),
+
+                //  الإقـتـصـاد 
+                'سحب': this.handleWithdrawal.bind(this),
+                'ايداع': this.handleDeposit.bind(this),
+                'تحويل': this.handleTransfer.bind(this),
+                'معاملاتي': this.handleTransactions.bind(this),
+                'رصيدي': this.handleBalance.bind(this),
+
             };  
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'اوامر', 'رئيسية', '1', '2', '3', '4', '5', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];  
@@ -175,8 +184,9 @@ export default class CommandHandler {
 ║ 3️⃣ /القتال - أوامر المعارك والمغامرات
 ║ 4️⃣ /الصناعة - أوامر الصنع والتجهيز
 ║ 5️⃣ /المعلومات - أوامر الحالة والبروفايل
+║ 5️⃣ /الاقتصاد - أوامر السحب والتحويل والايداع الغولدنية
 ║
-║ 📝 اختر رقم القائمة (1, 2, 3, 4, 5)
+║ 📝 اختر رقم القائمة ( 1 , 2 , 3 , 4 , 5 , 6 )
 ║
 ╚══════════════════════════════════════════════════╝`,
 
@@ -236,7 +246,20 @@ export default class CommandHandler {
 ║
 ║ ◀️ /رئيسية - العودة للقائمة الرئيسية
 ║
+╚══════════════════════════════════════════════╝`,
+            
+            economy: `╔════════════ 💰 أوامر الاقتصاد ════════════╗
+║
+║ • رصيدي - عرض رصيد الغولد
+║ • سحب [مبلغ] - سحب غولد (الحد 100)
+║ • ايداع - إرشادات الإيداع
+║ • تحويل [@player] [مبلغ] - تحويل غولد
+║ • معاملاتي - سجل المعاملات
+║
+║ ◀️ /رئيسية - العودة للقائمة الرئيسية  
+║
 ╚══════════════════════════════════════════════╝`
+  
         };
         return menus[menuType] || menus.main;
     }
@@ -268,6 +291,10 @@ export default class CommandHandler {
 
     async handleHelp(player, args, senderId) {
         return this.handleMainMenu(player, args, senderId);
+    }
+
+    async handleMenu6(player, args, senderId) {
+        return this.getMenu('economy');
     }
 
 
@@ -308,7 +335,16 @@ export default class CommandHandler {
         } else if (fullCommand === 'زيادة مانا') {  
             command = 'زيادة_مانا';  
             args = args.slice(1);  
-        }  
+        }  else if (fullCommand === 'اعادة بيانات') {  
+            command = 'اعادة_بيانات';  
+            args = args.slice(1);
+        }  else if (fullCommand === 'حظر لاعب') {  
+            command = 'حظر_لاعب';  
+            args = args.slice(1);   
+        }  else if (fullCommand === 'تغيير جنس') {  
+            command = 'تغيير_جنس';  
+            args = args.slice(1);   
+        } 
         // يمكن إضافة المزيد من الأوامر المركبة هنا...  
           
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);  
@@ -888,6 +924,214 @@ export default class CommandHandler {
           
         return result.message;  
     }  
+    // 🏦 دوال النظام الاقتصادي في CommandHandler.js
+
+async handleWithdrawal(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    const amount = parseInt(args[0]);
+    if (!amount || amount <= 0) {
+        return `❌ يرجى تحديد مبلغ صحيح للسحب.\n💡 الحد الأدنى: 100 غولد\nمثال: سحب 100`;
+    }
+
+    const transactionSystem = await this.getSystem('transaction');
+    if (!transactionSystem) {
+        return '❌ نظام المعاملات غير متوفر حالياً.';
+    }
+
+    const result = await transactionSystem.requestWithdrawal(player, amount);
+    return result.error || result.message;
+}
+
+async handleDeposit(player) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    const transactionSystem = await this.getSystem('transaction');
+    if (!transactionSystem) {
+        return '❌ نظام المعاملات غير متوفر حالياً.';
+    }
+
+    const instructions = transactionSystem.getDepositInstructions(player);
+    return instructions.instructions + `\n\n${instructions.adminContact}`;
+}
+
+async handleTransfer(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    if (args.length < 2) {
+        return '❌ يرجى تحديد لاعب والمبلغ.\nمثال: تحويل @username 50';
+    }
+
+    const targetUserId = args[0].replace('@', ''); // إزالة @ إذا وجدت
+    const amount = parseInt(args[1]);
+
+    if (!amount || amount <= 0) {
+        return '❌ يرجى تحديد مبلغ صحيح للتحويل.';
+    }
+
+    const transactionSystem = await this.getSystem('transaction');
+    if (!transactionSystem) {
+        return '❌ نظام المعاملات غير متوفر حالياً.';
+    }
+
+    const result = await transactionSystem.transferGold(player, targetUserId, amount);
+    return result.error || result.message;
+}
+
+async handleTransactions(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    const limit = parseInt(args[0]) || 10;
+    const transactionSystem = await this.getSystem('transaction');
+    
+    if (!transactionSystem) {
+        return '❌ نظام المعاملات غير متوفر حالياً.';
+    }
+
+    return transactionSystem.getTransactionHistory(player, limit);
+}
+
+async handleBalance(player) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    return `💰 **رصيدك الحالي:** ${player.gold} غولد\n` +
+           `💳 **الحد الأدنى للسحب:** 100 غولد\n` +
+           `📊 **المعاملات:** ${player.transactions.length} معاملة`;
+}
+
+// 👑 دوال المدير
+async handleProcessWithdrawal(player, args) {
+    if (!this.adminSystem.isAdmin(player.userId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
+    }
+
+    if (args.length < 2) {
+        return '❌ usage: معالجة_سحب [player_id] [قبول/رفض]';
+    }
+
+    const targetPlayerId = args[0];
+    const action = args[1].toLowerCase();
+
+    const targetPlayer = await Player.findOne({ userId: targetPlayerId });
+    if (!targetPlayer) {
+        return '❌ اللاعب غير موجود.';
+    }
+
+    if (!targetPlayer.pendingWithdrawal || targetPlayer.pendingWithdrawal.status !== 'pending') {
+        return '❌ لا يوجد طلب سحب معلق لهذا اللاعب.';
+    }
+
+    const withdrawalAmount = targetPlayer.pendingWithdrawal.amount;
+
+    if (action === 'قبول' || action === 'موافقة') {
+        // إكمال السحب
+        targetPlayer.pendingWithdrawal.status = 'completed';
+        
+        // تحديث المعاملة
+        const transaction = targetPlayer.transactions.find(t => 
+            t.type === 'withdrawal' && t.status === 'pending'
+        );
+        if (transaction) {
+            transaction.status = 'completed';
+            transaction.description = `سحب مكتمل - ${withdrawalAmount} غولد`;
+        }
+
+        await targetPlayer.save();
+
+        // TODO: هنا تقوم بإرسال المال للاعب خارجياً
+
+        return `✅ تمت معالجة طلب السحب بنجاح!\n` +
+               `👤 اللاعب: ${targetPlayer.name}\n` +
+               `💰 المبلغ: ${withdrawalAmount} غولد\n` +
+               `⏰ وقت الطلب: ${targetPlayer.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}`;
+
+    } else if (action === 'رفض' || action === 'رفض') {
+        // رفض السحب وإعادة المال
+        targetPlayer.gold += withdrawalAmount;
+        targetPlayer.pendingWithdrawal.status = 'rejected';
+        
+        // تحديث المعاملة
+        const transaction = targetPlayer.transactions.find(t => 
+            t.type === 'withdrawal' && t.status === 'pending'
+        );
+        if (transaction) {
+            transaction.status = 'rejected';
+        }
+
+        await targetPlayer.save();
+
+        return `❌ تم رفض طلب السحب.\n` +
+               `👤 اللاعب: ${targetPlayer.name}\n` +
+               `💰 المبلغ: ${withdrawalAmount} غولد\n` +
+               `💎 تم إعادة المبلغ للرصيد.`;
+
+    } else {
+        return '❌ إجراء غير معروف. استخدم: قبول أو رفض';
+    }
+}
+
+async handlePendingWithdrawals(player) {
+    if (!this.adminSystem.isAdmin(player.userId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
+    }
+
+    const pendingPlayers = await Player.find({
+        'pendingWithdrawal.status': 'pending'
+    });
+
+    if (pendingPlayers.length === 0) {
+        return '📭 لا توجد طلبات سحب معلقة.';
+    }
+
+    let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
+    
+    pendingPlayers.forEach((p, index) => {
+        message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
+        message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
+        message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
+        message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
+    });
+
+    return message;
+}
+
+async handleAddGold(player, args) {
+    if (!this.adminSystem.isAdmin(player.userId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
+    }
+
+    if (args.length < 2) {
+        return '❌ usage: اضافة_غولد [player_id] [amount]';
+    }
+
+    const targetPlayerId = args[0];
+    const amount = parseInt(args[1]);
+
+    if (!amount || amount <= 0) {
+        return '❌ يرجى تحديد مبلغ صحيح.';
+    }
+
+    const targetPlayer = await Player.findOne({ userId: targetPlayerId });
+    if (!targetPlayer) {
+        return '❌ اللاعب غير موجود.';
+    }
+
+    targetPlayer.gold += amount;
+    
+    // تسجيل المعاملة
+    targetPlayer.transactions.push({
+        id: uuidv4(),
+        type: 'deposit',
+        amount: amount,
+        status: 'completed',
+        description: `إيداع من المدير`
+    });
+
+    await targetPlayer.save();
+
+    return `✅ تمت إضافة ${amount} غولد للاعب ${targetPlayer.name} بنجاح!\n` +
+           `💰 الرصيد الجديد: ${targetPlayer.gold} غولد`;
+    }
 
     async handleUnknown(command, player) {  
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;  
