@@ -40,7 +40,7 @@ const playerSchema = new mongoose.Schema({
      amount: { type: Number, default: 0 },
      requestedAt: { type: Date, default: null },
      status: { type: String, enum: ['pending', 'processing', 'completed', 'rejected'], default: 'pending' }
-    }
+    },
     health: { type: Number, default: 100, min: 0 },
     maxHealth: { type: Number, default: 100, min: 1 },
     mana: { type: Number, default: 50, min: 0 },
