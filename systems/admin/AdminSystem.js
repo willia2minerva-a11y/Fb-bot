@@ -116,44 +116,59 @@ export class AdminSystem {
     const findTargetPlayer = async (id) => {
         if (!id) return null;
         
+        console.log(`🔍 البحث عن لاعب: ${id}`);
+        
         // البحث بـ userId (المعرف الأساسي)
         let targetPlayer = await Player.findOne({ userId: id });
-        if (targetPlayer) return targetPlayer;
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name}`);
+            return targetPlayer;
+        }
         
         // البحث بـ playerId (المعرف التسلسلي)
         targetPlayer = await Player.findOne({ playerId: id });
-        if (targetPlayer) return targetPlayer;
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
+            return targetPlayer;
+        }
         
-        // البحث في الاسم (إذا كان المدير يريد البحث بالاسم)
-        targetPlayer = await Player.findOne({ name: new RegExp(id, 'i') });
+        // البحث في الاسم (بدون حساسية لحالة الأحرف)
+        targetPlayer = await Player.findOne({ 
+            name: { $regex: new RegExp(id, 'i') } 
+        });
         
-        return targetPlayer;
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالاسم: ${targetPlayer.name}`);
+            return targetPlayer;
+        }
+        
+        console.log(`❌ لم يتم العثور على اللاعب: ${id}`);
+        return null;
     };
     
     switch (command) {
+        case 'مدير': return this.getAdminHelp();
+        case 'موافقة_لاعب': return await this.handleApprovePlayer(args, senderId);
+        case 'اعادة_بيانات': return await this.handleResetPlayer(args, findTargetPlayer);
+        case 'تغيير_اسم': return await this.handleSetPlayerName(args, findTargetPlayer);
+        case 'تغيير_جنس': return await this.handleSetPlayerGender(args, findTargetPlayer);
+        case 'حظر_لاعب': return await this.handleBanPlayer(args, findTargetPlayer);
+        case 'اعطاء_ذهب': return await this.handleGiveGold(args, findTargetPlayer);
+        case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
+        case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
+        case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
         
-            case 'مدير': return this.getAdminHelp();
-            case 'موافقة_لاعب': return await this.handleApprovePlayer(args, senderId);
-            case 'اعادة_بيانات': return await this.handleResetPlayer(args, findTargetPlayer);
-            case 'تغيير_اسم': return await this.handleSetPlayerName(args, findTargetPlayer);
-            case 'تغيير_جنس': return await this.handleSetPlayerGender(args, findTargetPlayer);
-            case 'حظر_لاعب': return await this.handleBanPlayer(args, findTargetPlayer);
-            case 'اعطاء_ذهب': return await this.handleGiveGold(args, findTargetPlayer);
-            case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
-            case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
-            case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
-            
-            // 🆕 الأوامر الجديدة
-            case 'طلبات_سحب': return await this.handlePendingWithdrawals(args, senderId);
-            case 'معالجة_سحب': return await this.handleProcessWithdrawal(args, senderId);
-            case 'اضافة_غولد': return await this.handleAddGold(args, senderId);
-            case 'اضف_رد': return await this.handleAddAutoResponse(args, senderId);
-            case 'ازل_رد': return await this.handleRemoveAutoResponse(args, senderId);
-            case 'عرض_الردود': return await this.handleShowAutoResponses(args, senderId);
-            
-            default: return '❌ أمر مدير غير معروف';
-        }
+        // 🆕 الأوامر الجديدة
+        case 'طلبات_سحب': return await this.handlePendingWithdrawals(args, senderId);
+        case 'معالجة_سحب': return await this.handleProcessWithdrawal(args, senderId);
+        case 'اضافة_غولد': return await this.handleAddGold(args, senderId);
+        case 'اضف_رد': return await this.handleAddAutoResponse(args, senderId);
+        case 'ازل_رد': return await this.handleRemoveAutoResponse(args, senderId);
+        case 'عرض_الردود': return await this.handleShowAutoResponses(args, senderId);
+        
+        default: return '❌ أمر مدير غير معروف';
     }
+        }
     
     // ===================================
     // 1. أوامر الإدارة الأساسية (موجودة سابقاً)
