@@ -402,6 +402,7 @@ export class AdminSystem {
                 message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
                 message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
             });
+    }
 
     async handleProcessWithdrawal(args, senderId) {
     if (!this.isAdmin(senderId)) {
