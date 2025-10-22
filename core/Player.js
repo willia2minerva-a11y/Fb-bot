@@ -24,7 +24,23 @@ const playerSchema = new mongoose.Schema({
     approvedBy: { type: String, default: null },
     level: { type: Number, default: 1, min: 1 },
     experience: { type: Number, default: 0, min: 0 },
-    gold: { type: Number, default: 50, min: 0 },
+    // في Player.js - أضف هذه الحقول إلى playerSchema
+    gold: { type: Number, default: 50, min: 0 }, // الغولد داخل اللعبة
+    withdrawalThreshold: { type: Number, default: 100 }, // الحد الأدنى للسحب
+    transactions: [{
+      id: { type: String, required: true },
+      type: { type: String, enum: ['withdrawal', 'deposit', 'transfer_sent', 'transfer_received'], required: true },
+      amount: { type: Number, required: true },
+      status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
+      targetPlayer: { type: String, default: null }, // للتحويلات
+      description: { type: String, default: '' },
+      createdAt: { type: Date, default: Date.now }
+    }],
+    pendingWithdrawal: {
+     amount: { type: Number, default: 0 },
+     requestedAt: { type: Date, default: null },
+     status: { type: String, enum: ['pending', 'processing', 'completed', 'rejected'], default: 'pending' }
+    }
     health: { type: Number, default: 100, min: 0 },
     maxHealth: { type: Number, default: 100, min: 1 },
     mana: { type: Number, default: 50, min: 0 },
