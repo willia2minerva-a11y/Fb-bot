@@ -58,7 +58,7 @@ export default class CommandHandler {
                 '3': this.handleMenu3.bind(this),
                 '4': this.handleMenu4.bind(this),
                 '5': this.handleMenu5.bind(this),
-                '6': this.handleMenu6.bind(this)
+                '6': this.handleMenu6.bind(this),
                 'الأساسية': this.handleMenu1.bind(this),
                 'الاستكشاف': this.handleMenu2.bind(this),
                 'القتال': this.handleMenu3.bind(this),
