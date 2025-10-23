@@ -106,10 +106,38 @@ export class AdminSystem {
     }
 
     async handleAdminCommand(command, args, senderId, player, itemMap) {
-        const findTargetPlayer = async (id) => {
-            return await Player.findOne({ $or: [{ userId: id }, { playerId: id }] });
-        };
+    const findTargetPlayer = async (id) => {
+        if (!id) return null;
         
+        console.log(`🔍 البحث عن لاعب بالمعرف: ${id}`);
+        
+        // البحث بـ userId (المعرف الأساسي)
+        let targetPlayer = await Player.findOne({ userId: id });
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name}`);
+            return targetPlayer;
+        }
+        
+        // البحث بـ playerId (المعرف التسلسلي مثل P476346)
+        targetPlayer = await Player.findOne({ playerId: id });
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
+            return targetPlayer;
+        }
+        
+        // البحث في الاسم (بدون حساسية لحالة الأحرف)
+        targetPlayer = await Player.findOne({ 
+            name: { $regex: new RegExp(id, 'i') } 
+        });
+        
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالاسم: ${targetPlayer.name}`);
+            return targetPlayer;
+        }
+        
+        console.log(`❌ لم يتم العثور على اللاعب: ${id}`);
+        return null;
+    };
         switch (command) {
             case 'مدير': return this.getAdminHelp();
             case 'موافقة_لاعب': return await this.handleApprovePlayer(args, senderId);
