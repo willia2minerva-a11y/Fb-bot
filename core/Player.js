@@ -82,6 +82,26 @@ pendingWithdrawal: {
     updatedAt: { type: Date, default: Date.now }
 });
 
+// في Player.js - أضف هذه الدالة الثابتة
+playerSchema.statics.findPlayerByIdentifier = async function(identifier) {
+    if (!identifier) return null;
+    
+    // البحث بـ userId
+    let player = await this.findOne({ userId: identifier });
+    if (player) return player;
+    
+    // البحث بـ playerId
+    player = await this.findOne({ playerId: identifier });
+    if (player) return player;
+    
+    // البحث بالاسم (بدون حساسية)
+    player = await this.findOne({ 
+        name: { $regex: new RegExp(identifier, 'i') } 
+    });
+    
+    return player;
+};
+
 playerSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     // 💡 إعادة حساب الخصائص القصوى قبل الحفظ لضمان التناسق
