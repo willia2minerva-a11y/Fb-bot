@@ -329,22 +329,22 @@ export class AdminSystem {
     }
     
     async handleGiveGold(args, findTargetPlayer) {
-        const targetId = args[0];
-        const amount = parseInt(args[1], 10);
+    const targetId = args[0];
+    const amount = parseInt(args[1], 10);
 
-        if (!targetId || isNaN(amount) || amount <= 0) {
-            return '❌ الاستخدام: اعطاء_ذهب [UserID/PlayerID] [الكمية]';
-        }
+    if (!targetId || isNaN(amount) || amount <= 0) {
+        return '❌ الاستخدام: اعطاء_ذهب [UserID/PlayerID/الاسم] [الكمية]';
+    }
 
-        const targetPlayer = await findTargetPlayer(targetId);
-        if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
-        }
-        
-        targetPlayer.addGold(amount);
-        await targetPlayer.save();
+    const targetPlayer = await findTargetPlayer(targetId);
+    if (!targetPlayer) {
+        return `❌ لم يتم العثور على اللاعب "${targetId}".\n💡 جرب:\n• معرف المستخدم (UserID)\n• المعرف التسلسلي (PlayerID مثل P476346)\n• اسم اللاعب`;
+    }
+    
+    targetPlayer.addGold(amount);
+    await targetPlayer.save();
 
-        return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح. رصيده الجديد: ${targetPlayer.gold}`;
+    return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح.\n🆔 المعرف: ${targetPlayer.userId}\n🎯 التسلسلي: ${targetPlayer.playerId}\n💎 الرصيد الجديد: ${targetPlayer.gold}`;
     }
 
     // ===================================
