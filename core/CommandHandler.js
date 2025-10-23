@@ -531,6 +531,7 @@ export default class CommandHandler {
             return `❌ حدث خطأ في إنشاء البطاقة: ${error.message}`;
         }  
     }  
+    
 
     async handleInventory(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -596,6 +597,83 @@ export default class CommandHandler {
             return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';  
         }  
     }  
+    async handleTransfer(player, args) {
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    if (args.length < 2) {
+        return '❌ يرجى تحديد لاعب والمبلغ.\nمثال: تحويل @username 50\nمثال: تحويل P476346 50';
+    }
+
+    const targetIdentifier = args[0].replace('@', '');
+    const amount = parseInt(args[1]);
+
+    if (!amount || amount <= 0) {
+        return '❌ يرجى تحديد مبلغ صحيح للتحويل.';
+    }
+
+    if (player.gold < amount) {
+        return `❌ رصيدك غير كافٍ للتحويل.\n💰 رصيدك: ${player.gold} غولد`;
+    }
+
+    try {
+        // البحث بـ userId أولاً
+        let receiver = await Player.findOne({ userId: targetIdentifier });
+        
+        // إذا لم يوجد، البحث بـ playerId
+        if (!receiver) {
+            receiver = await Player.findOne({ playerId: targetIdentifier });
+        }
+        
+        // إذا لم يوجد، البحث بالاسم
+        if (!receiver) {
+            receiver = await Player.findOne({ 
+                name: { $regex: new RegExp(targetIdentifier, 'i') } 
+            });
+        }
+
+        if (!receiver) {
+            return `❌ اللاعب المستهدف غير موجود.\n💡 جرب:\n• @اسم_المستخدم\n• المعرف التسلسلي (مثل P476346)\n• اسم اللاعب`;
+        }
+
+        if (receiver.userId === player.userId) {
+            return '❌ لا يمكن التحويل لنفسك.';
+        }
+
+        // تنفيذ التحويل
+        player.gold -= amount;
+        receiver.gold += amount;
+
+        // تسجيل المعاملات
+        const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        player.transactions.push({
+            id: transactionId,
+            type: 'transfer_sent',
+            amount: amount,
+            status: 'completed',
+            targetPlayer: receiver.userId,
+            description: `تحويل إلى ${receiver.name} (${receiver.playerId})`
+        });
+
+        receiver.transactions.push({
+            id: transactionId,
+            type: 'transfer_received',
+            amount: amount,
+            status: 'completed',
+            targetPlayer: player.userId,
+            description: `تحويل من ${player.name} (${player.playerId})`
+        });
+
+        await player.save();
+        await receiver.save();
+
+        return `✅ تم تحويل ${amount} غولد إلى ${receiver.name} (${receiver.playerId}) بنجاح!\n💎 رصيدك الحالي: ${player.gold} غولد`;
+
+    } catch (error) {
+        console.error('Error transferring gold:', error);
+        return '❌ حدث خطأ أثناء التحويل.';
+    }
+            }
 
 
     async handleMap(player) {  
