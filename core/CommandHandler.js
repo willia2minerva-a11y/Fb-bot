@@ -566,37 +566,48 @@ export default class CommandHandler {
             return '❌ حدث خطأ أثناء جلب قائمة الأفضل.';  
         }  
     }  
-      
-    async handleShowPlayers(player) {  
-        try {  
-            if (!this.adminSystem.isAdmin(player.userId)) {  
-                 return '❌ هذا الأمر خاص بالمدراء.';  
-            }  
-              
-            const activePlayers = await Player.find({ registrationStatus: 'completed' })  
-                                        .sort({ level: -1, gold: -1 })  
-                                        .select('name level gold currentLocation playerId');  
-              
-            let playerList = `╔═════════ 🧑‍💻  لوحة تحكم المدير ═════════╗\n`;  
-            playerList += `║     📋 قائمة اللاعبين النشطين (${activePlayers.length})       ║\n`;  
-            playerList += `╚═══════════════════════════════════╝\n`;  
-            playerList += `\`\`\`markdown\n`;  
-            playerList += `| ID | المستوى | الاسم | الذهب | الموقع \n`;  
-            playerList += `|----|---------|--------|-------|--------\n`;  
-              
-            activePlayers.forEach((p, index) => {  
-                const locationName = locations[p.currentLocation]?.name || p.currentLocation;
-                playerList += `| ${p.playerId || 'N/A'} | L${p.level} | ${p.name} | 💰${p.gold} | ${locationName}\n`;  
-            });  
-            playerList += `\`\`\`\n`;  
+    
+    async handleShowPlayers(player) {
+    try {
+        if (!this.adminSystem.isAdmin(player.userId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+        
+        const activePlayers = await Player.find({ 
+            registrationStatus: 'completed',
+            banned: false 
+        })
+        .sort({ level: -1, gold: -1 })
+        .select('name level gold currentLocation playerId userId')
+        .limit(20);
 
-            return playerList;  
+        let playerList = `╔═════════ 🧑‍💻 لوحة تحكم المدير ═════════╗\n`;
+        playerList += `║     📋 قائمة اللاعبين النشطين (${activePlayers.length})       ║\n`;
+        playerList += `╚═══════════════════════════════════╝\n`;
+        playerList += `\`\`\`markdown\n`;
+        playerList += `| ID | المستوى | الاسم | الذهب | الموقع | المعرف\n`;
+        playerList += `|----|---------|--------|-------|--------|--------\n`;
+        
+        activePlayers.forEach((p, index) => {
+            const locationName = locations[p.currentLocation]?.name || p.currentLocation;
+            const shortUserId = p.userId.length > 8 ? p.userId.substring(0, 8) + '...' : p.userId;
+            playerList += `| ${p.playerId || 'N/A'} | L${p.level} | ${p.name} | 💰${p.gold} | ${locationName} | ${shortUserId}\n`;
+        });
+        playerList += `\`\`\`\n`;
+        
+        playerList += `💡 **استخدم:**\n`;
+        playerList += `• \`اعطاء_ذهب P476346 100\` - لإعطاء غولد\n`;
+        playerList += `• \`اعطاء_مورد P476346 خشب 10\` - لإعطاء موارد\n`;
 
-        } catch (error) {  
-            console.error('❌ خطأ في عرض قائمة اللاعبين:', error);  
-            return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';  
-        }  
+        return playerList;
+
+    } catch (error) {
+        console.error('❌ خطأ في عرض قائمة اللاعبين:', error);
+        return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';
+    }
     }  
+
+    
     async handleTransfer(player, args) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
