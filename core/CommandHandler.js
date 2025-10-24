@@ -109,11 +109,15 @@ export default class CommandHandler {
                 'اجمع': this.handleGather.bind(this),   
                 'جمع': this.handleGather.bind(this),  
                   
-                // الصناعة  
+                // الصناعة و الطهو 
                 'وصفات': this.handleShowRecipes.bind(this),  
                 'صناعة': this.handleShowRecipes.bind(this),  
                 'اصنع': this.handleCraft.bind(this),   
-                'صنع': this.handleCraft.bind(this),    
+                'صنع': this.handleCraft.bind(this),  
+                'فرن': this.handleFurnace.bind(this),
+                'طهو': this.handleCook.bind(this),
+                'صهر': this.handleSmelt.bind(this),
+                'حرق': this.handleCook.bind(this),
 
                 // 🆕 التجهيز  
                 'جهز': this.handleEquip.bind(this),   
@@ -856,6 +860,79 @@ export default class CommandHandler {
           
         return result.message;  
     }  
+
+    // في CommandHandler.js - أضف هذه الدوال:
+
+    async handleFurnace(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+        const furnaceSystem = await this.getSystem('furnace');
+        if (!furnaceSystem) {
+            return '❌ نظام الفرن غير متوفر حالياً.';
+        }
+    
+        const result = furnaceSystem.showRecipes(player);
+        if (result.error) {
+            return result.error;
+        }
+        return result.message;
+    }
+
+    async handleCook(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+        if (args.length === 0) {
+            return '❌ يرجى تحديد العنصر المراد طهوه. مثال: طهو لحم 2';
+        }
+
+        const itemName = args[0];
+        const quantity = parseInt(args[1]) || 1;
+
+        if (quantity <= 0) {
+            return '❌ الكمية يجب أن تكون أكبر من الصفر.';
+        }
+
+        const furnaceSystem = await this.getSystem('furnace');
+        if (!furnaceSystem) {
+            return '❌ نظام الفرن غير متوفر حالياً.';
+        }
+
+        const result = await furnaceSystem.cook(player, itemName, quantity);
+        if (result.error) {
+            return result.error;
+        }
+
+        await player.save();
+        return result.message;
+    }
+
+    async handleSmelt(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+        if (args.length === 0) {
+            return '❌ يرجى تحديد الخام المراد صهره. مثال: صهر خام_حديد 3';
+        }
+
+        const itemName = args[0];
+        const quantity = parseInt(args[1]) || 1;
+
+        if (quantity <= 0) {
+            return '❌ الكمية يجب أن تكون أكبر من الصفر.';
+        }
+
+        const furnaceSystem = await this.getSystem('furnace');
+        if (!furnaceSystem) {
+            return '❌ نظام الفرن غير متوفر حالياً.';
+        }
+
+        const result = await furnaceSystem.smelt(player, itemName, quantity);
+        if (result.error) {
+            return result.error;
+        }
+
+        await player.save();
+        return result.message;
+    }
 
     async handleEquip(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
