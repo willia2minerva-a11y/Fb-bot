@@ -18,7 +18,7 @@ async function getSystem(systemName) {
             'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',   
             'travel': '../systems/world/TravelSystem.js',  
             'crafting': '../systems/crafting/CraftingSystem.js',
-            // ⚠️ تصحيح: إضافة شرطة مائلة للمسار
+            // ✅ تصحيح: إضافة شرطة مائلة للمسار
             'Transaction':'../systems/economy/TransactionSystem.js' 
         };  
 
@@ -64,7 +64,7 @@ export default class CommandHandler {
                 'القتال': this.handleMenu3.bind(this),
                 'الصناعة': this.handleMenu4.bind(this),
                 'المعلومات': this.handleMenu5.bind(this),
-                'الاقتصاد': this.handleMenu6.bind(this), // 🆕 إضافة
+                'الاقتصاد': this.handleMenu6.bind(this), 
 
                 // التسجيل  
                 'بدء': this.handleStart.bind(this),  
@@ -93,14 +93,14 @@ export default class CommandHandler {
                 'حقيبة': this.handleInventory.bind(this),   
                 'جرد': this.handleInventory.bind(this),   
                 'مخزن': this.handleInventory.bind(this),   
-                'معداتي': this.handleEquipment.bind(this), // 🆕 تم إضافة الأمر  
+                'معداتي': this.handleEquipment.bind(this), 
 
                 // الاستكشاف  
                 'خريطة': this.handleMap.bind(this),  
                 'الموقع': this.handleMap.bind(this),   
                 'بوابات': this.handleGates.bind(this),   
                 'ماب': this.handleMap.bind(this),
-                'ادخل': this.handleEnterGate.bind(this), // 🆕 أمر جديد
+                'ادخل': this.handleEnterGate.bind(this), 
 
                 'انتقل': this.handleTravel.bind(this),  
                 'سافر': this.handleTravel.bind(this),   
@@ -139,13 +139,9 @@ export default class CommandHandler {
                 // الإقـتـصـاد  
                 'سحب': this.handleWithdrawal.bind(this),
                 'ايداع': this.handleDeposit.bind(this),
-                'تحويل': this.handleTransfer.bind(this), // نستخدم التعريف الشامل
+                'تحويل': this.handleTransfer.bind(this), 
                 'معاملاتي': this.handleTransactions.bind(this),
                 'رصيدي': this.handleBalance.bind(this),
-                
-                // أوامر المدير الجديدة لمعالجة الاقتصاد
-                // يجب أن تكون كـ 'معالجة_سحب' ليتم إرسالها لـ AdminSystem
-                // سنقوم بمعالجة الأوامر المركبة لها في دالة process
             };  
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'اوامر', 'رئيسية', '1', '2', '3', '4', '5', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];  
@@ -312,14 +308,27 @@ export default class CommandHandler {
 
     async process(sender, message) {  
         const { id, name } = sender;  
-        const processedMessage = message.trim().toLowerCase();  
+        // ⚠️ تصحيح 2: لا يجب تحويل الرسالة كلها إلى أحرف صغيرة مباشرة
+        const trimmedMessage = message.trim();
+        const processedMessageLower = trimmedMessage.toLowerCase(); 
           
-        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)  
-        let commandParts = processedMessage.split(/\s+/);  
+        // 🛠️ الخطوة 1.1: التحقق من الردود التلقائية أولاً وقبل التقسيم كأمر
+        const autoResponseSystem = await this.getSystem('autoResponse');  
+        if (autoResponseSystem) {  
+             // 💡 تصحيح 2: استخدام الرسالة الأصلية أو المُعدلة بشكل طفيف للردود التلقائية
+             const autoResponse = autoResponseSystem.findAutoResponse(trimmedMessage);  
+             if (autoResponse) {  
+                 console.log(`🤖 رد تلقائي على: "${trimmedMessage}"`);  
+                 return autoResponse;  
+             }  
+        }  
+        
+        // 🛠️ الخطوة 1.2: معالجة الأوامر الآن بعد فشل الردود التلقائية
+        let commandParts = processedMessageLower.split(/\s+/);  
         let command = commandParts[0];  
         let args = commandParts.slice(1);  
           
-        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين  
+        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); 
 
         // 🆕 دمج معالجة الأوامر المركبة هنا  
         if (fullCommand === 'موافقة لاعب') {  
@@ -349,14 +358,20 @@ export default class CommandHandler {
         }  else if (fullCommand === 'تغيير جنس') {  
             command = 'تغيير_جنس';  
             args = args.slice(1);   
-        } else if (fullCommand === 'معالجة سحب') { // 🆕 تصحيح: إضافة أمر معالجة السحب
+        } else if (fullCommand === 'معالجة سحب') {  
             command = 'معالجة_سحب';
             args = args.slice(1);
-        } else if (fullCommand === 'سحوبات معلقة') { // 🆕 تصحيح: إضافة أمر السحوبات المعلقة
+        } else if (fullCommand === 'سحوبات معلقة') {  
             command = 'سحوبات_معلقة';
             args = args.slice(1);
-        } else if (fullCommand === 'اضافة غولد') { // 🆕 تصحيح: إضافة أمر إضافة غولد
+        } else if (fullCommand === 'اضافة غولد') { 
             command = 'اضافة_غولد';
+            args = args.slice(1);
+        } else if (fullCommand === 'اضف رد') { // ✅ تصحيح: إضافة أوامر مدير جديدة
+            command = 'اضف_رد';
+            args = args.slice(1);
+        } else if (fullCommand === 'عرض ردود') { // ✅ تصحيح: إضافة أوامر مدير جديدة
+            command = 'عرض_ردود';
             args = args.slice(1);
         }
         // يمكن إضافة المزيد من الأوامر المركبة هنا...  
@@ -368,17 +383,9 @@ export default class CommandHandler {
             console.log('🎯 🔥 تم التعرف على المدير!');  
         }  
           
-        // التحقق من الردود التلقائية أولاً  
-
-        const autoResponseSystem = await this.getSystem('autoResponse');  
-        if (autoResponseSystem) {  
-             const autoResponse = autoResponseSystem.findAutoResponse(message);  
-             if (autoResponse) {  
-                 console.log(`🤖 رد تلقائي على: "${message}"`);  
-                 return autoResponse;  
-             }  
-        }  
-          
+        // التحقق من الردود التلقائية أولاً 
+        // (تم نقلها للأعلى لتتم قبل التقسيم كأمر)
+        
         try {  
             let player = await Player.findOne({ userId: id });  
 
@@ -402,18 +409,28 @@ export default class CommandHandler {
             if (isAdmin) {  
                 const adminCommands = this.adminSystem.getAdminCommands();  
                   
-                if (adminCommands[command] || command === 'معالجة_سحب' || command === 'سحوبات_معلقة' || command === 'اضافة_غولد') { // 🆕 تصحيح: إضافة معالجة لأوامر المدير الجديدة هنا
+                if (adminCommands[command] || command === 'معالجة_سحب' || command === 'سحوبات_معلقة' || command === 'اضافة_غولد' || command === 'اضف_رد' || command === 'عرض_ردود') { 
                     console.log(`👑 تنفيذ أمر مدير: ${command}`);  
-                    // بما أن الأوامر الاقتصادية الجديدة هي دوال في CommandHandler، يجب استدعاؤها مباشرة إذا لم تكن في AdminSystem
+                    
+                    // 💡 تصحيح 3: تمرير الحجج الأصلية قبل تحويلها إلى أحرف صغيرة لأوامر IDs
+                    let adminArgsToUse = args;
+                    if (command === 'اعطاء_ذهب' || command === 'اعطاء_مورد' || command === 'حظر_لاعب' || command === 'معالجة_سحب' || command === 'اضافة_غولد') {
+                        // إعادة تقسيم الرسالة الأصلية للمحافظة على حالة الأحرف في IDs
+                        const originalCommandParts = trimmedMessage.split(/\s+/);
+                        adminArgsToUse = originalCommandParts.slice(2); // تخطي الأمر المركب
+                        // لكننا نحتاج معرف اللاعب ليكون الأول
+                        adminArgsToUse.unshift(originalCommandParts[1]);
+                    }
+                    
                     if (command === 'معالجة_سحب') {
-                        return await this.handleProcessWithdrawal(player, args);
+                        return await this.handleProcessWithdrawal(player, adminArgsToUse);
                     } else if (command === 'سحوبات_معلقة') {
                         return await this.handlePendingWithdrawals(player);
                     } else if (command === 'اضافة_غولد') {
-                        return await this.handleAddGold(player, args);
+                        return await this.handleAddGold(player, adminArgsToUse);
                     }
                     
-                    const result = await this.adminSystem.handleAdminCommand(command, args, id, player, this.ARABIC_ITEM_MAP);  
+                    const result = await this.adminSystem.handleAdminCommand(command, adminArgsToUse, id, player, this.ARABIC_ITEM_MAP);  
                     return result;  
                 }  
             }  
@@ -638,8 +655,8 @@ export default class CommandHandler {
         playerList += `\`\`\`\n`;
         
         playerList += `💡 **استخدم:**\n`;
-        playerList += `• \`اعطاء_ذهب P476346 100\` - لإعطاء غولد\n`;
-        playerList += `• \`اعطاء_مورد P476346 خشب 10\` - لإعطاء موارد\n`;
+        playerList += `• \`اعطاء ذهب P476346 100\` - لإعطاء غولد\n`;
+        playerList += `• \`اعطاء مورد P476346 خشب 10\` - لإعطاء موارد\n`;
 
         return playerList;
 
@@ -651,7 +668,6 @@ export default class CommandHandler {
 
     
     async handleTransfer(player, args) {
-    // ⚠️ تصحيح: تم حذف دالة handleTransfer المكررة في النهاية واستبُدلت بهذه الدالة الشاملة.
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
     if (args.length < 2) {
@@ -670,30 +686,34 @@ export default class CommandHandler {
     }
 
     try {
-        // البحث بجميع الطرق الممكنة
+        // البحث بجميع الطرق الممكنة. نستخدم targetIdentifier كما هو لأنه قد يكون ID
         let receiver = null;
         
-        // 1. البحث بـ userId
+        // 1. البحث بـ userId (Case-sensitive)
         receiver = await Player.findOne({ userId: targetIdentifier });
         
-        // 2. إذا لم يوجد، البحث بـ playerId
+        // 2. إذا لم يوجد، البحث بـ playerId (Case-sensitive)
         if (!receiver) {
             receiver = await Player.findOne({ playerId: targetIdentifier });
         }
         
-        // 3. إذا لم يوجد، البحث بالاسم (بدقة أكثر)
+        // 3. إذا لم يوجد، البحث بالاسم (بدقة أكثر - Case-insensitive)
         if (!receiver) {
             receiver = await Player.findOne({ 
-                name: targetIdentifier 
+                name: targetIdentifier, // نعتمد على أن التحويل للأمر العادي لا يتم تحويله في هذه النقطة
             });
         }
         
-        // 4. إذا لم يوجد، البحث الجزئي في الاسم
+        // 4. إذا لم يوجد، البحث الجزئي في الاسم (Case-insensitive)
         if (!receiver) {
             receiver = await Player.findOne({ 
                 name: { $regex: new RegExp(targetIdentifier, 'i') } 
             });
         }
+        
+        // 💡 ملاحظة: بما أن دالة process تحول الأمر إلى أحرف صغيرة، فإن targetIdentifier سيكون بحروف صغيرة.
+        // يجب أن تكون IDs في قاعدة البيانات إما متوافقة مع هذا التحويل، أو يجب أن يتم تمرير ID بدون تحويله إلى أحرف صغيرة. 
+        // بما أن الأمر هنا عادي وليس للمدير، فلن نغير الـ args (التي هي بحروف صغيرة)
 
         if (!receiver) {
             return `❌ اللاعب المستهدف غير موجود.\n💡 جرب:\n• المعرف التسلسلي (مثل P476346)\n• معرف المستخدم\n• اسم اللاعب الكامل`;
@@ -1104,7 +1124,7 @@ async handleDeposit(player) {
            `💰 استخدم: \`اضافة غولد [معرف اللاعب] [المبلغ]\` (للمدير)`;
 }
 
-// ⚠️ تم حذف دالة handleTransfer المكررة هنا للحفاظ على التعريف الشامل أعلاه (السطر 326-444)
+// دالة handleTransfer موجودة في السطر 451
 
 async handleTransactions(player, args) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -1173,12 +1193,14 @@ async handleProcessWithdrawal(player, args) {
     if (!this.adminSystem.isAdmin(player.userId)) {
         return '❌ هذا الأمر خاص بالمدراء فقط.';
     }
+    
+    // 💡 ملاحظة: args هنا هي الـ IDs الأصلية غير المحوّلة لحروف صغيرة
 
     if (args.length < 2) {
         return '❌ usage: معالجة سحب [player_id] [قبول/رفض]';
     }
 
-    const targetPlayerId = args[0];
+    const targetPlayerId = args[0]; // ID محفوظة بحالة الأحرف الأصلية
     const action = args[1].toLowerCase();
 
     const targetPlayer = await Player.findOne({ userId: targetPlayerId });
@@ -1214,7 +1236,7 @@ async handleProcessWithdrawal(player, args) {
                `💰 المبلغ: ${withdrawalAmount} غولد\n` +
                `⏰ وقت الطلب: ${targetPlayer.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}`;
 
-    } else if (action === 'رفض') { // ⚠️ تصحيح: حذف 'رفض' المكررة
+    } else if (action === 'رفض') { 
         // رفض السحب وإعادة المال
         targetPlayer.gold += withdrawalAmount;
         targetPlayer.pendingWithdrawal.status = 'rejected';
@@ -1269,27 +1291,30 @@ async handleAddGold(player, args) {
     if (!this.adminSystem.isAdmin(player.userId)) {
         return '❌ هذا الأمر خاص بالمدراء فقط.';
     }
+    
+    // 💡 ملاحظة: args هنا هي الـ IDs الأصلية غير المحوّلة لحروف صغيرة
 
     if (args.length < 2) {
         return '❌ usage: اضافة غولد [player_id] [amount]';
     }
 
-    const targetPlayerId = args[0];
+    const targetPlayerId = args[0]; // ID محفوظة بحالة الأحرف الأصلية
     const amount = parseInt(args[1]);
 
     if (!amount || amount <= 0) {
         return '❌ يرجى تحديد مبلغ صحيح.';
     }
 
+    // 💡 تصحيح 3: البحث باستخدام الـ ID الأصلية (Case-Sensitive)
     const targetPlayer = await Player.findOne({ userId: targetPlayerId });
     if (!targetPlayer) {
-        return '❌ اللاعب غير موجود.';
+        return `❌ اللاعب غير موجود. يرجى التأكد من معرف المستخدم (ID) الصحيح: ${targetPlayerId}`;
     }
 
     targetPlayer.gold += amount;
     
     // تسجيل المعاملة
-    const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // ⚠️ تصحيح: استخدام نفس طريقة توليد ID
+    const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; 
     targetPlayer.transactions.push({
         id: transactionId,
         type: 'deposit',
