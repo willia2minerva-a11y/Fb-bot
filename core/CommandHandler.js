@@ -836,30 +836,44 @@ export default class CommandHandler {
 
     async handleCraft(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-          
+    
         if (args.length === 0) {  
             return this.handleShowRecipes(player);   
         }  
 
-        const rawItemName = args.join(' ');   
-        if (!rawItemName) {  
-             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع قوس خشبي';  
-        }  
-          
-        const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();  
-
-        const craftingSystem = await this.getSystem('crafting');  
-        if (!craftingSystem) {
-            return '❌ نظام الصناعة غير متوفر حالياً.';
+        let quantity = 1;
+        let itemNameParts = [...args];
+    
+        // التحقق إذا كان آخر وسيط رقم (كمية)
+            if (!isNaN(args[args.length - 1])) {
+            quantity = parseInt(args[args.length - 1]);
+            itemNameParts = args.slice(0, args.length - 1);
+        
+            if (quantity <= 0) {
+                return '❌ الكمية يجب أن تكون أكبر من الصفر.';
+            }
+            if (quantity > 100) {
+                return '❌ الحد الأقصى للصناعة هو 100 مرة.';
+            }
         }
 
-        const result = await craftingSystem.craftItem(player, itemId);  
-          
-        if (result.error) {  
-            return result.error;  
+        const rawItemName = itemNameParts.join(' ');   
+        if (!rawItemName) {  
+            return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع سيف_حديد 2';  
         }  
-          
-        return result.message;  
+    
+    const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();  
+
+    const craftingSystem = await this.getSystem('crafting');  
+    if (!craftingSystem) {
+        return '❌ نظام الصناعة غير متوفر حالياً.';
+    }
+
+    const result = await craftingSystem.craftItem(player, itemId, quantity);  
+    if (result.error) {  
+        return result.error;  
+    }  
+    return result.message;  
     }  
 
     // في CommandHandler.js - أضف هذه الدوال:
