@@ -18,7 +18,8 @@ async function getSystem(systemName) {
             'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',   
             'travel': '../systems/world/TravelSystem.js',  
             'crafting': '../systems/crafting/CraftingSystem.js',
-            'Transaction':'..systems/economy/TransactionSystem.js'
+            'Transaction':'..systems/economy/TransactionSystem.js',
+            'furnace': '../systems/furnace/FurnaceSystem.js'
         };  
 
         if (systems[systemName]) {  
