@@ -369,8 +369,8 @@ export default class CommandHandler {
           
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);  
 
-        const isAdmin = this.adminSystem.isAdmin(id);  
-        if (isAdmin) {  
+        const userIsAdmin = this.adminSystem.isAdmin(id);  
+        if (userIsAdmin) {  
             console.log('🎯 🔥 تم التعرف على المدير!');  
         }  
           
