@@ -38,6 +38,88 @@ export const resources = {
     items: [{ itemId: 'stone', min: 1, max: 3, chance: 1 }]
   },
 
+  
+  // في data/resources.js - أضف في النهاية قبل export:
+  // عناصر الفرن الجديدة
+  furnace: {
+    id: "furnace",
+    name: "فرن",
+    type: "tool",
+    description: "يستخدم لطهو الطعام وصهر الخامات",
+    craftable: true,
+    recipe: {
+      "stone": 8,
+      "clay": 4
+    },
+    stats: {}
+  },
+
+  clay: {
+    id: "clay",
+    name: "طين",
+    type: "material", 
+    description: "مادة لصناعة الفخار والفرن",
+    rarity: "common",
+    difficultyLevel: 1,
+    locations: ["forest", "river"],
+    gatherTime: 6000,
+    experience: 7,
+    items: [{ itemId: "clay", min: 1, max: 3, chance: 1 }]
+  },
+
+  coal: {
+    id: "coal",
+    name: "فحم", 
+    type: "material",
+    description: "وقود للفرن",
+    rarity: "common",
+    difficultyLevel: 2,
+    locations: ["cave", "mountain"],
+    gatherTime: 7000, 
+    experience: 9,
+    items: [{ itemId: "coal", min: 1, max: 2, chance: 1 }]
+  },
+
+  // أطعمة وخامات إضافية
+  raw_meat: {
+    id: "raw_meat",
+    name: "لحم نيء",
+    type: "material",
+    description: "لحم يحتاج للطهو",
+    rarity: "common", 
+    difficultyLevel: 1,
+    locations: ["forest"],
+    gatherTime: 5000,
+    experience: 6,
+    items: [{ itemId: "raw_meat", min: 1, max: 2, chance: 1 }]
+  },
+
+  raw_fish: {
+    id: "raw_fish", 
+    name: "سمك نيء",
+    type: "material",
+    description: "سمك يحتاج للطهو",
+    rarity: "common",
+    difficultyLevel: 1, 
+    locations: ["ocean", "river"],
+    gatherTime: 6000,
+    experience: 7,
+    items: [{ itemId: "raw_fish", min: 1, max: 2, chance: 1 }]
+  },
+
+  wheat: {
+    id: "wheat",
+    name: "قمح",
+    type: "material",
+    description: "حبوب لصناعة الخبز", 
+    rarity: "common",
+    difficultyLevel: 1,
+    locations: ["plains", "forest"],
+    gatherTime: 5000,
+    experience: 6,
+    items: [{ itemId: "wheat", min: 1, max: 3, chance: 1 }]
+    },
+
   // ⚒️ الخامات والسبائك
   copper_ore: {
     id: 'copper_ore',
