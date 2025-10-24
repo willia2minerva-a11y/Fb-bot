@@ -352,34 +352,42 @@ export class AdminSystem {
     // ===================================
 
     async handlePendingWithdrawals(args, senderId) {
-        if (!this.isAdmin(senderId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        try {
-            const pendingPlayers = await Player.find({
-                'pendingWithdrawal.status': 'pending'
-            });
-
-            if (pendingPlayers.length === 0) {
-                return '📭 لا توجد طلبات سحب معلقة.';
-            }
-
-            let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
-            
-            pendingPlayers.forEach((p, index) => {
-                message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
-                message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
-                message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
-                message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
-            });
-
-            return message;
-        } catch (error) {
-            console.error('Error fetching pending withdrawals:', error);
-            return '❌ حدث خطأ أثناء جلب طلبات السحب.';
-        }
+    async handlePendingWithdrawals(args, senderId) {
+    if (!this.isAdmin(senderId)) {
+        return '❌ هذا الأمر خاص بالمدراء فقط.';
     }
+
+    try {
+        // البحث عن اللاعبين الذين لديهم طلبات سحب معلقة
+        const allPlayers = await Player.find({ 
+            registrationStatus: 'completed',
+            banned: false 
+        });
+
+        const pendingPlayers = allPlayers.filter(player => 
+            player.pendingWithdrawal && 
+            player.pendingWithdrawal.status === 'pending'
+        );
+
+        if (pendingPlayers.length === 0) {
+            return '📭 لا توجد طلبات سحب معلقة.';
+        }
+
+        let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
+        
+        pendingPlayers.forEach((p, index) => {
+            message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
+            message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
+            message += `   ⏰ ${p.pendingWithdrawal.requestedAt ? p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA') : 'غير محدد'}\n`;
+            message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
+        });
+
+        return message;
+    } catch (error) {
+        console.error('Error fetching pending withdrawals:', error);
+        return '❌ حدث خطأ أثناء جلب طلبات السحب. تفاصيل الخطأ: ' + error.message;
+    }
+                                                 }
 
     async handleProcessWithdrawal(args, senderId) {
         if (!this.isAdmin(senderId)) {
@@ -459,37 +467,47 @@ export class AdminSystem {
             return '❌ usage: اضافة_غولد [player_id] [amount]';
         }
 
-        const targetPlayerId = args[0];
-        const amount = parseInt(args[1]);
-
-        if (!amount || amount <= 0) {
-            return '❌ يرجى تحديد مبلغ صحيح.';
-        }
-
-        try {
-            const targetPlayer = await Player.findOne({ userId: targetPlayerId });
-            if (!targetPlayer) {
-                return '❌ اللاعب غير موجود.';
-            }
-
-            targetPlayer.gold += amount;
-            
-            targetPlayer.transactions.push({
-                id: this.generateUniqueId(),
-                type: 'deposit',
-                amount: amount,
-                status: 'completed',
-                description: `إيداع من المدير`
-            });
-
-            await targetPlayer.save();
-
-            return `✅ تمت إضافة ${amount} غولد للاعب ${targetPlayer.name} بنجاح!\n💰 الرصيد الجديد: ${targetPlayer.gold} غولد`;
-        } catch (error) {
-            console.error('Error adding gold:', error);
-            return '❌ حدث خطأ أثناء إضافة الغولد.';
+        const findTargetPlayer = async (id) => {
+    if (!id) return null;
+    
+    console.log(`🔍 البحث عن لاعب بالمعرف: ${id}`);
+    
+    // إذا كان المعرف يبدأ بـ P فهو playerId
+    if (id.startsWith('P')) {
+        const targetPlayer = await Player.findOne({ playerId: id });
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
+            return targetPlayer;
         }
     }
+    
+    // البحث بـ userId (المعرف الأساسي)
+    let targetPlayer = await Player.findOne({ userId: id });
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name}`);
+        return targetPlayer;
+    }
+    
+    // البحث بـ playerId (دون شرط P)
+    targetPlayer = await Player.findOne({ playerId: id });
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
+        return targetPlayer;
+    }
+    
+    // البحث في الاسم (بدون حساسية لحالة الأحرف)
+    targetPlayer = await Player.findOne({ 
+        name: { $regex: new RegExp(id, 'i') } 
+    });
+    
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالاسم: ${targetPlayer.name}`);
+        return targetPlayer;
+    }
+    
+    console.log(`❌ لم يتم العثور على اللاعب: ${id}`);
+    return null;
+};
 
     // ===================================
     // 🆕 3. الردود التلقائية
