@@ -58,31 +58,48 @@ export class TravelSystem {
   }
 
   async travelTo(player, locationId) {
+    // التحقق من أن اللاعب ليس في قتال نشط
+    const battleSystem = await getSystem('battle');
+    if (battleSystem && battleSystem.activeBattles.has(player.userId)) {
+        const activeMonster = battleSystem.activeBattles.get(player.userId);
+        return { 
+            error: `⚔️ لا يمكنك التنقل أثناء القتال!\nأنت تقاتل ${activeMonster.name} حالياً.\nاستخدم \`هجوم\` أو \`هروب\` أولاً.` 
+        };
+    }
+
     // البحث عن الموقع
     const location = locations[locationId];
     if (!location) {
-      return { error: '❌ الموقع غير موجود.' };
+        return { error: '❌ الموقع غير موجود.' };
     }
 
     // التحقق من متطلبات الموقع
     if (location.requiredLevel && player.level < location.requiredLevel) {
-      return { error: `❌ تحتاج إلى المستوى ${location.requiredLevel} للسفر إلى ${location.name}.` };
-    }
-
-    // إذا كان الموقع الحالي بوابة، تأكيد الخروج
-    if (player.currentLocation.startsWith('gate_')) {
-      // يمكن إضافة تأكيد الخروج من البوابة هنا
+        return { error: `❌ تحتاج إلى المستوى ${location.requiredLevel} للسفر إلى ${location.name}.` };
     }
 
     // تحديث موقع اللاعب
     const previousLocation = player.currentLocation;
     player.currentLocation = locationId;
+    await player.save();
 
     return {
-      message: `📍 انتقلت من **${this.getLocationName(previousLocation)}** إلى **${location.name}**!\n\n` +
+        message: `📍 انتقلت من **${this.getLocationName(previousLocation)}** إلى **${location.name}**!\n\n` +
                `📖 ${location.description || 'موقع جديد ينتظر الاستكشاف.'}`
     };
-  }
+}
+
+async enterGate(player, gateName) {
+    // التحقق من أن اللاعب ليس في قتال نشط
+    const battleSystem = await getSystem('battle');
+    if (battleSystem && battleSystem.activeBattles.has(player.userId)) {
+        const activeMonster = battleSystem.activeBattles.get(player.userId);
+        return { 
+            error: `⚔️ لا يمكنك دخول البوابات أثناء القتال!\nأنت تقاتل ${activeMonster.name} حالياً.\nاستخدم \`هجوم\` أو \`هروب\` أولاً.` 
+        };
+    }
+
+    
 
   getCurrentGateInfo(player) {
     if (!player.currentLocation.startsWith('gate_')) {
