@@ -373,16 +373,16 @@ export default class CommandHandler {
         if (userIsAdmin) {  
             console.log('🎯 🔥 تم التعرف على المدير!');  
         }  
-          
-        // التحقق من الردود التلقائية أولاً  
 
-        const autoResponseSystem = await this.getSystem('autoResponse');  
-        if (autoResponseSystem) {  
-             const autoResponse = autoResponseSystem.findAutoResponse(message);  
-             if (autoResponse) {  
-                 console.log(`🤖 رد تلقائي على: "${message}"`);  
-                 return autoResponse;  
-             }  
+// التحقق من الردود التلقائية أولاً
+
+       const autoResponseSys = await this.getSystem('autoResponse');  
+       if (autoResponseSys) {  
+            const autoResponse = autoResponseSys.findAutoResponse(message);  
+            if (autoResponse) {  
+                console.log(`🤖 رد تلقائي على: "${message}"`);  
+                return autoResponse;  
+            }  
         }  
           
         try {  
@@ -1004,29 +1004,6 @@ async handleDeposit(player) {
     return depositInfo.instructions;
 }
 
-async handleTransfer(player, args) {
-    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-    
-    if (args.length < 2) {
-        return '❌ يرجى تحديد لاعب والمبلغ. مثال: تحويل @username 50';
-    }
-
-    const targetIdentifier = args[0].replace('@', '');
-    const amount = parseInt(args[1]);
-
-    const transactionSystem = await this.getSystem('Transaction');
-    if (!transactionSystem) {
-        return '❌ نظام المعاملات غير متوفر حالياً.';
-    }
-
-    // البحث عن اللاعب المستهدف باستخدام الدالة المحسنة
-    const receiver = await this.findTargetPlayer(targetIdentifier);
-    if (!receiver) {
-        return '❌ اللاعب المستهدف غير موجود.';
-    }
-
-    return await transactionSystem.transferGold(player, receiver.userId, amount);
-}
 
 async handleTransactions(player, args) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
