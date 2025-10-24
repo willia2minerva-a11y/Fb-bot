@@ -356,6 +356,7 @@ export default class CommandHandler {
         }  
           
         // التحقق من الردود التلقائية أولاً  
+
         const autoResponseSystem = await this.getSystem('autoResponse');  
         if (autoResponseSystem) {  
              const autoResponse = autoResponseSystem.findAutoResponse(message);  
