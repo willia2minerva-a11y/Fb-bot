@@ -647,15 +647,25 @@ export default class CommandHandler {
     }
 
     try {
-        // البحث بـ userId أولاً
-        let receiver = await Player.findOne({ userId: targetIdentifier });
+        // البحث بجميع الطرق الممكنة
+        let receiver = null;
         
-        // إذا لم يوجد، البحث بـ playerId
+        // 1. البحث بـ userId
+        receiver = await Player.findOne({ userId: targetIdentifier });
+        
+        // 2. إذا لم يوجد، البحث بـ playerId
         if (!receiver) {
             receiver = await Player.findOne({ playerId: targetIdentifier });
         }
         
-        // إذا لم يوجد، البحث بالاسم
+        // 3. إذا لم يوجد، البحث بالاسم (بدقة أكثر)
+        if (!receiver) {
+            receiver = await Player.findOne({ 
+                name: targetIdentifier 
+            });
+        }
+        
+        // 4. إذا لم يوجد، البحث الجزئي في الاسم
         if (!receiver) {
             receiver = await Player.findOne({ 
                 name: { $regex: new RegExp(targetIdentifier, 'i') } 
@@ -663,7 +673,7 @@ export default class CommandHandler {
         }
 
         if (!receiver) {
-            return `❌ اللاعب المستهدف غير موجود.\n💡 جرب:\n• @اسم_المستخدم\n• المعرف التسلسلي (مثل P476346)\n• اسم اللاعب`;
+            return `❌ اللاعب المستهدف غير موجود.\n💡 جرب:\n• المعرف التسلسلي (مثل P476346)\n• معرف المستخدم\n• اسم اللاعب الكامل`;
         }
 
         if (receiver.userId === player.userId) {
@@ -704,7 +714,8 @@ export default class CommandHandler {
         console.error('Error transferring gold:', error);
         return '❌ حدث خطأ أثناء التحويل.';
     }
-            }
+    }
+    
 
 
     async handleMap(player) {  
