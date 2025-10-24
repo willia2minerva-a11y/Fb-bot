@@ -1,5 +1,3 @@
-
-
 // Player.js
 import mongoose from 'mongoose';
 import { items } from '../data/items.js'; 
@@ -24,23 +22,21 @@ const playerSchema = new mongoose.Schema({
     approvedBy: { type: String, default: null },
     level: { type: Number, default: 1, min: 1 },
     experience: { type: Number, default: 0, min: 0 },
-    // في Player.js - أضف هذه الحقول إلى playerSchema
-    // في playerSchema في Player.js - أضف هذه الحقول:
-gold: { type: Number, default: 50, min: 0 },
-transactions: [{
-    id: { type: String, required: true },
-    type: { type: String, enum: ['withdrawal', 'deposit', 'transfer_sent', 'transfer_received'], required: true },
-    amount: { type: Number, required: true },
-    status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
-    targetPlayer: { type: String, default: null },
-    description: { type: String, default: '' },
-    createdAt: { type: Date, default: Date.now }
-}],
-pendingWithdrawal: {
-    amount: { type: Number, default: 0 },
-    requestedAt: { type: Date, default: null },
-    status: { type: String, enum: ['pending', 'processing', 'completed', 'rejected'], default: 'pending' }
-             },
+    gold: { type: Number, default: 50, min: 0 },
+    transactions: [{
+        id: { type: String, required: true },
+        type: { type: String, enum: ['withdrawal', 'deposit', 'transfer_sent', 'transfer_received'], required: true },
+        amount: { type: Number, required: true },
+        status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
+        targetPlayer: { type: String, default: null },
+        description: { type: String, default: '' },
+        createdAt: { type: Date, default: Date.now }
+    }],
+    pendingWithdrawal: {
+        amount: { type: Number, default: 0 },
+        requestedAt: { type: Date, default: null },
+        status: { type: String, enum: ['pending', 'processing', 'completed', 'rejected'], default: 'pending' }
+    },
     health: { type: Number, default: 100, min: 0 },
     maxHealth: { type: Number, default: 100, min: 1 },
     mana: { type: Number, default: 50, min: 0 },
@@ -48,6 +44,12 @@ pendingWithdrawal: {
     stamina: { type: Number, default: 100, min: 0 },
     maxStamina: { type: Number, default: 100, min: 1 },
     lastStaminaAction: { type: Date, default: Date.now },
+    // 🆕 خصائص الاستعادة التدريجية
+    lastHealthRegen: { type: Date, default: Date.now },
+    lastManaRegen: { type: Date, default: Date.now },
+    healthRegenRate: { type: Number, default: 0.5 }, // 0.5 صحة كل 5 دقائق
+    manaRegenRate: { type: Number, default: 0.3 },   // 0.3 مانا كل 5 دقائق
+    regenInterval: { type: Number, default: 300000 }, // 5 دقائق بالمللي ثانية
     currentLocation: { type: String, default: 'forest' },
     lastGateEntered: { type: String, default: null },
     lastGateEnteredAt: { type: Date, default: null },
@@ -82,16 +84,18 @@ pendingWithdrawal: {
     updatedAt: { type: Date, default: Date.now }
 });
 
-// في Player.js - أضف هذه الدالة الثابتة
+// 🆕 دالة ثابتة محسنة للبحث عن اللاعب بأي معرف
 playerSchema.statics.findPlayerByIdentifier = async function(identifier) {
     if (!identifier) return null;
     
+    // إذا كان المعرف رقمي، ابحث بـ playerId أولاً
+    if (/^\d+$/.test(identifier)) {
+        let player = await this.findOne({ playerId: identifier });
+        if (player) return player;
+    }
+    
     // البحث بـ userId
     let player = await this.findOne({ userId: identifier });
-    if (player) return player;
-    
-    // البحث بـ playerId
-    player = await this.findOne({ playerId: identifier });
     if (player) return player;
     
     // البحث بالاسم (بدون حساسية)
@@ -110,6 +114,68 @@ playerSchema.pre('save', function(next) {
 });
 
 // ========== دوال المثيل (Instance Methods) ==========
+
+// 🆕 دالة الاستعادة التلقائية للصحة والمانا
+playerSchema.methods.regenerate = function() {
+    const now = new Date();
+    let updated = false;
+
+    // استعادة الصحة
+    const healthTimeDiff = now - this.lastHealthRegen;
+    if (healthTimeDiff >= this.regenInterval) {
+        const intervals = Math.floor(healthTimeDiff / this.regenInterval);
+        const healthToAdd = this.healthRegenRate * intervals;
+        this.health = Math.min(this.maxHealth, this.health + healthToAdd);
+        this.lastHealthRegen = new Date(now.getTime() - (healthTimeDiff % this.regenInterval));
+        updated = true;
+    }
+
+    // استعادة المانا
+    const manaTimeDiff = now - this.lastManaRegen;
+    if (manaTimeDiff >= this.regenInterval) {
+        const intervals = Math.floor(manaTimeDiff / this.regenInterval);
+        const manaToAdd = this.manaRegenRate * intervals;
+        this.mana = Math.min(this.maxMana, this.mana + manaToAdd);
+        this.lastManaRegen = new Date(now.getTime() - (manaTimeDiff % this.regenInterval));
+        updated = true;
+    }
+
+    return updated;
+};
+
+// 🆕 دالة للحصول على حالة الاستعادة
+playerSchema.methods.getRegenerationStatus = function() {
+    const now = new Date();
+    const healthTimeUntilNext = Math.max(0, this.regenInterval - (now - this.lastHealthRegen));
+    const manaTimeUntilNext = Math.max(0, this.regenInterval - (now - this.lastManaRegen));
+    
+    const healthMinutes = Math.floor(healthTimeUntilNext / 60000);
+    const healthSeconds = Math.floor((healthTimeUntilNext % 60000) / 1000);
+    
+    const manaMinutes = Math.floor(manaTimeUntilNext / 60000);
+    const manaSeconds = Math.floor((manaTimeUntilNext % 60000) / 1000);
+    
+    return {
+        health: `🕒 الصحة: ${healthMinutes}:${healthSeconds.toString().padStart(2, '0')}`,
+        mana: `⚡ المانا: ${manaMinutes}:${manaSeconds.toString().padStart(2, '0')}`,
+        rates: `📊 معدل الاستعادة: ${this.healthRegenRate} صحة | ${this.manaRegenRate} مانا كل 5 دقائق`
+    };
+};
+
+// 🆕 دالة محسنة لعرض الحالة تشمل الاستعادة
+playerSchema.methods.getEnhancedStatus = function() {
+    const regenStatus = this.getRegenerationStatus();
+    const totalStats = this.getTotalStats(global.itemsData);
+    
+    return `❤️ **الصحة:** ${this.health}/${this.maxHealth}\n` +
+           `⚡ **المانا:** ${this.mana}/${this.maxMana}\n` +
+           `🏃 **النشاط:** ${this.getActualStamina()}/${this.maxStamina}\n` +
+           `🔥 **الهجوم:** ${this.getAttackDamage(global.itemsData)}\n` +
+           `🛡️ **الدفاع:** ${this.getDefense(global.itemsData)}\n` +
+           `🎯 **الضربة الحرجة:** ${totalStats.critChance}%\n` +
+           `💚 **تجديد الصحة:** ${totalStats.healthRegen}\n` +
+           `\n${regenStatus.health}\n${regenStatus.mana}\n${regenStatus.rates}`;
+};
 
 // 🆕 حساب النشاط الحالي مع الأخذ في الاعتبار التجديد الزمني
 playerSchema.methods.getActualStamina = function() {
@@ -131,7 +197,6 @@ playerSchema.methods.getActualStamina = function() {
       
     return actualStamina;
 };
-// في playerSchema.methods في Player.js - أضف هذه الدوال:
 
 // دالة طلب سحب
 playerSchema.methods.requestWithdrawal = function(amount) {
@@ -304,14 +369,20 @@ playerSchema.methods.levelUp = function() {
     this.skills.crafting += 0.1;
 };
 
+// 🆕 دالة heal محسنة لتشمل الاستعادة التلقائية
 playerSchema.methods.heal = function(amount) {
+    // استدعاء الاستعادة التلقائية أولاً
+    this.regenerate();
     this.health = (this.health || 0) + amount;
     if (this.health > this.maxHealth) {
         this.health = this.maxHealth;
     }
 };
 
+// 🆕 دالة takeDamage محسنة لتشمل الاستعادة التلقائية
 playerSchema.methods.takeDamage = function(amount) {
+    // استدعاء الاستعادة التلقائية أولاً
+    this.regenerate();
     this.health = (this.health || 0) - amount;
     if (this.health < 0) {
         this.health = 0;
@@ -329,6 +400,9 @@ playerSchema.methods.respawn = function() {
     this.mana = this.maxMana || 50;
     this.stamina = this.maxStamina || 100;
     this.lastStaminaAction = Date.now();
+    // 🆕 إعادة تعيين مؤقتات الاستعادة
+    this.lastHealthRegen = Date.now();
+    this.lastManaRegen = Date.now();
     this.currentLocation = 'forest';
 
     const goldLoss = Math.floor((this.gold || 0) * 0.1);
@@ -446,9 +520,8 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
     const slot = slotMap[itemType] || null;
 
     if (!slot) {
-        
-      return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` }; 
-    }                                                                 
+        return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` }; 
+    }
 
     const oldItemId = this.equipment[slot];
     if (oldItemId === itemId) {
@@ -471,7 +544,6 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
         oldItemId: oldItemId
     };
 };
-
 
 /**
  * 🆕 نزع عنصر من خانة محددة (محدث)
@@ -524,11 +596,10 @@ playerSchema.methods.getDefense = function(itemsData) {
     return Math.floor(totalStats.defense * multiplier);
 };
 
-playerSchema.methods.getGatherEfficiency = function() {
-    return (this.skills && this.skills.gathering) || 1;
-};
-
+// 🆕 دالة useMana محسنة لتشمل الاستعادة التلقائية
 playerSchema.methods.useMana = function(amount) {
+    // استدعاء الاستعادة التلقائية أولاً
+    this.regenerate();
     const currentMana = this.mana || 0;
     if (currentMana >= amount) {
         this.mana = currentMana - amount;
@@ -541,26 +612,39 @@ playerSchema.methods.restoreMana = function(amount) {
     this.mana = Math.min((this.mana || 0) + amount, this.maxMana || 50);
 };
 
+playerSchema.methods.getGatherEfficiency = function() {
+    return (this.skills && this.skills.gathering) || 1;
+};
+
 // ========== دوال ثابتة (Static Methods) ==========
 
+// 🆕 دالة ثابتة جديدة للحصول على آخر معرف رقمي
 playerSchema.statics.getLastNumericId = async function() {
-    const lastPlayer = await this.findOne({ playerId: { $ne: null } })
-        .sort({ createdAt: -1 })
+    const lastPlayer = await this.findOne({ playerId: { $regex: /^[0-9]+$/ } }) // البحث عن playerId رقمي فقط
+        .sort({ playerId: -1 }) // ترتيب تنازلي حسب playerId
         .exec();
 
-    const lastId = lastPlayer?.playerId ? parseInt(lastPlayer.playerId, 10) : 0;  
-    return isNaN(lastId) ? 1000 : (lastId >= 1000 ? lastId : 1000);
-
+    if (lastPlayer && lastPlayer.playerId) {
+        const lastId = parseInt(lastPlayer.playerId, 10);
+        if (!isNaN(lastId) && lastId >= 1000) {
+            return lastId;
+        }
+    }
+    return 1000; // البدء من 1000 إذا لم يوجد
 };
 
 playerSchema.statics.createNew = async function(userId, name) {
     try {
+        // الحصول على آخر معرف رقمي
+        const lastId = await this.getLastNumericId();
+        const newPlayerId = (lastId + 1).toString(); // زيادة 1 وتحويل إلى سلسلة
+
         const player = new this({
             userId,
             name,
             registrationStatus: 'pending',
             gender: null,
-            playerId: null,
+            playerId: newPlayerId, // تعيين المعرف الرقمي الجديد
             approvedAt: null,
             approvedBy: null,
             level: 1,
@@ -573,6 +657,12 @@ playerSchema.statics.createNew = async function(userId, name) {
             stamina: 100,
             maxStamina: 100,
             lastStaminaAction: Date.now(),
+            // 🆕 تهيئة خصائص الاستعادة
+            lastHealthRegen: Date.now(),
+            lastManaRegen: Date.now(),
+            healthRegenRate: 0.5,
+            manaRegenRate: 0.3,
+            regenInterval: 300000, // 5 دقائق
             currentLocation: 'forest',
             inventory: [
                 {
@@ -629,7 +719,6 @@ playerSchema.statics.createNew = async function(userId, name) {
         }  
         
         throw error;
-
     }
 };
 
@@ -649,7 +738,7 @@ playerSchema.statics.getTopPlayers = async function(limit = 10) {
 playerSchema.statics.getPendingPlayers = async function() {
     return await this.find({
         registrationStatus: 'pending'
-    }).select('userId name createdAt');
+    }).select('userId name createdAt playerId'); // 🆕 إضافة playerId للعرض
 };
 
 // ========== دوال افتراضية (Virtuals) ==========
@@ -678,5 +767,3 @@ playerSchema.virtual('inventoryTypes').get(function() {
 
 const Player = mongoose.model('Player', playerSchema);
 export default Player;
-
-
