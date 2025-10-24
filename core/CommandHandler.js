@@ -1,4 +1,3 @@
-
 // CommandHandler.js
 
 import Player from './Player.js';
@@ -19,7 +18,8 @@ async function getSystem(systemName) {
             'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',   
             'travel': '../systems/world/TravelSystem.js',  
             'crafting': '../systems/crafting/CraftingSystem.js',
-            'Transaction':'..systems/economy/TransactionSystem.js'
+            // ⚠️ تصحيح: إضافة شرطة مائلة للمسار
+            'Transaction':'../systems/economy/TransactionSystem.js' 
         };  
 
         if (systems[systemName]) {  
@@ -64,6 +64,7 @@ export default class CommandHandler {
                 'القتال': this.handleMenu3.bind(this),
                 'الصناعة': this.handleMenu4.bind(this),
                 'المعلومات': this.handleMenu5.bind(this),
+                'الاقتصاد': this.handleMenu6.bind(this), // 🆕 إضافة
 
                 // التسجيل  
                 'بدء': this.handleStart.bind(this),  
@@ -135,13 +136,16 @@ export default class CommandHandler {
                 'هروب': this.handleEscape.bind(this),  
                 'اهرب': this.handleEscape.bind(this),
 
-                //  الإقـتـصـاد 
+                // الإقـتـصـاد  
                 'سحب': this.handleWithdrawal.bind(this),
                 'ايداع': this.handleDeposit.bind(this),
-                'تحويل': this.handleTransfer.bind(this),
+                'تحويل': this.handleTransfer.bind(this), // نستخدم التعريف الشامل
                 'معاملاتي': this.handleTransactions.bind(this),
                 'رصيدي': this.handleBalance.bind(this),
-
+                
+                // أوامر المدير الجديدة لمعالجة الاقتصاد
+                // يجب أن تكون كـ 'معالجة_سحب' ليتم إرسالها لـ AdminSystem
+                // سنقوم بمعالجة الأوامر المركبة لها في دالة process
             };  
 
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'اوامر', 'رئيسية', '1', '2', '3', '4', '5', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];  
@@ -307,35 +311,16 @@ export default class CommandHandler {
     }  
 
     async process(sender, message) {  
-    const { id, name } = sender;  
-    const originalMessage = message.trim(); // حفظ الرسالة الأصلية
-    const processedMessage = originalMessage.toLowerCase();  
-      
-    console.log(`📨 معالجة رسالة: "${originalMessage}" من ${name} (${id})`);  
+        const { id, name } = sender;  
+        const processedMessage = message.trim().toLowerCase();  
+          
+        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)  
+        let commandParts = processedMessage.split(/\s+/);  
+        let command = commandParts[0];  
+        let args = commandParts.slice(1);  
+          
+        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين  
 
-    const isAdmin = this.adminSystem.isAdmin(id);  
-    if (isAdmin) {  
-        console.log('🎯 🔥 تم التعرف على المدير!');  
-    }  
-      
-    // 🆕 التحقق من الردود التلقائية أولاً - باستخدام الرسالة الأصلية
-    const autoResponseSystem = await this.getSystem('autoResponse');  
-    if (autoResponseSystem) {  
-         const autoResponse = autoResponseSystem.findAutoResponse(originalMessage);  
-         if (autoResponse) {  
-             console.log(`🤖 رد تلقائي على: "${originalMessage}"`);  
-             return autoResponse;  
-         }  
-    }  
-      
-    // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)  
-    let commandParts = processedMessage.split(/\s+/);  
-    let command = commandParts[0];  
-    let args = commandParts.slice(1);  
-      
-    const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين  
-
-    // باقي الكود بدون تغيير...
         // 🆕 دمج معالجة الأوامر المركبة هنا  
         if (fullCommand === 'موافقة لاعب') {  
             command = 'موافقة_لاعب';  
@@ -364,25 +349,34 @@ export default class CommandHandler {
         }  else if (fullCommand === 'تغيير جنس') {  
             command = 'تغيير_جنس';  
             args = args.slice(1);   
-        } 
+        } else if (fullCommand === 'معالجة سحب') { // 🆕 تصحيح: إضافة أمر معالجة السحب
+            command = 'معالجة_سحب';
+            args = args.slice(1);
+        } else if (fullCommand === 'سحوبات معلقة') { // 🆕 تصحيح: إضافة أمر السحوبات المعلقة
+            command = 'سحوبات_معلقة';
+            args = args.slice(1);
+        } else if (fullCommand === 'اضافة غولد') { // 🆕 تصحيح: إضافة أمر إضافة غولد
+            command = 'اضافة_غولد';
+            args = args.slice(1);
+        }
         // يمكن إضافة المزيد من الأوامر المركبة هنا...  
           
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);  
 
-        const userIsAdmin = this.adminSystem.isAdmin(id);  
-        if (userIsAdmin) {  
+        const isAdmin = this.adminSystem.isAdmin(id);  
+        if (isAdmin) {  
             console.log('🎯 🔥 تم التعرف على المدير!');  
         }  
+          
+        // التحقق من الردود التلقائية أولاً  
 
-// التحقق من الردود التلقائية أولاً
-
-       const autoResponseSys = await this.getSystem('autoResponse');  
-       if (autoResponseSys) {  
-            const autoResponse = autoResponseSys.findAutoResponse(message);  
-            if (autoResponse) {  
-                console.log(`🤖 رد تلقائي على: "${message}"`);  
-                return autoResponse;  
-            }  
+        const autoResponseSystem = await this.getSystem('autoResponse');  
+        if (autoResponseSystem) {  
+             const autoResponse = autoResponseSystem.findAutoResponse(message);  
+             if (autoResponse) {  
+                 console.log(`🤖 رد تلقائي على: "${message}"`);  
+                 return autoResponse;  
+             }  
         }  
           
         try {  
@@ -408,8 +402,17 @@ export default class CommandHandler {
             if (isAdmin) {  
                 const adminCommands = this.adminSystem.getAdminCommands();  
                   
-                if (adminCommands[command]) {  
+                if (adminCommands[command] || command === 'معالجة_سحب' || command === 'سحوبات_معلقة' || command === 'اضافة_غولد') { // 🆕 تصحيح: إضافة معالجة لأوامر المدير الجديدة هنا
                     console.log(`👑 تنفيذ أمر مدير: ${command}`);  
+                    // بما أن الأوامر الاقتصادية الجديدة هي دوال في CommandHandler، يجب استدعاؤها مباشرة إذا لم تكن في AdminSystem
+                    if (command === 'معالجة_سحب') {
+                        return await this.handleProcessWithdrawal(player, args);
+                    } else if (command === 'سحوبات_معلقة') {
+                        return await this.handlePendingWithdrawals(player);
+                    } else if (command === 'اضافة_غولد') {
+                        return await this.handleAddGold(player, args);
+                    }
+                    
                     const result = await this.adminSystem.handleAdminCommand(command, args, id, player, this.ARABIC_ITEM_MAP);  
                     return result;  
                 }  
@@ -647,6 +650,96 @@ export default class CommandHandler {
     }  
 
     
+    async handleTransfer(player, args) {
+    // ⚠️ تصحيح: تم حذف دالة handleTransfer المكررة في النهاية واستبُدلت بهذه الدالة الشاملة.
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+    if (args.length < 2) {
+        return '❌ يرجى تحديد لاعب والمبلغ.\nمثال: تحويل @username 50\nمثال: تحويل P476346 50';
+    }
+
+    const targetIdentifier = args[0].replace('@', '');
+    const amount = parseInt(args[1]);
+
+    if (!amount || amount <= 0) {
+        return '❌ يرجى تحديد مبلغ صحيح للتحويل.';
+    }
+
+    if (player.gold < amount) {
+        return `❌ رصيدك غير كافٍ للتحويل.\n💰 رصيدك: ${player.gold} غولد`;
+    }
+
+    try {
+        // البحث بجميع الطرق الممكنة
+        let receiver = null;
+        
+        // 1. البحث بـ userId
+        receiver = await Player.findOne({ userId: targetIdentifier });
+        
+        // 2. إذا لم يوجد، البحث بـ playerId
+        if (!receiver) {
+            receiver = await Player.findOne({ playerId: targetIdentifier });
+        }
+        
+        // 3. إذا لم يوجد، البحث بالاسم (بدقة أكثر)
+        if (!receiver) {
+            receiver = await Player.findOne({ 
+                name: targetIdentifier 
+            });
+        }
+        
+        // 4. إذا لم يوجد، البحث الجزئي في الاسم
+        if (!receiver) {
+            receiver = await Player.findOne({ 
+                name: { $regex: new RegExp(targetIdentifier, 'i') } 
+            });
+        }
+
+        if (!receiver) {
+            return `❌ اللاعب المستهدف غير موجود.\n💡 جرب:\n• المعرف التسلسلي (مثل P476346)\n• معرف المستخدم\n• اسم اللاعب الكامل`;
+        }
+
+        if (receiver.userId === player.userId) {
+            return '❌ لا يمكن التحويل لنفسك.';
+        }
+
+        // تنفيذ التحويل
+        player.gold -= amount;
+        receiver.gold += amount;
+
+        // تسجيل المعاملات
+        const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        player.transactions.push({
+            id: transactionId,
+            type: 'transfer_sent',
+            amount: amount,
+            status: 'completed',
+            targetPlayer: receiver.userId,
+            description: `تحويل إلى ${receiver.name} (${receiver.playerId})`
+        });
+
+        receiver.transactions.push({
+            id: transactionId,
+            type: 'transfer_received',
+            amount: amount,
+            status: 'completed',
+            targetPlayer: player.userId,
+            description: `تحويل من ${player.name} (${player.playerId})`
+        });
+
+        await player.save();
+        await receiver.save();
+
+        return `✅ تم تحويل ${amount} غولد إلى ${receiver.name} (${receiver.playerId}) بنجاح!\n💎 رصيدك الحالي: ${player.gold} غولد`;
+
+    } catch (error) {
+        console.error('Error transferring gold:', error);
+        return '❌ حدث خطأ أثناء التحويل.';
+    }
+    }
+    
+
 
     async handleMap(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -975,58 +1068,95 @@ export default class CommandHandler {
           
         return result.message;  
     }  
+    
     // 🏦 دوال النظام الاقتصادي في CommandHandler.js
-// في CommandHandler.js - أضف هذه الدوال:
-
-// في CommandHandler.js - استبدال دوال الاقتصاد بالاستدعاءات للنظام
 
 async handleWithdrawal(player, args) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
     const amount = parseInt(args[0]);
-    const transactionSystem = await this.getSystem('Transaction');
-    if (!transactionSystem) {
-        return '❌ نظام المعاملات غير متوفر حالياً.';
+    if (!amount || amount <= 0) {
+        return '❌ يرجى تحديد مبلغ صحيح للسحب. مثال: سحب 100';
     }
-    
-    return await transactionSystem.requestWithdrawal(player, amount);
+
+    if (amount < 100) {
+        return '❌ الحد الأدنى للسحب هو 100 غولد.';
+    }
+
+    const result = player.requestWithdrawal(amount);
+    if (result.error) {
+        return result.error;
+    }
+
+    await player.save();
+
+    return `✅ تم تقديم طلب سحب ${amount} غولد بنجاح!\n📋 سيتم معالجته خلال 24 ساعة.\n💎 رصيدك الحالي: ${result.newBalance} غولد`;
 }
 
 async handleDeposit(player) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
-    const transactionSystem = await this.getSystem('Transaction');
-    if (!transactionSystem) {
-        return '❌ نظام المعاملات غير متوفر حالياً.';
-    }
-    
-    const depositInfo = transactionSystem.getDepositInstructions(player);
-    return depositInfo.instructions;
+    return `💳 **طريقة الإيداع:**\n\n` +
+           `1. قم بتحويل المبلغ للمدير\n` +
+           `2. أرسل إشعار التحويل للمدير\n` +
+           `3. سيتم إضافة الغولد خلال 24 ساعة\n\n` +
+           `💡 الحد الأدنى للإيداع: 50 غولد\n` +
+           `💰 استخدم: \`اضافة غولد [معرف اللاعب] [المبلغ]\` (للمدير)`;
 }
 
+// ⚠️ تم حذف دالة handleTransfer المكررة هنا للحفاظ على التعريف الشامل أعلاه (السطر 326-444)
 
 async handleTransactions(player, args) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
     const limit = parseInt(args[0]) || 10;
-    const transactionSystem = await this.getSystem('Transaction');
-    if (!transactionSystem) {
-        return '❌ نظام المعاملات غير متوفر حالياً.';
+    const transactions = player.getTransactionHistory(limit);
+
+    if (transactions.length === 0) {
+        return '📝 لا توجد معاملات سابقة.';
     }
+
+    let history = `📋 **سجل المعاملات (آخر ${transactions.length}):**\n\n`;
     
-    return transactionSystem.getTransactionHistory(player, limit);
+    transactions.forEach(transaction => {
+        const icons = {
+            withdrawal: '💳',
+            deposit: '💰', 
+            transfer_sent: '↗️',
+            transfer_received: '↙️'
+        };
+
+        const statusIcons = {
+            pending: '⏳',
+            completed: '✅',
+            rejected: '❌'
+        };
+
+        const typeNames = {
+            withdrawal: 'سحب',
+            deposit: 'إيداع',
+            transfer_sent: 'تحويل مرسل',
+            transfer_received: 'تحويل مستلم'
+        };
+
+        history += `${icons[transaction.type]} ${statusIcons[transaction.status]} `;
+        history += `${typeNames[transaction.type]}: ${transaction.amount} غولد\n`;
+        
+        if (transaction.targetPlayer) {
+            history += `   👤 ${transaction.description}\n`;
+        }
+        
+        history += `   📅 ${new Date(transaction.createdAt).toLocaleDateString('ar-SA')}\n\n`;
+    });
+
+    return history;
 }
 
 async handleBalance(player) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
-    const transactionSystem = await this.getSystem('Transaction');
-    if (!transactionSystem) {
-        return '❌ نظام المعاملات غير متوفر حالياً.';
-    }
-    
     let balanceMessage = `💰 **رصيدك الحالي:** ${player.gold} غولد\n`;
-    balanceMessage += `💳 **الحد الأدنى للسحب:** ${transactionSystem.minWithdrawal} غولد\n`;
+    balanceMessage += `💳 **الحد الأدنى للسحب:** 100 غولد\n`;
     balanceMessage += `📊 **إجمالي المعاملات:** ${player.transactions.length} معاملة\n`;
     
     if (player.pendingWithdrawal && player.pendingWithdrawal.status === 'pending') {
@@ -1034,17 +1164,18 @@ async handleBalance(player) {
     }
 
     return balanceMessage;
-                                                   }
+}
 
 
-// 👑 دوال المدير
+// 👑 دوال المدير (تتم معالجتها كأوامر مركبة في دالة process)
+
 async handleProcessWithdrawal(player, args) {
     if (!this.adminSystem.isAdmin(player.userId)) {
         return '❌ هذا الأمر خاص بالمدراء فقط.';
     }
 
     if (args.length < 2) {
-        return '❌ usage: معالجة_سحب [player_id] [قبول/رفض]';
+        return '❌ usage: معالجة سحب [player_id] [قبول/رفض]';
     }
 
     const targetPlayerId = args[0];
@@ -1083,7 +1214,7 @@ async handleProcessWithdrawal(player, args) {
                `💰 المبلغ: ${withdrawalAmount} غولد\n` +
                `⏰ وقت الطلب: ${targetPlayer.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}`;
 
-    } else if (action === 'رفض' || action === 'رفض') {
+    } else if (action === 'رفض') { // ⚠️ تصحيح: حذف 'رفض' المكررة
         // رفض السحب وإعادة المال
         targetPlayer.gold += withdrawalAmount;
         targetPlayer.pendingWithdrawal.status = 'rejected';
@@ -1094,6 +1225,7 @@ async handleProcessWithdrawal(player, args) {
         );
         if (transaction) {
             transaction.status = 'rejected';
+            transaction.description = `سحب مرفوض - تم إعادة المبلغ للرصيد`;
         }
 
         await targetPlayer.save();
@@ -1127,7 +1259,7 @@ async handlePendingWithdrawals(player) {
         message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
         message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
         message += `   ⏰ ${p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}\n`;
-        message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
+        message += `   🎯 معالجة: \`معالجة سحب ${p.userId} قبول/رفض\`\n\n`;
     });
 
     return message;
@@ -1139,7 +1271,7 @@ async handleAddGold(player, args) {
     }
 
     if (args.length < 2) {
-        return '❌ usage: اضافة_غولد [player_id] [amount]';
+        return '❌ usage: اضافة غولد [player_id] [amount]';
     }
 
     const targetPlayerId = args[0];
@@ -1157,8 +1289,9 @@ async handleAddGold(player, args) {
     targetPlayer.gold += amount;
     
     // تسجيل المعاملة
+    const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; // ⚠️ تصحيح: استخدام نفس طريقة توليد ID
     targetPlayer.transactions.push({
-        id: uuidv4(),
+        id: transactionId,
         type: 'deposit',
         amount: amount,
         status: 'completed',
@@ -1174,4 +1307,4 @@ async handleAddGold(player, args) {
     async handleUnknown(command, player) {  
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;  
     }  
-                    }
+}
