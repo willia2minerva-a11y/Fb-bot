@@ -307,16 +307,35 @@ export default class CommandHandler {
     }  
 
     async process(sender, message) {  
-        const { id, name } = sender;  
-        const processedMessage = message.trim().toLowerCase();  
-          
-        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)  
-        let commandParts = processedMessage.split(/\s+/);  
-        let command = commandParts[0];  
-        let args = commandParts.slice(1);  
-          
-        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين  
+    const { id, name } = sender;  
+    const originalMessage = message.trim(); // حفظ الرسالة الأصلية
+    const processedMessage = originalMessage.toLowerCase();  
+      
+    console.log(`📨 معالجة رسالة: "${originalMessage}" من ${name} (${id})`);  
 
+    const isAdmin = this.adminSystem.isAdmin(id);  
+    if (isAdmin) {  
+        console.log('🎯 🔥 تم التعرف على المدير!');  
+    }  
+      
+    // 🆕 التحقق من الردود التلقائية أولاً - باستخدام الرسالة الأصلية
+    const autoResponseSystem = await this.getSystem('autoResponse');  
+    if (autoResponseSystem) {  
+         const autoResponse = autoResponseSystem.findAutoResponse(originalMessage);  
+         if (autoResponse) {  
+             console.log(`🤖 رد تلقائي على: "${originalMessage}"`);  
+             return autoResponse;  
+         }  
+    }  
+      
+    // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)  
+    let commandParts = processedMessage.split(/\s+/);  
+    let command = commandParts[0];  
+    let args = commandParts.slice(1);  
+      
+    const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين  
+
+    // باقي الكود بدون تغيير...
         // 🆕 دمج معالجة الأوامر المركبة هنا  
         if (fullCommand === 'موافقة لاعب') {  
             command = 'موافقة_لاعب';  
