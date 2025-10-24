@@ -107,56 +107,69 @@ export class AdminSystem {
 
     async handleAdminCommand(command, args, senderId, player, itemMap) {
         const findTargetPlayer = async (id) => {
-            if (!id) return null;
-            
-            console.log(`🔍 البحث عن لاعب بالمعرف: ${id}`);
-            
-            // إذا كان المعرف يبدأ بـ P فهو playerId
-            if (id.startsWith('P')) {
-                const targetPlayer = await Player.findOne({ playerId: id });
-                if (targetPlayer) {
-                    console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
-                    return targetPlayer;
-                }
-            }
-            
-            // البحث بـ userId (المعرف الأساسي)
-            let targetPlayer = await Player.findOne({ userId: id });
-            if (targetPlayer) {
-                console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name}`);
-                return targetPlayer;
-            }
-            
-            // البحث بـ playerId (دون شرط P)
-            targetPlayer = await Player.findOne({ playerId: id });
-            if (targetPlayer) {
-                console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
-                return targetPlayer;
-            }
-            
-            // البحث في الاسم (بدون حساسية لحالة الأحرف)
-            targetPlayer = await Player.findOne({ 
-                name: { $regex: new RegExp('^' + id + '$', 'i') } 
-            });
-            
-            if (targetPlayer) {
-                console.log(`✅ تم العثور بالاسم: ${targetPlayer.name}`);
-                return targetPlayer;
-            }
-            
-            // البحث الجزئي في الاسم كحل أخير
-            targetPlayer = await Player.findOne({ 
-                name: { $regex: new RegExp(id, 'i') } 
-            });
-            
-            if (targetPlayer) {
-                console.log(`✅ تم العثور بالاسم الجزئي: ${targetPlayer.name}`);
-                return targetPlayer;
-            }
-            
-            console.log(`❌ لم يتم العثور على اللاعب: ${id}`);
-            return null;
-        };
+    if (!id) return null;
+    
+    console.log(`🔍 البحث عن لاعب بالمعرف: "${id}"`);
+    
+    // تنظيف المعرف وإزالة الرموز غير المرغوبة
+    const cleanId = id.trim().toUpperCase();
+    
+    // 1. البحث بـ userId (المعرف الأساسي) - غير حساس لحالة الأحرف
+    let targetPlayer = await Player.findOne({ 
+        userId: { $regex: new RegExp('^' + id + '$', 'i') } 
+    });
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name} (${targetPlayer.userId})`);
+        return targetPlayer;
+    }
+    
+    // 2. البحث بـ playerId - غير حساس لحالة الأحرف ومع إضافة P تلقائياً إذا لزم الأمر
+    let playerIdToSearch = cleanId;
+    if (!playerIdToSearch.startsWith('P') && /^\d+$/.test(playerIdToSearch)) {
+        playerIdToSearch = 'P' + playerIdToSearch;
+    }
+    
+    targetPlayer = await Player.findOne({ 
+        playerId: { $regex: new RegExp('^' + playerIdToSearch + '$', 'i') } 
+    });
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name} (${targetPlayer.playerId})`);
+        return targetPlayer;
+    }
+    
+    // 3. البحث بـ playerId بدون P
+    if (cleanId.startsWith('P')) {
+        const withoutP = cleanId.substring(1);
+        targetPlayer = await Player.findOne({ 
+            playerId: { $regex: new RegExp('^' + withoutP + '$', 'i') } 
+        });
+        if (targetPlayer) {
+            console.log(`✅ تم العثور بالـ playerId (بدون P): ${targetPlayer.name} (${targetPlayer.playerId})`);
+            return targetPlayer;
+        }
+    }
+    
+    // 4. البحث في الاسم (مطابقة تامة أولاً)
+    targetPlayer = await Player.findOne({ 
+        name: { $regex: new RegExp('^' + id + '$', 'i') } 
+    });
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالاسم التام: ${targetPlayer.name}`);
+        return targetPlayer;
+    }
+    
+    // 5. البحث الجزئي في الاسم كحل أخير
+    targetPlayer = await Player.findOne({ 
+        name: { $regex: new RegExp(id, 'i') } 
+    });
+    if (targetPlayer) {
+        console.log(`✅ تم العثور بالاسم الجزئي: ${targetPlayer.name}`);
+        return targetPlayer;
+    }
+    
+    console.log(`❌ لم يتم العثور على اللاعب: "${id}"`);
+    return null;
+};
 
         switch (command) {
             case 'مدير': return this.getAdminHelp();
