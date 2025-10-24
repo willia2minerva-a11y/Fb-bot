@@ -58,6 +58,7 @@ export class TravelSystem {
   }
 
   async travelTo(player, locationId) {
+    const getSystem = (await import('../../core/CommandHandler.js')).getSystem;
     // التحقق من أن اللاعب ليس في قتال نشط
     const battleSystem = await getSystem('battle');
     if (battleSystem && battleSystem.activeBattles.has(player.userId)) {
