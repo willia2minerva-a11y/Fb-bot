@@ -18,14 +18,17 @@ async function getSystem(systemName) {
             'autoResponse': '../systems/autoResponse/AutoResponseSystem.js',   
             'travel': '../systems/world/TravelSystem.js',  
             'crafting': '../systems/crafting/CraftingSystem.js',
-            'Transaction':'..systems/economy/TransactionSystem.js',
-            'furnace': '../systems/furnace/FurnaceSystem.js'
+            'furnace': '../systems/furnace/FurnaceSystem.js',
+            'transaction': '../systems/economy/TransactionSystem.js'
         };  
 
         if (systems[systemName]) {  
             const module = await import(systems[systemName]);  
-            const SystemClass = Object.values(module)[0];  
-            return new SystemClass();  
+            const SystemClass = module.default || Object.values(module)[0];  
+            if (SystemClass) {
+                console.log(`✅ تم تحميل النظام: ${systemName}`);
+                return new SystemClass();  
+            }
         }  
     } catch (error) {  
         console.log(`⚠️ System ${systemName} not available:`, error.message);  
@@ -92,14 +95,14 @@ export default class CommandHandler {
                 'حقيبة': this.handleInventory.bind(this),   
                 'جرد': this.handleInventory.bind(this),   
                 'مخزن': this.handleInventory.bind(this),   
-                'معداتي': this.handleEquipment.bind(this), // 🆕 تم إضافة الأمر  
+                'معداتي': this.handleEquipment.bind(this),
 
                 // الاستكشاف  
                 'خريطة': this.handleMap.bind(this),  
                 'الموقع': this.handleMap.bind(this),   
                 'بوابات': this.handleGates.bind(this),   
                 'ماب': this.handleMap.bind(this),
-                'ادخل': this.handleEnterGate.bind(this), // 🆕 أمر جديد
+                'ادخل': this.handleEnterGate.bind(this),
 
                 'انتقل': this.handleTravel.bind(this),  
                 'سافر': this.handleTravel.bind(this),   
@@ -110,15 +113,11 @@ export default class CommandHandler {
                 'اجمع': this.handleGather.bind(this),   
                 'جمع': this.handleGather.bind(this),  
                   
-                // الصناعة و الطهو 
+                // الصناعة  
                 'وصفات': this.handleShowRecipes.bind(this),  
                 'صناعة': this.handleShowRecipes.bind(this),  
                 'اصنع': this.handleCraft.bind(this),   
-                'صنع': this.handleCraft.bind(this),  
-                'فرن': this.handleFurnace.bind(this),
-                'طهو': this.handleCook.bind(this),
-                'صهر': this.handleSmelt.bind(this),
-                'حرق': this.handleCook.bind(this),
+                'صنع': this.handleCraft.bind(this),    
 
                 // 🆕 التجهيز  
                 'جهز': this.handleEquip.bind(this),   
@@ -139,12 +138,18 @@ export default class CommandHandler {
                 'هروب': this.handleEscape.bind(this),  
                 'اهرب': this.handleEscape.bind(this),
 
-                //  الإقـتـصـاد 
+                // الإقتـصـاد 
                 'سحب': this.handleWithdrawal.bind(this),
                 'ايداع': this.handleDeposit.bind(this),
                 'تحويل': this.handleTransfer.bind(this),
                 'معاملاتي': this.handleTransactions.bind(this),
                 'رصيدي': this.handleBalance.bind(this),
+
+                // 🆕 نظام الفرن
+                'فرن': this.handleFurnace.bind(this),
+                'طهو': this.handleCook.bind(this),
+                'صهر': this.handleSmelt.bind(this),
+                'حرق': this.handleCook.bind(this),
 
             };  
 
@@ -160,17 +165,14 @@ export default class CommandHandler {
     // 🆕 دالة لإنشاء خريطة ترجمة العناصر من العربي إلى الإنجليزي (ID)  
     _createArabicItemMap() {  
         const itemMap = {};  
-        // 1. ترجمة من ملف items  
         for (const itemId in items) {  
             const itemName = items[itemId].name;  
             itemMap[itemName.toLowerCase()] = itemId;   
         }  
           
-        // 2. ترجمة من ملف locations  
         for (const locationId in locations) {  
             const locationName = locations[locationId].name;  
             itemMap[locationName.toLowerCase()] = locationId;  
-            // إضافة الترجمة بدون 'ال' (للتنقل المرن)  
             if (locationName.startsWith('ال')) {  
                  itemMap[locationName.substring(2).toLowerCase()] = locationId;  
             }  
@@ -189,7 +191,7 @@ export default class CommandHandler {
 ║ 3️⃣ /القتال - أوامر المعارك والمغامرات
 ║ 4️⃣ /الصناعة - أوامر الصنع والتجهيز
 ║ 5️⃣ /المعلومات - أوامر الحالة والبروفايل
-║ 6️⃣ /الاقتصاد - أوامر السحب والتحويل والايداع الغولدنية
+║ 6️⃣ /الاقتصاد - أوامر السحب والتحويل والايداع
 ║
 ║ 📝 اختر رقم القائمة ( 1 , 2 , 3 , 4 , 5 , 6 )
 ║
@@ -210,7 +212,7 @@ export default class CommandHandler {
 ║
 ║ • خريطة/الموقع - عرض الخريطة الحالية
 ║ • بوابات - عرض البوابات القريبة
-║ • ادخل [اسم البوابة] - 🆕 دخول البوابة
+║ • ادخل [اسم البوابة] - دخول البوابة
 ║ • انتقل [مكان] - السفر إلى موقع
 ║ • تجميع/اجمع - جمع الموارد
 ║ • تجميع [اسم المورد] - جمع مورد محدد
@@ -247,7 +249,7 @@ export default class CommandHandler {
 ║ • بروفايلي/بطاقة - عرض البروفايل
 ║ • حقيبتي/مخزن - عرض المحتويات
 ║ • توب/افضل - قائمة أفضل اللاعبين
-║ • لاعبيين - 🆕 عرض اللاعبين النشطين
+║ • لاعبيين - عرض اللاعبين النشطين
 ║
 ║ ◀️ /رئيسية - العودة للقائمة الرئيسية
 ║
@@ -264,7 +266,6 @@ export default class CommandHandler {
 ║ ◀️ /رئيسية - العودة للقائمة الرئيسية  
 ║
 ╚══════════════════════════════════════════════╝`
-  
         };
         return menus[menuType] || menus.main;
     }
@@ -302,10 +303,14 @@ export default class CommandHandler {
         return this.getMenu('economy');
     }
 
-
     async getSystem(systemName) {  
         if (!this.systems[systemName]) {  
+            console.log(`🔄 جاري تحميل النظام: ${systemName}`);
             this.systems[systemName] = await getSystem(systemName);  
+            
+            if (!this.systems[systemName]) {
+                console.log(`❌ فشل تحميل النظام: ${systemName}`);
+            }
         }  
         return this.systems[systemName];  
     }  
@@ -314,14 +319,13 @@ export default class CommandHandler {
         const { id, name } = sender;  
         const processedMessage = message.trim().toLowerCase();  
           
-        // 🛠️ الخطوة 1: معالجة الأوامر المركبة (موافقة لاعب، اعطاء مورد)  
         let commandParts = processedMessage.split(/\s+/);  
         let command = commandParts[0];  
         let args = commandParts.slice(1);  
           
-        const fullCommand = command + (args[0] ? ` ${args[0]}` : ''); // للتحقق من أول كلمتين  
+        const fullCommand = command + (args[0] ? ` ${args[0]}` : '');
 
-        // 🆕 دمج معالجة الأوامر المركبة هنا  
+        // معالجة الأوامر المركبة
         if (fullCommand === 'موافقة لاعب') {  
             command = 'موافقة_لاعب';  
             args = args.slice(1);  
@@ -350,7 +354,6 @@ export default class CommandHandler {
             command = 'تغيير_جنس';  
             args = args.slice(1);   
         } 
-        // يمكن إضافة المزيد من الأوامر المركبة هنا...  
           
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);  
 
@@ -358,8 +361,6 @@ export default class CommandHandler {
         if (userIsAdmin) {  
             console.log('🎯 🔥 تم التعرف على المدير!');  
         }  
-          
-        // التحقق من الردود التلقائية أولاً
 
         const autoResponseSys = await this.getSystem('autoResponse');  
         if (autoResponseSys) {  
@@ -389,7 +390,6 @@ export default class CommandHandler {
                 return '❌ تم حظرك من اللعبة.';  
             }  
 
-            // 🎯 معالجة أوامر المدير أولاً  
             if (userIsAdmin) {  
                 const adminCommands = this.adminSystem.getAdminCommands();  
                   
@@ -400,14 +400,12 @@ export default class CommandHandler {
                 }  
             }  
 
-            // معالجة الأوامر العادية  
             if (this.commands[command]) {  
                 if (!this.allowedBeforeApproval.includes(command) && !player.isApproved()) {  
                     return this.getRegistrationMessage(player);  
                 }  
 
                 const handler = this.commands[command];   
-                // 💡 يجب استخدام call(this, ...) لضمان عمل دوال bind و دوال Arrow Function  
                 const result = await handler.call(this, player, args, id);  
                   
                 if (typeof result === 'string') {  
@@ -475,7 +473,6 @@ export default class CommandHandler {
 
     async handleStart(player) {  
         try {  
-            // 💡 تحديث: توجيه اللاعبين الموافق عليهم ولكن لم يكملوا لخطوات الجنس والاسم  
             if (player.isPending()) {  
                 const registrationSystem = await this.getSystem('registration');  
                 return registrationSystem.startRegistration(player.userId, player.name);  
@@ -551,12 +548,10 @@ export default class CommandHandler {
                 caption: `📋 بطاقة بروفايلك يا ${player.name}!`  
             };  
         } catch (error) {  
-            // 💡 يتم الإمساك هنا بالخطأ المُعاد من ProfileCardGenerator.js
             return `❌ حدث خطأ في إنشاء البطاقة: ${error.message}`;
         }  
     }  
     
-
     async handleInventory(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
         const profileSystem = await this.getSystem('profile');  
@@ -577,7 +572,6 @@ export default class CommandHandler {
               
             topMessage += `\`\`\`\n`;  
               
-            // إيجاد ترتيب اللاعب الحالي  
             const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId playerId');  
             const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;  
               
@@ -650,25 +644,20 @@ export default class CommandHandler {
     }
 
     try {
-        // البحث بجميع الطرق الممكنة
         let receiver = null;
         
-        // 1. البحث بـ userId
         receiver = await Player.findOne({ userId: targetIdentifier });
         
-        // 2. إذا لم يوجد، البحث بـ playerId
         if (!receiver) {
             receiver = await Player.findOne({ playerId: targetIdentifier });
         }
         
-        // 3. إذا لم يوجد، البحث بالاسم (بدقة أكثر)
         if (!receiver) {
             receiver = await Player.findOne({ 
                 name: targetIdentifier 
             });
         }
         
-        // 4. إذا لم يوجد، البحث الجزئي في الاسم
         if (!receiver) {
             receiver = await Player.findOne({ 
                 name: { $regex: new RegExp(targetIdentifier, 'i') } 
@@ -683,11 +672,9 @@ export default class CommandHandler {
             return '❌ لا يمكن التحويل لنفسك.';
         }
 
-        // تنفيذ التحويل
         player.gold -= amount;
         receiver.gold += amount;
 
-        // تسجيل المعاملات
         const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         player.transactions.push({
@@ -721,37 +708,48 @@ export default class CommandHandler {
 
     async handleMap(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-        const worldSystem = await this.getSystem('world');  
-        return worldSystem.showMap(player);   
+        try {
+            const worldSystem = await this.getSystem('world');  
+            if (!worldSystem) {
+                return '❌ نظام الخريطة غير متوفر حالياً.';
+            }
+            return worldSystem.showMap(player);   
+        } catch (error) {
+            console.error('❌ خطأ في عرض الخريطة:', error);
+            return '❌ حدث خطأ في تحميل الخريطة.';
+        }
     }  
       
     async handleGates(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-          
-        const travelSystem = await this.getSystem('travel');  
-        if (!travelSystem) {
-            return '❌ نظام البوابات غير متوفر حالياً.';
+        try {
+            const travelSystem = await this.getSystem('travel');  
+            if (!travelSystem) {
+                return '❌ نظام البوابات غير متوفر حالياً.';
+            }
+
+            const gates = travelSystem.getNearbyGates(player);  
+              
+            if (gates.length === 0) {  
+                return `🚪 لا توجد بوابات نشطة حالياً في **${travelSystem.getLocationName(player.currentLocation)}**!`;  
+            }  
+
+            let message = `🚪 **البوابات النشطة القريبة (${gates.length})**:\n\n`;  
+            gates.forEach(gate => {  
+                message += `🔹 **${gate.name}**\n`;   
+                message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger)}\n`;  
+                message += `   • 🎯 المستوى المطلوب: ${gate.requiredLevel}+\n`;  
+                message += `   • 📖 ${gate.description}\n\n`;  
+            });  
+            message += `💡 **لدخول بوابة:** استخدم أمر "ادخل [اسم البوابة]"`;  
+              
+            return message;  
+        } catch (error) {
+            console.error('❌ خطأ في عرض البوابات:', error);
+            return '❌ حدث خطأ في تحميل البوابات.';
         }
-
-        const gates = travelSystem.getNearbyGates(player);  
-          
-        if (gates.length === 0) {  
-            return `🚪 لا توجد بوابات نشطة حالياً في **${travelSystem.getLocationName(player.currentLocation)}**!`;  
-        }  
-
-        let message = `🚪 **البوابات النشطة القريبة (${gates.length})**:\n\n`;  
-        gates.forEach(gate => {  
-            message += `🔹 **${gate.name}**\n`;   
-            message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger)}\n`;  
-            message += `   • 🎯 المستوى المطلوب: ${gate.requiredLevel}+\n`;  
-            message += `   • 📖 ${gate.description}\n\n`;  
-        });  
-        message += `💡 **لدخول بوابة:** استخدم أمر "ادخل [اسم البوابة]"`;  
-          
-        return message;  
     }  
 
-    // 🆕 دالة معالجة دخول البوابات
     async handleEnterGate(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
           
@@ -760,21 +758,25 @@ export default class CommandHandler {
             return '❌ يرجى تحديد اسم البوابة. استخدم "بوابات" لرؤية البوابات المتاحة.';  
         }  
 
-        const travelSystem = await this.getSystem('travel');  
-        if (!travelSystem) {
-            return '❌ نظام البوابات غير متوفر حالياً.';
+        try {
+            const travelSystem = await this.getSystem('travel');  
+            if (!travelSystem) {
+                return '❌ نظام البوابات غير متوفر حالياً.';
+            }
+
+            const result = await travelSystem.enterGate(player, gateName);  
+              
+            if (result.error) {  
+                return result.error;  
+            }  
+              
+            await player.save();
+            return result.message;  
+        } catch (error) {
+            console.error('❌ خطأ في دخول البوابة:', error);
+            return '❌ حدث خطأ أثناء دخول البوابة.';
         }
-
-        const result = await travelSystem.enterGate(player, gateName);  
-          
-        if (result.error) {  
-            return result.error;  
-        }  
-          
-        await player.save();
-        return result.message;  
     }
-
 
     async handleTravel(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -786,18 +788,24 @@ export default class CommandHandler {
           
         const locationId = this.ARABIC_ITEM_MAP[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();  
 
-        const travelSystem = await this.getSystem('travel');  
-        if (!travelSystem) {
-            return '❌ نظام السفر غير متوفر حالياً.';
-        }
+        try {
+            const travelSystem = await this.getSystem('travel');  
+            if (!travelSystem) {
+                return '❌ نظام السفر غير متوفر حالياً.';
+            }
 
-        const result = await travelSystem.travelTo(player, locationId);  
-          
-        if (result.error) {  
-            return result.error;  
-        }  
-          
-        return result.message;  
+            const result = await travelSystem.travelTo(player, locationId);  
+              
+            if (result.error) {  
+                return result.error;  
+            }  
+              
+            await player.save();
+            return result.message;  
+        } catch (error) {
+            console.error('❌ خطأ في السفر:', error);
+            return '❌ حدث خطأ أثناء السفر.';
+        }
     }  
 
     async handleGather(player, args) {  
@@ -836,19 +844,18 @@ export default class CommandHandler {
 
     async handleCraft(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-    
+          
         if (args.length === 0) {  
             return this.handleShowRecipes(player);   
         }  
 
         let quantity = 1;
         let itemNameParts = [...args];
-    
-        // التحقق إذا كان آخر وسيط رقم (كمية)
-            if (!isNaN(args[args.length - 1])) {
+        
+        if (!isNaN(args[args.length - 1])) {
             quantity = parseInt(args[args.length - 1]);
             itemNameParts = args.slice(0, args.length - 1);
-        
+            
             if (quantity <= 0) {
                 return '❌ الكمية يجب أن تكون أكبر من الصفر.';
             }
@@ -859,95 +866,24 @@ export default class CommandHandler {
 
         const rawItemName = itemNameParts.join(' ');   
         if (!rawItemName) {  
-            return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع سيف_حديد 2';  
+             return '❌ يرجى تحديد العنصر المراد صنعه. مثال: اصنع سيف_حديد 2';  
         }  
-    
-    const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();  
+          
+        const itemId = this.ARABIC_ITEM_MAP[rawItemName.toLowerCase()] || rawItemName.toLowerCase();  
 
-    const craftingSystem = await this.getSystem('crafting');  
-    if (!craftingSystem) {
-        return '❌ نظام الصناعة غير متوفر حالياً.';
-    }
+        const craftingSystem = await this.getSystem('crafting');  
+        if (!craftingSystem) {
+            return '❌ نظام الصناعة غير متوفر حالياً.';
+        }
 
-    const result = await craftingSystem.craftItem(player, itemId, quantity);  
-    if (result.error) {  
-        return result.error;  
+        const result = await craftingSystem.craftItem(player, itemId, quantity);  
+          
+        if (result.error) {  
+            return result.error;  
+        }  
+          
+        return result.message;  
     }  
-    return result.message;  
-    }  
-
-    // في CommandHandler.js - أضف هذه الدوال:
-
-    async handleFurnace(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-    
-        const furnaceSystem = await this.getSystem('furnace');
-        if (!furnaceSystem) {
-            return '❌ نظام الفرن غير متوفر حالياً.';
-        }
-    
-        const result = furnaceSystem.showRecipes(player);
-        if (result.error) {
-            return result.error;
-        }
-        return result.message;
-    }
-
-    async handleCook(player, args) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-    
-        if (args.length === 0) {
-            return '❌ يرجى تحديد العنصر المراد طهوه. مثال: طهو لحم 2';
-        }
-
-        const itemName = args[0];
-        const quantity = parseInt(args[1]) || 1;
-
-        if (quantity <= 0) {
-            return '❌ الكمية يجب أن تكون أكبر من الصفر.';
-        }
-
-        const furnaceSystem = await this.getSystem('furnace');
-        if (!furnaceSystem) {
-            return '❌ نظام الفرن غير متوفر حالياً.';
-        }
-
-        const result = await furnaceSystem.cook(player, itemName, quantity);
-        if (result.error) {
-            return result.error;
-        }
-
-        await player.save();
-        return result.message;
-    }
-
-    async handleSmelt(player, args) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-    
-        if (args.length === 0) {
-            return '❌ يرجى تحديد الخام المراد صهره. مثال: صهر خام_حديد 3';
-        }
-
-        const itemName = args[0];
-        const quantity = parseInt(args[1]) || 1;
-
-        if (quantity <= 0) {
-            return '❌ الكمية يجب أن تكون أكبر من الصفر.';
-        }
-
-        const furnaceSystem = await this.getSystem('furnace');
-        if (!furnaceSystem) {
-            return '❌ نظام الفرن غير متوفر حالياً.';
-        }
-
-        const result = await furnaceSystem.smelt(player, itemName, quantity);
-        if (result.error) {
-            return result.error;
-        }
-
-        await player.save();
-        return result.message;
-    }
 
     async handleEquip(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -957,7 +893,6 @@ export default class CommandHandler {
             return `❌ يرجى تحديد العنصر المراد تجهيزه.\n💡 مثال: جهز سيف خشبي`;  
         }  
           
-        // 1. ترجمة الاسم العربي إلى ID  
         const itemId = this.ARABIC_ITEM_MAP[itemName.toLowerCase()] || itemName.toLowerCase();  
           
         if (!itemId || !items[itemId]) {  
@@ -966,7 +901,6 @@ export default class CommandHandler {
           
         const itemInfo = items[itemId];  
           
-        // 2. التحقق من أن العنصر يمكن تجهيزه  
         const validEquipTypes = ['weapon', 'armor', 'accessory', 'tool'];  
         const equipType = itemInfo.type;  
           
@@ -974,12 +908,10 @@ export default class CommandHandler {
             return `❌ العنصر "${itemInfo.name}" من نوع ${equipType} لا يمكن تجهيزه.`;  
         }  
           
-        // 3. التحقق من امتلاك العنصر  
         if (player.getItemQuantity(itemId) === 0) {  
             return `❌ لا تملك العنصر "${itemInfo.name}" في مخزونك.`;  
         }  
           
-        // 4. تنفيذ التجهيز  
         const result = player.equipItem(itemId, equipType, items);   
           
         if (result.error) {  
@@ -988,7 +920,6 @@ export default class CommandHandler {
           
         await player.save();  
           
-        // 5. عرض الإحصائيات المضافة  
         let statsMessage = '';  
         if (itemInfo.stats) {  
             statsMessage = `\n📊 **الإحصائيات المضافة:**`;  
@@ -1034,7 +965,7 @@ export default class CommandHandler {
             return `❌ الخانة "${slotName}" غير صالحة. الخانات المتاحة: سلاح, درع, اكسسوار, اداة`;  
         }  
           
-        const result = player.unequipItem(englishSlot, items); // 💡 تمرير items
+        const result = player.unequipItem(englishSlot, items);
           
         if (result.error) {  
             return result.error;  
@@ -1048,15 +979,15 @@ export default class CommandHandler {
     async handleEquipment(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
           
-        const itemsData = items; // 💡 استخدام items
+        const itemsData = items;
           
         const weapon = player.equipment.weapon ? itemsData[player.equipment.weapon]?.name : 'لا يوجد';  
         const armor = player.equipment.armor ? itemsData[player.equipment.armor]?.name : 'لا يوجد';  
         const accessory = player.equipment.accessory ? itemsData[player.equipment.accessory]?.name : 'لا يوجد';  
         const tool = player.equipment.tool ? itemsData[player.equipment.tool]?.name : 'لا يوجد';  
           
-        const attack = player.getAttackDamage(itemsData); // 💡 تمرير itemsData
-        const defense = player.getDefense(itemsData); // 💡 تمرير itemsData
+        const attack = player.getAttackDamage(itemsData);
+        const defense = player.getDefense(itemsData);
         const totalStats = player.getTotalStats(itemsData);
           
         let equipmentMessage = `⚔️ **المعدات المجهزة حالياً:**\n\n`;  
@@ -1081,7 +1012,6 @@ export default class CommandHandler {
           
         return equipmentMessage;  
     }  
-
 
     async handleAdventure(player) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -1253,10 +1183,8 @@ export default class CommandHandler {
         const withdrawalAmount = targetPlayer.pendingWithdrawal.amount;
 
         if (action === 'قبول' || action === 'موافقة') {
-            // إكمال السحب
             targetPlayer.pendingWithdrawal.status = 'completed';
             
-            // تحديث المعاملة
             const transaction = targetPlayer.transactions.find(t => 
                 t.type === 'withdrawal' && t.status === 'pending'
             );
@@ -1267,19 +1195,15 @@ export default class CommandHandler {
 
             await targetPlayer.save();
 
-            // TODO: هنا تقوم بإرسال المال للاعب خارجياً
-
             return `✅ تمت معالجة طلب السحب بنجاح!\n` +
                    `👤 اللاعب: ${targetPlayer.name}\n` +
                    `💰 المبلغ: ${withdrawalAmount} غولد\n` +
                    `⏰ وقت الطلب: ${targetPlayer.pendingWithdrawal.requestedAt.toLocaleString('ar-SA')}`;
 
         } else if (action === 'رفض' || action === 'رفض') {
-            // رفض السحب وإعادة المال
             targetPlayer.gold += withdrawalAmount;
             targetPlayer.pendingWithdrawal.status = 'rejected';
             
-            // تحديث المعاملة
             const transaction = targetPlayer.transactions.find(t => 
                 t.type === 'withdrawal' && t.status === 'pending'
             );
@@ -1347,7 +1271,6 @@ export default class CommandHandler {
 
         targetPlayer.gold += amount;
         
-        // تسجيل المعاملة
         targetPlayer.transactions.push({
             id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             type: 'deposit',
@@ -1362,7 +1285,99 @@ export default class CommandHandler {
                `💰 الرصيد الجديد: ${targetPlayer.gold} غولد`;
     }
 
+    // 🆕 دوال نظام الفرن
+    async handleFurnace(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const furnaceSystem = await this.getSystem('furnace');
+        if (!furnaceSystem) {
+            return '❌ نظام الفرن غير متوفر حالياً.';
+        }
+        
+        const result = furnaceSystem.showRecipes(player);
+        if (result.error) {
+            return result.error;
+        }
+        return result.message;
+    }
+
+    async handleCook(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        if (args.length === 0) {
+            return '❌ يرجى تحديد العنصر المراد طهوه. مثال: طهو لحم 2';
+        }
+
+        let quantity = 1;
+        let itemNameParts = [...args];
+        
+        if (!isNaN(args[args.length - 1])) {
+            quantity = parseInt(args[args.length - 1]);
+            itemNameParts = args.slice(0, args.length - 1);
+            
+            if (quantity <= 0) {
+                return '❌ الكمية يجب أن تكون أكبر من الصفر.';
+            }
+            if (quantity > 50) {
+                return '❌ الحد الأقصى للطهو هو 50 مرة.';
+            }
+        }
+
+        const itemName = itemNameParts.join(' ');
+
+        const furnaceSystem = await this.getSystem('furnace');
+        if (!furnaceSystem) {
+            return '❌ نظام الفرن غير متوفر حالياً.';
+        }
+
+        const result = await furnaceSystem.cook(player, itemName, quantity);
+        if (result.error) {
+            return result.error;
+        }
+
+        await player.save();
+        return result.message;
+    }
+
+    async handleSmelt(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        if (args.length === 0) {
+            return '❌ يرجى تحديد الخام المراد صهره. مثال: صهر خام_حديد 3';
+        }
+
+        let quantity = 1;
+        let itemNameParts = [...args];
+        
+        if (!isNaN(args[args.length - 1])) {
+            quantity = parseInt(args[args.length - 1]);
+            itemNameParts = args.slice(0, args.length - 1);
+            
+            if (quantity <= 0) {
+                return '❌ الكمية يجب أن تكون أكبر من الصفر.';
+            }
+            if (quantity > 50) {
+                return '❌ الحد الأقصى للصهر هو 50 مرة.';
+            }
+        }
+
+        const itemName = itemNameParts.join(' ');
+
+        const furnaceSystem = await this.getSystem('furnace');
+        if (!furnaceSystem) {
+            return '❌ نظام الفرن غير متوفر حالياً.';
+        }
+
+        const result = await furnaceSystem.smelt(player, itemName, quantity);
+        if (result.error) {
+            return result.error;
+        }
+
+        await player.save();
+        return result.message;
+    }
+
     async handleUnknown(command, player) {  
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;  
     }  
-    }
+}
