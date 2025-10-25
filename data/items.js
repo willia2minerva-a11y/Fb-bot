@@ -3,6 +3,8 @@ import { resources } from './resources.js';
 import { weapons } from './weapons.js';
 import { armors } from './armors.js';
 import { accessories } from './accessories.js';
+import { itemsGates } from './items_gates.js';
+
 
 // دالة مساعدة لتحويل إحصائيات الأسلحة إلى تنسيق stats الموحد
 const convertWeaponStats = (weapon) => {
@@ -74,5 +76,6 @@ export const items = {
   ...resources,
   ...convertedWeapons,
   ...convertedArmors,
-  ...convertedAccessories
+  ...convertedAccessories,
+  ...itemsGates
 };
