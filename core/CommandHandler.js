@@ -96,6 +96,7 @@ export default class CommandHandler {
                 'جرد': this.handleInventory.bind(this),   
                 'مخزن': this.handleInventory.bind(this),   
                 'معداتي': this.handleEquipment.bind(this),
+                'رمي': this.handleDiscard.bind(this),
 
                 // الاستكشاف  
                 'خريطة': this.handleMap.bind(this),  
@@ -103,6 +104,10 @@ export default class CommandHandler {
                 'بوابات': this.handleGates.bind(this),   
                 'ماب': this.handleMap.bind(this),
                 'ادخل': this.handleEnterGate.bind(this),
+                'استكشاف': this.handleExploreGate.bind(this),
+                'مغادرة': this.handleLeaveGate.bind(this),
+                
+
 
                 'انتقل': this.handleTravel.bind(this),  
                 'سافر': this.handleTravel.bind(this),   
@@ -584,7 +589,80 @@ export default class CommandHandler {
             return '❌ حدث خطأ أثناء جلب قائمة الأفضل.';  
         }  
     }  
+
     
+
+// ثم أضف الدوال:
+
+    async handleExploreGate(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+        const travelSystem = await this.getSystem('travel');
+        if (!travelSystem || !travelSystem.exploreGate) {
+            return '❌ نظام الاستكشاف غير متوفر حالياً.';
+        }
+
+        const result = await travelSystem.exploreGate(player);
+        if (result.error) {
+            return result.error;
+       }
+
+        await player.save();
+        return result.message;
+    }
+
+    async handleLeaveGate(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+        const travelSystem = await this.getSystem('travel');
+        if (!travelSystem || !travelSystem.leaveGate) {
+            return '❌ نظام البوابات غير متوفر حالياً.';
+        }
+
+        const result = await travelSystem.leaveGate(player);
+        if (result.error) {
+            return result.error;
+        }
+
+        await player.save();
+        return result.message;
+    }
+
+    async handleDiscard(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+    
+        if (args.length === 0) {
+            return '❌ يرجى تحديد العنصر المراد رميه. مثال: رمي خشب 2';
+        }
+
+        let quantity = 1;
+        let itemNameParts = [...args];
+    
+        if (!isNaN(args[args.length - 1])) {
+            quantity = parseInt(args[args.length - 1]);
+            itemNameParts = args.slice(0, args.length - 1);
+        
+            if (quantity <= 0) return '❌ الكمية يجب أن تكون أكبر من الصفر.';
+        }
+
+        const itemName = itemNameParts.join(' ');
+        const itemId = this.ARABIC_ITEM_MAP[itemName.toLowerCase()] || itemName.toLowerCase();
+
+        if (!itemId || !items[itemId]) {
+            return `❌ العنصر "${itemName}" غير موجود في مخزونك.`;
+        }
+
+        const currentQuantity = player.getItemQuantity(itemId);
+        if (currentQuantity < quantity) {
+            return `❌ لا تملك ${quantity} من ${items[itemId].name}. لديك ${currentQuantity} فقط.`;
+        }
+
+        player.removeItem(itemId, quantity);
+        await player.save();
+
+        return `🗑️ **تم رمي ${quantity} من ${items[itemId].name}**\n` +
+               `📦 **المتبقي:** ${player.getItemQuantity(itemId)}`;
+    }
     async handleShowPlayers(player) {
     try {
         if (!this.adminSystem.isAdmin(player.userId)) {
