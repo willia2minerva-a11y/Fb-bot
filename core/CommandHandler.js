@@ -19,7 +19,8 @@ async function getSystem(systemName) {
             'travel': '../systems/world/TravelSystem.js',  
             'crafting': '../systems/crafting/CraftingSystem.js',
             'furnace': '../systems/furnace/FurnaceSystem.js',
-            'transaction': '../systems/economy/TransactionSystem.js'
+            'transaction': '../systems/economy/TransactionSystem.js',
+            'gate': '../systems/world/GateSystem.js' // 🆕 نظام البوابات الجديد
         };  
 
         if (systems[systemName]) {  
@@ -62,11 +63,14 @@ export default class CommandHandler {
                 '4': this.handleMenu4.bind(this),
                 '5': this.handleMenu5.bind(this),
                 '6': this.handleMenu6.bind(this),
+                '7': this.handleMenu7.bind(this), // 🆕 قائمة البوابات
                 'الأساسية': this.handleMenu1.bind(this),
                 'الاستكشاف': this.handleMenu2.bind(this),
                 'القتال': this.handleMenu3.bind(this),
                 'الصناعة': this.handleMenu4.bind(this),
                 'المعلومات': this.handleMenu5.bind(this),
+                'الاقتصاد': this.handleMenu6.bind(this),
+                'البوابات': this.handleMenu7.bind(this), // 🆕 البوابات
 
                 // التسجيل  
                 'بدء': this.handleStart.bind(this),  
@@ -155,9 +159,13 @@ export default class CommandHandler {
                 'صهر': this.handleSmelt.bind(this),
                 'حرق': this.handleCook.bind(this),
 
+                // 🆕 أوامر البوابات المتقدمة
+                'استكشف': this.handleExploreGate.bind(this),
+                'غادر': this.handleLeaveGate.bind(this),
+
             };  
 
-            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'اوامر', 'رئيسية', '1', '2', '3', '4', '5', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];  
+            this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'اوامر', 'رئيسية', '1', '2', '3', '4', '5', '6', '7', 'ذكر','رجل', 'ولد', 'أنثى', 'بنت', 'فتاة', 'اسمي'];  
               
             console.log('✅ CommandHandler تم تهيئته بنجاح');  
         } catch (error) {  
@@ -196,8 +204,9 @@ export default class CommandHandler {
 ║ 4️⃣ /الصناعة - أوامر الصنع والتجهيز
 ║ 5️⃣ /المعلومات - أوامر الحالة والبروفايل
 ║ 6️⃣ /الاقتصاد - أوامر السحب والتحويل والايداع
+║ 7️⃣ /البوابات - أوامر بوابات سولو والمغامرات
 ║
-║ 📝 اختر رقم القائمة ( 1 , 2 , 3 , 4 , 5 , 6 )
+║ 📝 اختر رقم القائمة ( 1 , 2 , 3 , 4 , 5 , 6 , 7 )
 ║
 ╚══════════════════════════════════════════════════╝`,
 
@@ -269,6 +278,22 @@ export default class CommandHandler {
 ║
 ║ ◀️ /رئيسية - العودة للقائمة الرئيسية  
 ║
+╚══════════════════════════════════════════════╝`,
+
+            gates: `╔════════════ 🚪 أوامر البوابات ════════════╗
+║
+║ • بوابات - عرض البوابات المتاحة
+║ • ادخل [اسم البوابة] - دخول بوابة
+║ • استكشف/استكشاف - استكشاف داخل البوابة
+║ • مغادرة/غادر - مغادرة البوابة
+║
+║ 🎯 بوابات سولو المتاحة:
+║ • بوابة سولو - المستوى 1-3
+║ • بوابة سولو - رئيس التصنيف
+║ • بوابات E-D, B-A, A-S, S-Rank
+║
+║ ◀️ /رئيسية - العودة للقائمة الرئيسية
+║
 ╚══════════════════════════════════════════════╝`
         };
         return menus[menuType] || menus.main;
@@ -305,6 +330,10 @@ export default class CommandHandler {
 
     async handleMenu6(player, args, senderId) {
         return this.getMenu('economy');
+    }
+
+    async handleMenu7(player, args, senderId) {
+        return this.getMenu('gates');
     }
 
     async getSystem(systemName) {  
@@ -600,38 +629,107 @@ export default class CommandHandler {
         }  
     }  
 
+    // 🆕 دوال البوابات المحدثة
+    async handleEnterGate(player, args) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        const gateName = args.join(' ');
+        if (!gateName) {
+            return '❌ يرجى تحديد اسم البوابة. استخدم "بوابات" لرؤية البوابات المتاحة.';
+        }
+
+        try {
+            const gateSystem = await this.getSystem('gate');
+            if (!gateSystem) {
+                return '❌ نظام البوابات غير متوفر حالياً.';
+            }
+
+            const result = await gateSystem.enterGate(player, gateName);
+            if (result.error) {
+                return result.error;
+            }
+
+            await player.save();
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في دخول البوابة:', error);
+            return '❌ حدث خطأ أثناء دخول البوابة.';
+        }
+    }
+
     async handleExploreGate(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
-        const travelSystem = await this.getSystem('travel');
-        if (!travelSystem || !travelSystem.exploreGate) {
-            return '❌ نظام الاستكشاف غير متوفر حالياً.';
+        try {
+            const gateSystem = await this.getSystem('gate');
+            if (!gateSystem) {
+                return '❌ نظام البوابات غير متوفر حالياً.';
+            }
+
+            const result = await gateSystem.exploreGate(player);
+            if (result.error) {
+                return result.error;
+            }
+
+            await player.save();
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في استكشاف البوابة:', error);
+            return '❌ حدث خطأ أثناء الاستكشاف.';
         }
-
-        const result = await travelSystem.exploreGate(player);
-        if (result.error) {
-            return result.error;
-       }
-
-        await player.save();
-        return result.message;
     }
 
     async handleLeaveGate(player) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
     
-        const travelSystem = await this.getSystem('travel');
-        if (!travelSystem || !travelSystem.leaveGate) {
-            return '❌ نظام البوابات غير متوفر حالياً.';
-        }
+        try {
+            const gateSystem = await this.getSystem('gate');
+            if (!gateSystem) {
+                return '❌ نظام البوابات غير متوفر حالياً.';
+            }
 
-        const result = await travelSystem.leaveGate(player);
-        if (result.error) {
-            return result.error;
-        }
+            const result = await gateSystem.leaveGate(player);
+            if (result.error) {
+                return result.error;
+            }
 
-        await player.save();
-        return result.message;
+            await player.save();
+            return result.message;
+        } catch (error) {
+            console.error('❌ خطأ في مغادرة البوابة:', error);
+            return '❌ حدث خطأ أثناء المغادرة.';
+        }
+    }
+
+    async handleGates(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        try {
+            const gateSystem = await this.getSystem('gate');
+            if (!gateSystem) {
+                return '❌ نظام البوابات غير متوفر حالياً.';
+            }
+
+            const nearbyGates = gateSystem.getNearbyGates(player);
+            
+            if (nearbyGates.length === 0) {
+                return `🚪 لا توجد بوابات نشطة حالياً في **${locations[player.currentLocation]?.name || player.currentLocation}**!`;
+            }
+
+            let message = `🚪 **البوابات النشطة القريبة (${nearbyGates.length})**:\n\n`;
+            nearbyGates.forEach(gate => {
+                message += `🔹 **${gate.name}**\n`;
+                message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger)}\n`;
+                message += `   • 🎯 المستوى المطلوب: ${gate.requiredLevel}+\n`;
+                message += `   • 📖 ${gate.description}\n\n`;
+            });
+            message += `💡 **لدخول بوابة:** استخدم أمر "ادخل [اسم البوابة]"`;
+            
+            return message;
+        } catch (error) {
+            console.error('❌ خطأ في عرض البوابات:', error);
+            return '❌ حدث خطأ في تحميل البوابات.';
+        }
     }
 
     async handleDiscard(player, args) {
@@ -804,70 +902,6 @@ export default class CommandHandler {
             return '❌ حدث خطأ في تحميل الخريطة.';
         }
     }  
-      
-    async handleGates(player) {  
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-        try {
-            const travelSystem = await this.getSystem('travel');  
-            if (!travelSystem) {
-                return '❌ نظام البوابات غير متوفر حالياً.';
-            }
-
-            const gates = travelSystem.getNearbyGates(player);  
-              
-            if (gates.length === 0) {  
-                return `🚪 لا توجد بوابات نشطة حالياً في **${travelSystem.getLocationName(player.currentLocation)}**!`;  
-            }  
-
-            let message = `🚪 **البوابات النشطة القريبة (${gates.length})**:\n\n`;  
-            gates.forEach(gate => {  
-                message += `🔹 **${gate.name}**\n`;   
-                message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger)}\n`;  
-                message += `   • 🎯 المستوى المطلوب: ${gate.requiredLevel}+\n`;  
-                message += `   • 📖 ${gate.description}\n\n`;  
-            });  
-            message += `💡 **لدخول بوابة:** استخدم أمر "ادخل [اسم البوابة]"`;  
-              
-            return message;  
-        } catch (error) {
-            console.error('❌ خطأ في عرض البوابات:', error);
-            return '❌ حدث خطأ في تحميل البوابات.';
-        }
-    }  
-
-    async handleEnterGate(player, args) {
-    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-    
-    // 🆕 التحقق من المعركة النشطة
-    const battleSystem = await this.getSystem('battle');
-    if (battleSystem && battleSystem.hasActiveBattle(player.userId)) {
-        return '⚔️ لا يمكنك دخول البوابات أثناء القتال! استخدم `هروب` أولاً.';
-    }
-    
-    const gateName = args.join(' ');  
-    if (!gateName) {  
-        return '❌ يرجى تحديد اسم البوابة. استخدم "بوابات" لرؤية البوابات المتاحة.';  
-    }  
-
-    try {
-        const travelSystem = await this.getSystem('travel');  
-        if (!travelSystem) {
-            return '❌ نظام البوابات غير متوفر حالياً.';
-        }
-
-        const result = await travelSystem.enterGate(player, gateName);  
-          
-        if (result.error) {  
-            return result.error;  
-        }  
-          
-        await player.save();
-        return result.message;  
-    } catch (error) {
-        console.error('❌ خطأ في دخول البوابة:', error);
-        return '❌ حدث خطأ أثناء دخول البوابة.';
-    }
-            }
 
     async handleTravel(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -885,7 +919,11 @@ export default class CommandHandler {
                 return '❌ نظام السفر غير متوفر حالياً.';
             }
 
-            const result = await travelSystem.travelTo(player, locationId);  
+            // 🆕 جلب الأنظمة المطلوبة للتكامل
+            const gateSystem = await this.getSystem('gate');
+            const battleSystem = await this.getSystem('battle');
+
+            const result = await travelSystem.travelTo(player, locationId, { gateSystem, battleSystem });  
               
             if (result.error) {  
                 return result.error;  
@@ -1110,6 +1148,12 @@ export default class CommandHandler {
         const battleSystem = await this.getSystem('battle');  
         if (!battleSystem) {
             return '❌ نظام القتال غير متوفر حالياً.';
+        }
+
+        // 🆕 التحقق من وجود اللاعب في بوابة
+        const gateSystem = await this.getSystem('gate');
+        if (gateSystem && gateSystem.isPlayerInsideGate(player.userId)) {
+            return '🚪 لا يمكنك بدء معركة عادية وأنت داخل بوابة! استخدم `استكشف` داخل البوابة.';
         }
 
         const result = await battleSystem.startBattle(player);  
@@ -1389,4 +1433,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {  
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;  
     }  
-}
+                }
