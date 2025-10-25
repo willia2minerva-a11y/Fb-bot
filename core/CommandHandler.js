@@ -701,7 +701,8 @@ export default class CommandHandler {
         console.error('❌ خطأ في عرض قائمة اللاعبين:', error);
         return '❌ حدث خطأ أثناء جلب قائمة اللاعبين.';
     }
-    }  
+    }
+
 
     async handleTransfer(player, args) {
     if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
@@ -829,32 +830,38 @@ export default class CommandHandler {
     }  
 
     async handleEnterGate(player, args) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
-          
-        const gateName = args.join(' ');  
-        if (!gateName) {  
-            return '❌ يرجى تحديد اسم البوابة. استخدم "بوابات" لرؤية البوابات المتاحة.';  
-        }  
-
-        try {
-            const travelSystem = await this.getSystem('travel');  
-            if (!travelSystem) {
-                return '❌ نظام البوابات غير متوفر حالياً.';
-            }
-
-            const result = await travelSystem.enterGate(player, gateName);  
-              
-            if (result.error) {  
-                return result.error;  
-            }  
-              
-            await player.save();
-            return result.message;  
-        } catch (error) {
-            console.error('❌ خطأ في دخول البوابة:', error);
-            return '❌ حدث خطأ أثناء دخول البوابة.';
-        }
+    if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
+    
+    // 🆕 التحقق من المعركة النشطة
+    const battleSystem = await this.getSystem('battle');
+    if (battleSystem && battleSystem.hasActiveBattle(player.userId)) {
+        return '⚔️ لا يمكنك دخول البوابات أثناء القتال! استخدم `هروب` أولاً.';
     }
+    
+    const gateName = args.join(' ');  
+    if (!gateName) {  
+        return '❌ يرجى تحديد اسم البوابة. استخدم "بوابات" لرؤية البوابات المتاحة.';  
+    }  
+
+    try {
+        const travelSystem = await this.getSystem('travel');  
+        if (!travelSystem) {
+            return '❌ نظام البوابات غير متوفر حالياً.';
+        }
+
+        const result = await travelSystem.enterGate(player, gateName);  
+          
+        if (result.error) {  
+            return result.error;  
+        }  
+          
+        await player.save();
+        return result.message;  
+    } catch (error) {
+        console.error('❌ خطأ في دخول البوابة:', error);
+        return '❌ حدث خطأ أثناء دخول البوابة.';
+    }
+            }
 
     async handleTravel(player, args) {  
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';  
@@ -1141,6 +1148,32 @@ export default class CommandHandler {
           
         return result.message;  
     }  
+
+        async handleBattleInfo(player) {
+    const battleSystem = await this.getSystem('battle');
+    if (!battleSystem) {
+        return '❌ نظام القتال غير متوفر حالياً.';
+    }
+
+    const battleInfo = battleSystem.getBattleInfo(player.userId);
+    if (!battleInfo) {
+        return '❌ لست في معركة حالياً.';
+    }
+
+    let message = `⚔️ **معلومات المعركة الحالية:**\n\n`;
+    message += `👹 **الخصم:** ${battleInfo.monster.name}\n`;
+    message += `❤️ **صحة الخصم:** ${battleInfo.monster.currentHealth}/${battleInfo.monster.health}\n`;
+    message += `❤️ **صحتك:** ${battleInfo.playerHealth}/${battleInfo.playerMaxHealth}\n`;
+    message += `📊 **عدد الأدوار:** ${battleInfo.turns}\n`;
+    
+    if (battleInfo.isBossBattle) {
+        message += `🏆 **معركة زعيم!**\n`;
+    }
+
+    message += `\n💡 استخدم \`هجوم\` للقتال أو \`هروب\` للفرار`;
+
+    return message;
+        }
 
     // 🏦 دوال النظام الاقتصادي
     async handleWithdrawal(player, args) {
