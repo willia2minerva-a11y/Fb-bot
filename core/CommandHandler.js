@@ -635,7 +635,136 @@ export default class CommandHandler {
         }  
     }  
 
-    // 🆕 دوال البوابات المحدثة
+    // 🆕 دوال البوابات المحسنة
+    async handleGates(player) {
+        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
+        
+        try {
+            console.log(`📍 الموقع الحالي للاعب: ${player.currentLocation}`);
+            
+            // المحاولة الأولى: استخدام نظام البوابات الجديد (GateSystem)
+            const gateSystem = await this.getSystem('gate');
+            let nearbyGates = [];
+            
+            if (gateSystem) {
+                console.log('🔄 استخدام نظام البوابات الجديد...');
+                
+                // التحقق من وجود الدالة getNearbyGates
+                if (typeof gateSystem.getNearbyGates === 'function') {
+                    nearbyGates = gateSystem.getNearbyGates(player);
+                    console.log(`✅ نظام البوابات الجديد عاد ${nearbyGates.length} بوابة`);
+                } 
+                // إذا لم توجد الدالة، حاول استخدام الطريقة البديلة
+                else if (gateSystem.gates && Array.isArray(gateSystem.gates)) {
+                    console.log('🔄 استخدام الطريقة البديلة للبوابات...');
+                    const currentLocation = player.currentLocation;
+                    nearbyGates = gateSystem.gates.filter(gate => {
+                        if (!gate.availableLocations || !Array.isArray(gate.availableLocations)) {
+                            return false;
+                        }
+                        return gate.availableLocations.includes(currentLocation);
+                    });
+                    console.log(`✅ الطريقة البديلة عادت ${nearbyGates.length} بوابة`);
+                }
+            }
+
+            // المحاولة الثانية: إذا لم نجد بوابات، استخدام نظام السفر القديم (TravelSystem)
+            if (nearbyGates.length === 0) {
+                console.log('🔄 استخدام نظام السفر القديم للبوابات...');
+                const travelSystem = await this.getSystem('travel');
+                if (travelSystem && typeof travelSystem.getNearbyGates === 'function') {
+                    nearbyGates = travelSystem.getNearbyGates(player);
+                    console.log(`✅ نظام السفر القديم عاد ${nearbyGates.length} بوابة`);
+                }
+            }
+
+            // المحاولة الثالثة: استخدام البوابات الافتراضية إذا لم توجد أي بوابات
+            if (nearbyGates.length === 0) {
+                console.log('🔄 استخدام البوابات الافتراضية...');
+                nearbyGates = this.getDefaultGates(player.currentLocation);
+                console.log(`✅ البوابات الافتراضية عادت ${nearbyGates.length} بوابة`);
+            }
+
+            if (nearbyGates.length === 0) {
+                return `🚪 لا توجد بوابات نشطة حالياً في **${locations[player.currentLocation]?.name || player.currentLocation}**!\n\n💡 *جرب الانتقال إلى مواقع أخرى مثل الغابة أو القرية.*`;
+            }
+
+            let message = `🚪 **البوابات النشطة في ${locations[player.currentLocation]?.name || player.currentLocation} (${nearbyGates.length})**:\n\n`;
+            
+            nearbyGates.forEach((gate, index) => {
+                const dangerStars = '⭐'.repeat(gate.danger || 1);
+                const requiredLevel = gate.requiredLevel || 1;
+                const description = gate.description || 'بوابة غامضة تنتظر الاستكشاف';
+                
+                message += `**${index + 1}. ${gate.name}**\n`;
+                message += `   📊 ${dangerStars} | 🎯 المستوى ${requiredLevel}+ | 📖 ${description}\n\n`;
+            });
+            
+            message += `💡 **استخدم:** "ادخل [اسم البوابة]" للدخول\n`;
+            message += `🎯 **مثال:** "ادخل ${nearbyGates[0]?.name || 'بوابة سولو'}"`;
+            
+            return message;
+        } catch (error) {
+            console.error('❌ خطأ في عرض البوابات:', error);
+            
+            // عرض رسالة بديلة مع البوابات الافتراضية
+            const defaultGates = this.getDefaultGates(player.currentLocation);
+            if (defaultGates.length > 0) {
+                let fallbackMessage = `🚪 **البوابات المتاحة (نسخة احتياطية):**\n\n`;
+                defaultGates.forEach((gate, index) => {
+                    fallbackMessage += `**${index + 1}. ${gate.name}** - ${gate.description}\n`;
+                });
+                fallbackMessage += `\n💡 جرب: "ادخل ${defaultGates[0]?.name}"`;
+                return fallbackMessage;
+            }
+            
+            return '❌ حدث خطأ في تحميل البوابات. جرب لاحقاً.';
+        }
+    }
+
+    // 🆕 دالة للحصول على البوابات الافتراضية
+    getDefaultGates(currentLocation) {
+        const defaultGates = [
+            {
+                id: 'solo_tier_1',
+                name: 'بوابة سولو - المستوى 1',
+                availableLocations: ['forest', 'village', 'desert', 'snow', 'mine', 'city', 'ocean', 'mountain'],
+                requiredLevel: 1,
+                danger: 1,
+                description: 'بوابة بداية الصياد. مخلوقات ضعيفة ومهام تدريبية.'
+            },
+            {
+                id: 'gate_ed',
+                name: 'بوابات E-D',
+                availableLocations: ['forest', 'snow', 'desert', 'village', 'city', 'mountain'],
+                requiredLevel: 1,
+                danger: 1,
+                description: 'تستخدم للتدريب، لكنها لا تخلو من المفاجآت.'
+            },
+            {
+                id: 'solo_tier_2',
+                name: 'بوابة سولو - المستوى 2',
+                availableLocations: ['desert', 'forest', 'mine', 'snow', 'mountain', 'ocean'],
+                requiredLevel: 10,
+                danger: 2,
+                description: 'تحدٍ أعلى، وحوش أقوى، موارد أفضل.'
+            },
+            {
+                id: 'gate_ba',
+                name: 'بوابات B-A',
+                availableLocations: ['desert', 'ocean', 'mine', 'forest', 'mountain'],
+                requiredLevel: 10,
+                danger: 2,
+                description: 'ساحة اختبار حقيقية للمغامرين الجدد.'
+            }
+        ];
+
+        // تصفية البوابات المتاحة للموقع الحالي
+        return defaultGates.filter(gate => 
+            gate.availableLocations.includes(currentLocation)
+        );
+    }
+
     async handleEnterGate(player, args) {
         if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
         
@@ -645,15 +774,17 @@ export default class CommandHandler {
         }
 
         try {
-            const gateSystem = await this.getSystem('gate');
-            if (!gateSystem) {
-                return '❌ نظام البوابات غير متوفر حالياً.';
-            }
-
-            // 🆕 التحقق من المعركة النشطة
+            // 🆕 التحقق من المعركة النشطة أولاً
             const battleSystem = await this.getSystem('battle');
             if (battleSystem && this.isPlayerInBattle(player, battleSystem)) {
                 return '⚔️ لا يمكنك دخول البوابات أثناء القتال! استخدم `هروب` أولاً.';
+            }
+
+            let gateSystem = await this.getSystem('gate');
+            
+            // إذا لم يكن نظام البوابات متوفراً، استخدام النظام المبسط
+            if (!gateSystem) {
+                return await this.handleSimpleGateEnter(player, gateName);
             }
 
             const result = await gateSystem.enterGate(player, gateName);
@@ -665,8 +796,35 @@ export default class CommandHandler {
             return result.message;
         } catch (error) {
             console.error('❌ خطأ في دخول البوابة:', error);
-            return '❌ حدث خطأ أثناء دخول البوابة.';
+            
+            // 🆕 محاولة استخدام النظام المبسط عند الخطأ
+            try {
+                return await this.handleSimpleGateEnter(player, gateName);
+            } catch (fallbackError) {
+                return '❌ حدث خطأ أثناء دخول البوابة. جرب لاحقاً.';
+            }
         }
+    }
+
+    // 🆕 نظام بوابات مبسط للطوارئ
+    async handleSimpleGateEnter(player, gateName) {
+        const defaultGates = this.getDefaultGates(player.currentLocation);
+        const targetGate = defaultGates.find(gate => 
+            gate.name.toLowerCase().includes(gateName.toLowerCase()) ||
+            gate.id.toLowerCase().includes(gateName.toLowerCase())
+        );
+
+        if (!targetGate) {
+            const availableGates = defaultGates.map(g => g.name).join(', ');
+            return `❌ لم يتم العثور على البوابة "${gateName}".\n💡 البوابات المتاحة: ${availableGates}`;
+        }
+
+        if (player.level < targetGate.requiredLevel) {
+            return `❌ تحتاج إلى المستوى ${targetGate.requiredLevel} على الأقل لدخول ${targetGate.name}.`;
+        }
+
+        // محاكاة دخول البوابة
+        return `🌀 **لقد دخلت ${targetGate.name}!**\n\n${targetGate.description}\n\n💡 استخدم \`استكشف\` للبدء في الاستكشاف!`;
     }
 
     async handleExploreGate(player) {
@@ -674,8 +832,9 @@ export default class CommandHandler {
     
         try {
             const gateSystem = await this.getSystem('gate');
+            
             if (!gateSystem) {
-                return '❌ نظام البوابات غير متوفر حالياً.';
+                return await this.handleSimpleGateExplore(player);
             }
 
             const result = await gateSystem.exploreGate(player);
@@ -687,8 +846,58 @@ export default class CommandHandler {
             return result.message;
         } catch (error) {
             console.error('❌ خطأ في استكشاف البوابة:', error);
-            return '❌ حدث خطأ أثناء الاستكشاف.';
+            return await this.handleSimpleGateExplore(player);
         }
+    }
+
+    // 🆕 استكشاف مبسط للبوابات
+    async handleSimpleGateExplore(player) {
+        const events = [
+            {
+                type: 'treasure',
+                description: 'عثرت على صندوق كنز مخفي! وجدت بعض الموارد القيمة.',
+                rewards: { 'wood': 3, 'stone': 2 }
+            },
+            {
+                type: 'resource',
+                description: 'وجدت منطقة غنية بالموارد! جمعت بعض المواد.',
+                rewards: { 'wood': 2, 'coal': 1 }
+            },
+            {
+                type: 'trap',
+                description: '⚠️ لقد وقعت في فخ! خسرت بعض الصحة.',
+                damage: 5
+            },
+            {
+                type: 'discovery',
+                description: 'اكتشفت ممراً سرياً! يبدو أن هناك المزيد لاستكشافه.',
+                rewards: { 'experience': 10 }
+            }
+        ];
+
+        const randomEvent = events[Math.floor(Math.random() * events.length)];
+        
+        let message = `📍 **استكشاف البوابة**\n\n${randomEvent.description}\n`;
+
+        if (randomEvent.rewards) {
+            // تطبيق المكافآت
+            for (const [itemId, quantity] of Object.entries(randomEvent.rewards)) {
+                if (items[itemId]) {
+                    player.addItem(itemId, items[itemId].name, 'resource', quantity);
+                    message += `🎁 **مكافأة:** ${quantity} ${items[itemId].name}\n`;
+                }
+            }
+        }
+
+        if (randomEvent.damage) {
+            player.health = Math.max(0, player.health - randomEvent.damage);
+            message += `💔 **ضرر:** خسرت ${randomEvent.damage} صحة\n`;
+        }
+
+        message += `\n📊 **حالتك:** ${player.health}/${player.maxHealth} صحة`;
+        
+        await player.save();
+        return message;
     }
 
     async handleLeaveGate(player) {
@@ -710,38 +919,6 @@ export default class CommandHandler {
         } catch (error) {
             console.error('❌ خطأ في مغادرة البوابة:', error);
             return '❌ حدث خطأ أثناء المغادرة.';
-        }
-    }
-
-    async handleGates(player) {
-        if (!player.isApproved()) return '❌ يجب إكمال التسجيل أولاً.';
-        
-        try {
-            const gateSystem = await this.getSystem('gate');
-            if (!gateSystem) {
-                return '❌ نظام البوابات غير متوفر حالياً.';
-            }
-
-            // 🆕 استخدام الدالة الآمنة للبوابات
-            const nearbyGates = gateSystem.getNearbyGates ? gateSystem.getNearbyGates(player) : [];
-            
-            if (nearbyGates.length === 0) {
-                return `🚪 لا توجد بوابات نشطة حالياً في **${locations[player.currentLocation]?.name || player.currentLocation}**!`;
-            }
-
-            let message = `🚪 **البوابات النشطة القريبة (${nearbyGates.length})**:\n\n`;
-            nearbyGates.forEach(gate => {
-                message += `🔹 **${gate.name}**\n`;
-                message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger || 1)}\n`;
-                message += `   • 🎯 المستوى المطلوب: ${gate.requiredLevel}+\n`;
-                message += `   • 📖 ${gate.description || 'لا يوجد وصف'}\n\n`;
-            });
-            message += `💡 **لدخول بوابة:** استخدم أمر "ادخل [اسم البوابة]"`;
-            
-            return message;
-        } catch (error) {
-            console.error('❌ خطأ في عرض البوابات:', error);
-            return '❌ حدث خطأ في تحميل البوابات.';
         }
     }
 
@@ -1489,4 +1666,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {  
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;  
     }  
-                    }
+}
