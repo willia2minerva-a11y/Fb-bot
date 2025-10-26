@@ -339,10 +339,16 @@ export default class CommandHandler {
     async getSystem(systemName) {  
         if (!this.systems[systemName]) {  
             console.log(`🔄 جاري تحميل النظام: ${systemName}`);
-            this.systems[systemName] = await getSystem(systemName);  
-            
-            if (!this.systems[systemName]) {
-                console.log(`❌ فشل تحميل النظام: ${systemName}`);
+            try {
+                this.systems[systemName] = await getSystem(systemName);  
+                
+                if (!this.systems[systemName]) {
+                    console.log(`❌ فشل تحميل النظام: ${systemName}`);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`❌ خطأ جسيم في تحميل النظام ${systemName}:`, error);
+                return null;
             }
         }  
         return this.systems[systemName];  
@@ -644,6 +650,12 @@ export default class CommandHandler {
                 return '❌ نظام البوابات غير متوفر حالياً.';
             }
 
+            // 🆕 التحقق من المعركة النشطة
+            const battleSystem = await this.getSystem('battle');
+            if (battleSystem && this.isPlayerInBattle(player, battleSystem)) {
+                return '⚔️ لا يمكنك دخول البوابات أثناء القتال! استخدم `هروب` أولاً.';
+            }
+
             const result = await gateSystem.enterGate(player, gateName);
             if (result.error) {
                 return result.error;
@@ -710,7 +722,8 @@ export default class CommandHandler {
                 return '❌ نظام البوابات غير متوفر حالياً.';
             }
 
-            const nearbyGates = gateSystem.getNearbyGates(player);
+            // 🆕 استخدام الدالة الآمنة للبوابات
+            const nearbyGates = gateSystem.getNearbyGates ? gateSystem.getNearbyGates(player) : [];
             
             if (nearbyGates.length === 0) {
                 return `🚪 لا توجد بوابات نشطة حالياً في **${locations[player.currentLocation]?.name || player.currentLocation}**!`;
@@ -719,9 +732,9 @@ export default class CommandHandler {
             let message = `🚪 **البوابات النشطة القريبة (${nearbyGates.length})**:\n\n`;
             nearbyGates.forEach(gate => {
                 message += `🔹 **${gate.name}**\n`;
-                message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger)}\n`;
+                message += `   • 📊 الخطر: ${'⭐'.repeat(gate.danger || 1)}\n`;
                 message += `   • 🎯 المستوى المطلوب: ${gate.requiredLevel}+\n`;
-                message += `   • 📖 ${gate.description}\n\n`;
+                message += `   • 📖 ${gate.description || 'لا يوجد وصف'}\n\n`;
             });
             message += `💡 **لدخول بوابة:** استخدم أمر "ادخل [اسم البوابة]"`;
             
@@ -730,6 +743,41 @@ export default class CommandHandler {
             console.error('❌ خطأ في عرض البوابات:', error);
             return '❌ حدث خطأ في تحميل البوابات.';
         }
+    }
+
+    // 🆕 دالة مساعدة للتحقق من المعركة
+    isPlayerInBattle(player, battleSystem) {
+        if (!battleSystem) return false;
+        
+        // التحقق بطرق مختلفة حسب نظام القتال
+        if (typeof battleSystem.hasActiveBattle === 'function') {
+            return battleSystem.hasActiveBattle(player.userId);
+        }
+        
+        if (battleSystem.activeBattles && battleSystem.activeBattles.has) {
+            return battleSystem.activeBattles.has(player.userId);
+        }
+        
+        if (battleSystem.activeBattles && Array.isArray(battleSystem.activeBattles)) {
+            return battleSystem.activeBattles.some(battle => battle.playerId === player.userId);
+        }
+        
+        return false;
+    }
+
+    // 🆕 دالة مساعدة للتحقق من البوابة
+    isPlayerInGate(player, gateSystem) {
+        if (!gateSystem) return false;
+        
+        if (typeof gateSystem.isPlayerInsideGate === 'function') {
+            return gateSystem.isPlayerInsideGate(player.userId);
+        }
+        
+        if (gateSystem.activeGateSessions && gateSystem.activeGateSessions.has) {
+            return gateSystem.activeGateSessions.has(player.userId);
+        }
+        
+        return false;
     }
 
     async handleDiscard(player, args) {
@@ -914,16 +962,24 @@ export default class CommandHandler {
         const locationId = this.ARABIC_ITEM_MAP[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();  
 
         try {
+            // 🆕 التحقق من المعركة النشطة أولاً
+            const battleSystem = await this.getSystem('battle');
+            if (battleSystem && this.isPlayerInBattle(player, battleSystem)) {
+                return '⚔️ لا يمكنك التنقل أثناء القتال! استخدم `هروب` أولاً.';
+            }
+
+            // 🆕 التحقق من وجود اللاعب في بوابة
+            const gateSystem = await this.getSystem('gate');
+            if (gateSystem && this.isPlayerInGate(player, gateSystem)) {
+                return '🚪 لا يمكنك السفر أثناء وجودك داخل بوابة! غادر البوابة أولاً.';
+            }
+
             const travelSystem = await this.getSystem('travel');  
             if (!travelSystem) {
                 return '❌ نظام السفر غير متوفر حالياً.';
             }
 
-            // 🆕 جلب الأنظمة المطلوبة للتكامل
-            const gateSystem = await this.getSystem('gate');
-            const battleSystem = await this.getSystem('battle');
-
-            const result = await travelSystem.travelTo(player, locationId, { gateSystem, battleSystem });  
+            const result = await travelSystem.travelTo(player, locationId);  
               
             if (result.error) {  
                 return result.error;  
@@ -1152,7 +1208,7 @@ export default class CommandHandler {
 
         // 🆕 التحقق من وجود اللاعب في بوابة
         const gateSystem = await this.getSystem('gate');
-        if (gateSystem && gateSystem.isPlayerInsideGate(player.userId)) {
+        if (gateSystem && this.isPlayerInGate(player, gateSystem)) {
             return '🚪 لا يمكنك بدء معركة عادية وأنت داخل بوابة! استخدم `استكشف` داخل البوابة.';
         }
 
@@ -1433,4 +1489,4 @@ export default class CommandHandler {
     async handleUnknown(command, player) {  
         return `❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة.`;  
     }  
-                }
+                    }
