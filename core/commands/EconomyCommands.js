@@ -1,5 +1,5 @@
 // core/commands/commands/EconomyCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 
 export class EconomyCommands extends BaseCommand {
     getCommands() {
