@@ -1,5 +1,5 @@
 // core/commands/commands/BattleCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 
 export class BattleCommands extends BaseCommand {
     getCommands() {
