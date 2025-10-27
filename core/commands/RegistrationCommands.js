@@ -1,5 +1,5 @@
 // core/commands/commands/RegistrationCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 
 export class RegistrationCommands extends BaseCommand {
     getCommands() {
