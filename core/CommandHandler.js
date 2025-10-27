@@ -1,4 +1,4 @@
 // core/CommandHandler.js - ملف التصدير الرئيسي
-import BaseCommand.js from './commands/BaseCommand.js';
+import CommandHandler from './commands/CommandHandler.js';
 
 export default CommandHandler;
