@@ -192,7 +192,7 @@ export class EconomyCommands extends BaseCommand {
     }
 
     async findPlayer(identifier) {
-        const Player = (await import('../Player.js')).default;
+        const Player = (await import('../../Player.js')).default;
         
         let receiver = await Player.findOne({ userId: identifier });
         if (!receiver) {
