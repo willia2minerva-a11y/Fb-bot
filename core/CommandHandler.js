@@ -1,21 +1,25 @@
-// core/commands/CommandHandler.js
+
+// core/CommandHandler.js
 import Player from './Player.js';
-import { ProfileCardGenerator } from '../../utils/ProfileCardGenerator.js';
-import { AdminSystem } from '../../systems/admin/AdminSystem.js';
 
-// استيراد فئات الأوامر
-import { RegistrationCommands } from './commands/RegistrationCommands.js';
-import { GateCommands } from './commands/GateCommands.js';
-import { BattleCommands } from './commands/BattleCommands.js';
-import { EconomyCommands } from './commands/EconomyCommands.js';
-import { CraftingCommands } from './commands/CraftingCommands.js';
-import { ExplorationCommands } from './commands/ExplorationCommands.js';
-import { InfoCommands } from './commands/InfoCommands.js';
-import { MenuCommands } from './commands/MenuCommands.js';
+// 🛑 صحح مسارات utils - استخدم مساراً نسبياً صحيحاً
+import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js'; // ✅
+import { AdminSystem } from '../systems/admin/AdminSystem.js'; // ✅
 
-// استيراد الأدوات
-import { SystemLoader } from './utils/SystemLoader.js';
-import { ArabicItemMap } from './utils/ArabicItemMap.js';
+// 🛑 صحح مسارات الأوامر - جميعها في مجلد commands/
+import { RegistrationCommands } from './commands/RegistrationCommands.js'; // ✅
+import { GateCommands } from './commands/GateCommands.js'; // ✅
+import { BattleCommands } from './commands/BattleCommands.js'; // ✅
+import { EconomyCommands } from './commands/EconomyCommands.js'; // ✅
+import { CraftingCommands } from './commands/CraftingCommands.js'; // ✅
+import { ExplorationCommands } from './commands/ExplorationCommands.js'; // ✅
+import { InfoCommands } from './commands/InfoCommands.js'; // ✅
+import { MenuCommands } from './commands/MenuCommands.js'; // ✅
+
+// 🛑 صحح مسارات أدوات utils
+import { SystemLoader } from '../utils/SystemLoader.js'; // ✅
+import { ArabicItemMap } from '../utils/ArabicItemMap.js'; // ✅
+
 
 export default class CommandHandler {
     constructor() {
