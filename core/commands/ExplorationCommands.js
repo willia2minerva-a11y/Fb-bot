@@ -1,5 +1,5 @@
 // core/commands/commands/ExplorationCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 import { locations } from '../../../../data/locations.js';
 
 export class ExplorationCommands extends BaseCommand {
