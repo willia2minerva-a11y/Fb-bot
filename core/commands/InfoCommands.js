@@ -1,5 +1,5 @@
 // core/commands/commands/InfoCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 import { locations } from '../../../../data/locations.js';
 import { items } from '../../../../data/items.js';
 import Player from '../../Player.js';
