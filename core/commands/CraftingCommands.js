@@ -1,5 +1,5 @@
 // core/commands/commands/CraftingCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 import { items } from '../../../../data/items.js';
 
 export class CraftingCommands extends BaseCommand {
