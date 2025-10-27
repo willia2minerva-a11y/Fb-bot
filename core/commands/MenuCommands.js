@@ -1,5 +1,5 @@
 // core/commands/commands/MenuCommands.js
-import { BaseCommand } from '../BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 
 export class MenuCommands extends BaseCommand {
     getCommands() {
