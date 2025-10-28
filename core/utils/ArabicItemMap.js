@@ -1,6 +1,6 @@
 // core/commands/utils/ArabicItemMap.js
-import { items } from '../../../data/items.js';
-import { locations } from '../../../data/locations.js';
+import { items } from '../../data/items.js';
+import { locations } from '../../data/locations.js';
 
 export class ArabicItemMap {
     static create() {
