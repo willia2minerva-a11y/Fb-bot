@@ -1,6 +1,6 @@
 // core/commands/commands/GateCommands.js
 import { BaseCommand } from './BaseCommand.js';
-import { locations } from '../../../data/locations.js';
+import { locations } from '../../data/locations.js';
 
 export class GateCommands extends BaseCommand {
     getCommands() {
