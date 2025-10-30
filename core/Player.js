@@ -142,6 +142,10 @@ playerSchema.methods.regenerate = function() {
 
     return updated;
 };
+// 🆕 إضافة الدالة المفقودة
+playerSchema.methods.isRegistrationCompleted = function() {
+    return this.registrationStatus === 'completed';
+};
 
 // 🆕 دالة للحصول على حالة الاستعادة
 playerSchema.methods.getRegenerationStatus = function() {
