@@ -22,60 +22,62 @@ export class InfoCommands extends BaseCommand {
             'مخزن': this.handleInventory.bind(this),
             'معداتي': this.handleEquipment.bind(this),
             'رمي': this.handleDiscard.bind(this)
-                
-    async handleStatus(player) {
-    // إذا كان اللاعب لم يكمل التسجيل، استخدم الرسالة الأصلية
-    if (!player.isApproved()) {
-        let statusMessage = `📊 **حالتك الحالية:**\n\n`;
-        
-        if (player.isPending()) {
-            statusMessage += `⏳ **حالة الحساب:** قيد الانتظار للموافقة\n`;
-            statusMessage += `🆔 **المعرف:** ${player.userId}\n`;
-            statusMessage += `💡 **الإجراء المطلوب:** أرسل المعرف للمدير\n\n`;
-        } 
-        else if (player.isApprovedButNotCompleted()) {
-            statusMessage += `✅ **حالة الحساب:** تمت الموافقة - يحتاج إكمال\n`;
-            statusMessage += `👤 **الاسم الحالي:** ${player.name}\n`;
-            
-            if (!player.gender) {
-                statusMessage += `⚧️ **الجنس:** لم يتم الاختيار\n`;
-                statusMessage += `💡 استخدم "ذكر" أو "أنثى" لاختيار الجنس\n\n`;
-            } else if (player.registrationStatus === 'name_pending') {
-                statusMessage += `⚧️ **الجنس:** ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}\n`;
-                statusMessage += `📛 **الاسم الإنجليزي:** لم يتم الاختيار\n`;
-                statusMessage += `💡 استخدم "اسمي [الاسم]" لاختيار اسم إنجليزي\n\n`;
-            }
-        }
-        
-        statusMessage += `📋 **الأوامر المتاحة:**\n`;
-        if (!player.isApproved()) {
-            statusMessage += `• "بدء" - متابعة التسجيل\n`;
-            statusMessage += `• "معرفي" - عرض المعرف للمدير\n`;
-            statusMessage += `• "مساعدة" - عرض الأوامر المتاحة\n`;
-        } else if (!player.isRegistrationCompleted()) {
-            statusMessage += `• "ذكر/أنثى" - اختيار الجنس\n`;
-            statusMessage += `• "اسمي [الاسم]" - اختيار اسم\n`;
-        }
-        
-        return statusMessage;
+        };
     }
 
-    // إذا كان اللاعب مكتمل التسجيل، استخدم الشكل الجدولي المفصل
-    try {
-        const totalStats = player.getTotalStats(global.itemsData);
-        const actualStamina = player.getActualStamina ? player.getActualStamina() : player.stamina;
-        
-        // دالة مساعدة لحساب الرانك
-        const getRank = (level) => {
-            if (level >= 100) return 'SS';
-            if (level >= 80) return 'S';
-            if (level >= 60) return 'A';
-            if (level >= 40) return 'B';
-            if (level >= 20) return 'C';
-            return 'D';
-        };
+    async handleStatus(player) {
+        // إذا كان اللاعب لم يكمل التسجيل، استخدم الرسالة الأصلية
+        if (!player.isApproved()) {
+            let statusMessage = `📊 **حالتك الحالية:**\n\n`;
+            
+            if (player.isPending()) {
+                statusMessage += `⏳ **حالة الحساب:** قيد الانتظار للموافقة\n`;
+                statusMessage += `🆔 **المعرف:** ${player.userId}\n`;
+                statusMessage += `💡 **الإجراء المطلوب:** أرسل المعرف للمدير\n\n`;
+            } 
+            else if (player.isApprovedButNotCompleted()) {
+                statusMessage += `✅ **حالة الحساب:** تمت الموافقة - يحتاج إكمال\n`;
+                statusMessage += `👤 **الاسم الحالي:** ${player.name}\n`;
+                
+                if (!player.gender) {
+                    statusMessage += `⚧️ **الجنس:** لم يتم الاختيار\n`;
+                    statusMessage += `💡 استخدم "ذكر" أو "أنثى" لاختيار الجنس\n\n`;
+                } else if (player.registrationStatus === 'name_pending') {
+                    statusMessage += `⚧️ **الجنس:** ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}\n`;
+                    statusMessage += `📛 **الاسم الإنجليزي:** لم يتم الاختيار\n`;
+                    statusMessage += `💡 استخدم "اسمي [الاسم]" لاختيار اسم إنجليزي\n\n`;
+                }
+            }
+            
+            statusMessage += `📋 **الأوامر المتاحة:**\n`;
+            if (!player.isApproved()) {
+                statusMessage += `• "بدء" - متابعة التسجيل\n`;
+                statusMessage += `• "معرفي" - عرض المعرف للمدير\n`;
+                statusMessage += `• "مساعدة" - عرض الأوامر المتاحة\n`;
+            } else if (!player.isApprovedButNotCompleted()) {
+                statusMessage += `• "ذكر/أنثى" - اختيار الجنس\n`;
+                statusMessage += `• "اسمي [الاسم]" - اختيار اسم\n`;
+            }
+            
+            return statusMessage;
+        }
 
-        return `╔═════════════ 👤 ملف اللاعب: ${player.name} ════════════╗
+        // إذا كان اللاعب مكتمل التسجيل، استخدم الشكل الجدولي المفصل
+        try {
+            const totalStats = player.getTotalStats(global.itemsData);
+            const actualStamina = player.getActualStamina ? player.getActualStamina() : player.stamina;
+            
+            // دالة مساعدة لحساب الرانك
+            const getRank = (level) => {
+                if (level >= 100) return 'SS';
+                if (level >= 80) return 'S';
+                if (level >= 60) return 'A';
+                if (level >= 40) return 'B';
+                if (level >= 20) return 'C';
+                return 'D';
+            };
+
+            return `╔═════════════ 👤 ملف اللاعب: ${player.name} ════════════╗
 
 📜 معلومات أساسية
 ├── المعرف (ID): ${player.playerId || player.userId}
@@ -100,11 +102,11 @@ export class InfoCommands extends BaseCommand {
 └── 💡 التقدم: ${player.expProgress}% (${player.experience}/${player.requiredExp})
 ╚══════════════════════════════════════╝`;
 
-    } catch (error) {
-        console.error('Error in handleStatus:', error);
-        return `❌ حدث خطأ في عرض حالتك.\n${error.message}`;
-    }
+        } catch (error) {
+            console.error('Error in handleStatus:', error);
+            return `❌ حدث خطأ في عرض حالتك.\n${error.message}`;
         }
+    }
 
     async handleProfile(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
@@ -284,4 +286,4 @@ export class InfoCommands extends BaseCommand {
 
         return equipmentMessage;
     }
-}
+    }
