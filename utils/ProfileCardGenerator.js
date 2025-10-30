@@ -21,11 +21,12 @@ export class ProfileCardGenerator {
     }  
 
     _calculateRank(level) {  
-        if (level >= 90) return 'SS';
-        if (level >= 75) return 'S';
+        if (level >= 100) return 'SS';
+        if (level >= 80) return 'S';
         if (level >= 60) return 'A';
-        if (level >= 45) return 'B';
-        if (level >= 30) return 'C';
+        if (level >= 40) return 'B';
+        if (level >= 20) return 'C';
+        if (level >= 10) return 'D';
         return 'E';
     }  
 
