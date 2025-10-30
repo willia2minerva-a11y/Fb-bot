@@ -74,7 +74,8 @@ export class InfoCommands extends BaseCommand {
                 if (level >= 60) return 'A';
                 if (level >= 40) return 'B';
                 if (level >= 20) return 'C';
-                return 'D';
+                if (level >= 10) return 'D';
+                return 'E'; // من المستوى 1 إلى 9
             };
 
             return `╔═════════════ 👤 ملف اللاعب: ${player.name} ════════════╗
