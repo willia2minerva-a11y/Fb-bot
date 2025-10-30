@@ -22,10 +22,10 @@ export class InfoCommands extends BaseCommand {
             'مخزن': this.handleInventory.bind(this),
             'معداتي': this.handleEquipment.bind(this),
             'رمي': this.handleDiscard.bind(this)
-        };
-    }
-
+                
     async handleStatus(player) {
+    // إذا كان اللاعب لم يكمل التسجيل، استخدم الرسالة الأصلية
+    if (!player.isApproved()) {
         let statusMessage = `📊 **حالتك الحالية:**\n\n`;
         
         if (player.isPending()) {
@@ -46,15 +46,6 @@ export class InfoCommands extends BaseCommand {
                 statusMessage += `💡 استخدم "اسمي [الاسم]" لاختيار اسم إنجليزي\n\n`;
             }
         }
-        else {
-            statusMessage += `✅ **حالة الحساب:** مكتمل ونشط\n`;
-            statusMessage += `👤 **الاسم:** ${player.name}\n`;
-            statusMessage += `⚧️ **الجنس:** ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}\n`;
-            statusMessage += `✨ **المستوى:** ${player.level}\n`;
-            statusMessage += `❤️ **الصحة:** ${player.health || 100}/${player.maxHealth || 100}\n`;
-            statusMessage += `💰 **الذهب:** ${player.gold}\n`;
-            statusMessage += `📍 **الموقع:** ${locations[player.currentLocation]?.name || player.currentLocation}\n\n`;
-        }
         
         statusMessage += `📋 **الأوامر المتاحة:**\n`;
         if (!player.isApproved()) {
@@ -64,12 +55,56 @@ export class InfoCommands extends BaseCommand {
         } else if (!player.isRegistrationCompleted()) {
             statusMessage += `• "ذكر/أنثى" - اختيار الجنس\n`;
             statusMessage += `• "اسمي [الاسم]" - اختيار اسم\n`;
-        } else {
-            statusMessage += `• اكتب "مساعدة" لرؤية جميع الأوامر\n`;
         }
         
         return statusMessage;
     }
+
+    // إذا كان اللاعب مكتمل التسجيل، استخدم الشكل الجدولي المفصل
+    try {
+        const totalStats = player.getTotalStats(global.itemsData);
+        const actualStamina = player.getActualStamina ? player.getActualStamina() : player.stamina;
+        
+        // دالة مساعدة لحساب الرانك
+        const getRank = (level) => {
+            if (level >= 100) return 'SS';
+            if (level >= 80) return 'S';
+            if (level >= 60) return 'A';
+            if (level >= 40) return 'B';
+            if (level >= 20) return 'C';
+            return 'D';
+        };
+
+        return `╔═════════════ 👤 ملف اللاعب: ${player.name} ════════════╗
+
+📜 معلومات أساسية
+├── المعرف (ID): ${player.playerId || player.userId}
+├── المستوى: **${player.level}**
+├── 🌟 الرانك: ${getRank(player.level)}
+└── 💰 الذهب: ${player.gold}
+
+💪 الإحصائيات الحيوية
+├── ❤️ الصحة: ${Math.floor(player.health)}/${player.maxHealth}
+├── ⚡ المانا: ${Math.floor(player.mana)}/${player.maxMana}
+└── 🏃 النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}
+
+⚔️ قوة القتال والمعدات
+├── 🔥 الهجوم (بالمعدات): **${player.getAttackDamage(global.itemsData)}**
+├── 🛡️ الدفاع (بالمعدات): **${player.getDefense(global.itemsData)}**
+├── ⚔️ السلاح: ${player.equipment?.weapon ? global.itemsData[player.equipment.weapon]?.name || player.equipment.weapon : 'لا يوجد'}
+├── 🛡️ الدرع: ${player.equipment?.armor ? global.itemsData[player.equipment.armor]?.name || player.equipment.armor : 'لا يوجد'}
+├── 💍 إكسسوار: ${player.equipment?.accessory ? global.itemsData[player.equipment.accessory]?.name || player.equipment.accessory : 'لا يوجد'}
+└── ⛏️ الأداة: ${player.equipment?.tool ? global.itemsData[player.equipment.tool]?.name || player.equipment.tool : 'لا يوجد'}
+
+📈 الخبرة
+└── 💡 التقدم: ${player.expProgress}% (${player.experience}/${player.requiredExp})
+╚══════════════════════════════════════╝`;
+
+    } catch (error) {
+        console.error('Error in handleStatus:', error);
+        return `❌ حدث خطأ في عرض حالتك.\n${error.message}`;
+    }
+        }
 
     async handleProfile(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
