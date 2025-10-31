@@ -1,9 +1,11 @@
+[file name]: resources.js
+[file content begin]
 // 📦 /data/resources.js
 // قاعدة بيانات الموارد المستوحاة من Terraria وSolo Leveling
 // تشمل الموارد، الخامات، السبائك، الشظايا، الأرواح، والمعادن النادرة
 
 export const resources = {
-  // 🌿 الموارد السهلة
+  // 🌿 الموارد السهلة - UPDATED
   slime_gel: {
     id: 'slime_gel',
     name: 'جل الوحل',
@@ -38,9 +40,7 @@ export const resources = {
     items: [{ itemId: 'stone', min: 1, max: 3, chance: 1 }]
   },
 
-  
-  // في data/resources.js - أضف في النهاية قبل export:
-  // عناصر الفرن الجديدة
+  // عناصر الفرن الجديدة - UPDATED
   furnace: {
     id: "furnace",
     name: "فرن",
@@ -80,7 +80,7 @@ export const resources = {
     items: [{ itemId: "coal", min: 1, max: 2, chance: 1 }]
   },
 
-  // أطعمة وخامات إضافية
+  // أطعمة وخامات إضافية - UPDATED
   raw_meat: {
     id: "raw_meat",
     name: "لحم نيء",
@@ -118,9 +118,9 @@ export const resources = {
     gatherTime: 5000,
     experience: 6,
     items: [{ itemId: "wheat", min: 1, max: 3, chance: 1 }]
-    },
+  },
 
-  // ⚒️ الخامات والسبائك
+  // ⚒️ الخامات والسبائك - UPDATED
   copper_ore: {
     id: 'copper_ore',
     name: 'خام النحاس',
@@ -254,7 +254,7 @@ export const resources = {
     items: [{ itemId: 'hellstone_bar', min: 1, max: 1, chance: 1 }]
   },
 
-  // 🌺 موارد الغابة والسماء
+  // 🌺 موارد الغابة والسماء - UPDATED
   vine: {
     id: 'vine',
     name: 'الكرمة',
@@ -289,11 +289,11 @@ export const resources = {
     items: [{ itemId: 'wyvern_wings', min: 1, max: 1, chance: 0.5 }]
   },
 
-  // ⚡ موارد الأرواح
+  // ⚡ موارد الأرواح - UPDATED
   soul_of_light: {
     id: 'soul_of_light',
     name: 'روح الضوء',
-    description: 'قوة روحية تُسقط من The Twins، تستخدم في السحر والأسلحة.',
+    description: 'قوة روحية تُسقط من The Twins، تستخدم في السحر والأسلبة.',
     rarity: 'rare',
     difficultyLevel: 3,
     locations: ['hardmode_areas'],
@@ -346,10 +346,10 @@ export const resources = {
     items: [{ itemId: 'soul_of_sight', min: 1, max: 1, chance: 0.6 }]
   },
 
-  // 💎 الموارد الأسطورية والفائقة
+  // 💎 الموارد الأسطورية والفائقة - UPDATED
   divine_fragment: {
     id: 'divine_fragment',
-    name: 'شظايا إلهية',
+    name: 'الشظايا العظيمة',
     description: 'شظايا متوهجة ناتجة من معارك الألهة، تُستخدم لصناعة المعدات المقدسة.',
     rarity: 'legendary',
     difficultyLevel: 5,
@@ -360,8 +360,8 @@ export const resources = {
   },
   divine_steel: {
     id: 'divine_steel',
-    name: 'الصلب الإلهي',
-    description: 'معدن أسطوري ناتج من دمج الشظايا الإلهية.',
+    name: 'الصلب العظيم',
+    description: 'معدن أسطوري ناتج من دمج الشظايا العظيمة.',
     rarity: 'legendary',
     difficultyLevel: 5,
     locations: ['divine_dungeon'],
@@ -401,5 +401,228 @@ export const resources = {
     gatherTime: 40000,
     experience: 65,
     items: [{ itemId: 'dark_crystal', min: 1, max: 1, chance: 0.3 }]
+  },
+
+  // ===================================
+  // موارد جديدة - NEW ADDITIONS
+  // ===================================
+  
+  // موارد إضافية من القائمة
+  demonite_ore: {
+    id: 'demonite_ore',
+    name: 'خام الشيطان',
+    description: 'خام مظلم يسقط بعد هزيمة Eye of Cthulhu.',
+    rarity: 'uncommon',
+    difficultyLevel: 2,
+    locations: ['forest', 'cave'],
+    gatherTime: 9000,
+    experience: 12,
+    items: [{ itemId: 'demonite_ore', min: 1, max: 2, chance: 1 }]
+  },
+
+  moon_dust: {
+    id: 'moon_dust',
+    name: 'غبار القمر',
+    description: 'غبار سحري يسقط من Moon Lord.',
+    rarity: 'epic',
+    difficultyLevel: 4,
+    locations: ['lunar_temple'],
+    gatherTime: 20000,
+    experience: 35,
+    items: [{ itemId: 'moon_dust', min: 3, max: 8, chance: 1 }]
+  },
+
+  lihzahrd_power_cell: {
+    id: 'lihzahrd_power_cell',
+    name: 'خلية قوة ليهزار',
+    description: 'خلية طاقة قديمة من معبد الغابة.',
+    rarity: 'rare',
+    difficultyLevel: 3,
+    locations: ['jungle_temple'],
+    gatherTime: 15000,
+    experience: 25,
+    items: [{ itemId: 'lihzahrd_power_cell', min: 1, max: 1, chance: 1 }]
+  },
+
+  plantera_bulb: {
+    id: 'plantera_bulb',
+    name: 'زهرة بلانتيرا',
+    description: 'زهرة سحرية تنمو في الغابة الجوفية.',
+    rarity: 'epic',
+    difficultyLevel: 4,
+    locations: ['underground_jungle'],
+    gatherTime: 18000,
+    experience: 30,
+    items: [{ itemId: 'plantera_bulb', min: 1, max: 1, chance: 1 }]
+  },
+
+  solar_fragment: {
+    id: 'solar_fragment',
+    name: 'شظايا شمسية',
+    description: 'شظايا مشعة من حدث الكسوف الشمسي.',
+    rarity: 'epic',
+    difficultyLevel: 4,
+    locations: ['solar_eclipse'],
+    gatherTime: 16000,
+    experience: 28,
+    items: [{ itemId: 'solar_fragment', min: 2, max: 6, chance: 0.4 }]
+  },
+
+  // موارد البوابات المتقدمة
+  abyssal_blade_resource: {
+    id: 'abyssal_blade_resource',
+    name: 'شفرة الهاوية',
+    description: 'شفرة مصنوعة من قلب الهاوية.',
+    rarity: 'mythic',
+    difficultyLevel: 5,
+    locations: ['ultimate_dungeon'],
+    gatherTime: 35000,
+    experience: 60,
+    items: [{ itemId: 'abyssal_blade_resource', min: 1, max: 1, chance: 0.1 }]
+  },
+
+  dragon_kings_horn: {
+    id: 'dragon_kings_horn',
+    name: 'قرن ملك التنين',
+    description: 'قرن قوي من ملك التنانين.',
+    rarity: 'legendary',
+    difficultyLevel: 5,
+    locations: ['double_dungeon'],
+    gatherTime: 30000,
+    experience: 55,
+    items: [{ itemId: 'dragon_kings_horn', min: 1, max: 1, chance: 0.2 }]
+  },
+
+  dark_abyss_core: {
+    id: 'dark_abyss_core',
+    name: 'جوهر الهاوية المظلمة',
+    description: 'قلب الطاقة المظلمة من أعماق الهاوية.',
+    rarity: 'mythic',
+    difficultyLevel: 5,
+    locations: ['ultimate_dungeon'],
+    gatherTime: 40000,
+    experience: 70,
+    items: [{ itemId: 'dark_abyss_core', min: 1, max: 1, chance: 0.15 }]
+  },
+
+  infernal_ring: {
+    id: 'infernal_ring',
+    name: 'حلقة الجحيم',
+    description: 'حلقة مشتعلة من الجحيم.',
+    rarity: 'mythic',
+    difficultyLevel: 5,
+    locations: ['hell'],
+    gatherTime: 35000,
+    experience: 65,
+    items: [{ itemId: 'infernal_ring', min: 1, max: 1, chance: 0.05 }]
+  },
+
+  gods_essence: {
+    id: 'gods_essence',
+    name: 'جوهر العظيم',
+    description: 'الطاقة النقية العظيمة .',
+    rarity: 'mythic',
+    difficultyLevel: 5,
+    locations: ['divine_dungeon'],
+    gatherTime: 45000,
+    experience: 80,
+    items: [{ itemId: 'gods_essence', min: 1, max: 1, chance: 0.05 }]
+  },
+
+  sacred_steel: {
+    id: 'sacred_steel',
+    name: 'الصلب المقدس',
+    description: 'معدن مقدس مصنوع من الشظايا الإلهية وأرواح الضوء.',
+    rarity: 'mythic',
+    difficultyLevel: 5,
+    locations: ['heavenly_dungeon'],
+    gatherTime: 38000,
+    experience: 75,
+    items: [{ itemId: 'sacred_steel', min: 1, max: 1, chance: 0.3 }],
+    materials: [
+      { id: 'divine_fragment', count: 3 },
+      { id: 'soul_of_light', count: 5 }
+    ]
+  },
+
+  // موارد خاصة من الأحداث
+  broken_hero_sword: {
+    id: 'broken_hero_sword',
+    name: 'سيف البطل المكسور',
+    description: 'بقايا سيف بطل قديم، يمكن إصلاحه.',
+    rarity: 'legendary',
+    difficultyLevel: 4,
+    locations: ['solar_eclipse'],
+    gatherTime: 20000,
+    experience: 40,
+    items: [{ itemId: 'broken_hero_sword', min: 1, max: 1, chance: 0.25 }]
+  },
+
+  // موارد من المخلوقات
+  bone: {
+    id: 'bone',
+    name: 'عظم',
+    description: 'عظام المخلوقات الميتة.',
+    rarity: 'common',
+    difficultyLevel: 1,
+    locations: ['forest', 'cave'],
+    gatherTime: 4000,
+    experience: 5,
+    items: [{ itemId: 'bone', min: 1, max: 2, chance: 1 }]
+  },
+
+  harpy_feather: {
+    id: 'harpy_feather',
+    name: 'ريشة هاربي',
+    description: 'ريشة جميلة من مخلوقات السماء.',
+    rarity: 'uncommon',
+    difficultyLevel: 2,
+    locations: ['sky'],
+    gatherTime: 8000,
+    experience: 12,
+    items: [{ itemId: 'harpy_feather', min: 1, max: 2, chance: 0.5 }]
+  },
+
+  spider_web: {
+    id: 'spider_web',
+    name: 'شبكة عنكبوت',
+    description: 'خيوط لزجة من العناكب العملاقة.',
+    rarity: 'common',
+    difficultyLevel: 2,
+    locations: ['e_d_gates'],
+    gatherTime: 6000,
+    experience: 8,
+    items: [{ itemId: 'spider_web', min: 1, max: 3, chance: 0.5 }]
+  },
+
+  // موارد التطوير المتقدمة
+  hallowed_bar: {
+    id: 'hallowed_bar',
+    name: 'سبيكة مقدسة',
+    description: 'سبيكة مصنوعة من مواد مقدسة.',
+    rarity: 'epic',
+    difficultyLevel: 4,
+    locations: ['forge'],
+    gatherTime: 18000,
+    experience: 35,
+    items: [{ itemId: 'hallowed_bar', min: 1, max: 1, chance: 1 }],
+    materials: [
+      { id: 'soul_of_light', count: 3 },
+      { id: 'soul_of_might', count: 3 },
+      { id: 'soul_of_fright', count: 3 }
+    ]
+  },
+
+  nebula_fragments: {
+    id: 'nebula_fragments',
+    name: 'شظايا السديم',
+    description: 'قطع من السديم الكوني.',
+    rarity: 'legendary',
+    difficultyLevel: 5,
+    locations: ['lunar_temple'],
+    gatherTime: 25000,
+    experience: 45,
+    items: [{ itemId: 'nebula_fragments', min: 2, max: 5, chance: 0.6 }]
   }
 };
+[file content end]
