@@ -1,9 +1,10 @@
+[file name]: weapons.js
+[file content begin]
 import { resources } from './resources.js';
 
 export const weapons = {
   // ===================================
-  // الأسلحة الضعيفة إلى المتوسطة (Crafted & Found)
-  // تنسيق: attack, attackSpeed (هجمات/ثانية), critChance (%), level, element
+  // الأسلحة الضعيفة إلى المتوسطة (Crafted & Found) - UPDATED
   // ===================================
   basic_pickaxe: {
     id: 'basic_pickaxe',
@@ -21,7 +22,7 @@ export const weapons = {
     type: 'weapon',
     description: 'قوس بسيط للرماة المبتدئين.',
     rarity: 'common',
-    attack: 18,
+    attack: 20,
     attackSpeed: 1.0,
     critChance: 3,
     level: 3,
@@ -35,7 +36,7 @@ export const weapons = {
     type: 'weapon',
     description: 'خنجر حاد من البرونز.',
     rarity: 'common',
-    attack: 12,
+    attack: 15,
     attackSpeed: 1.6,
     critChance: 4,
     level: 2,
@@ -133,7 +134,7 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف حديدي قياسي.',
     rarity: 'uncommon',
-    attack: 40,
+    attack: 25,
     attackSpeed: 1.0,
     critChance: 6,
     level: 12,
@@ -147,7 +148,7 @@ export const weapons = {
     type: 'weapon',
     description: 'مطرقة ثقيلة من الصلب.',
     rarity: 'uncommon',
-    attack: 50,
+    attack: 35,
     attackSpeed: 0.8,
     critChance: 4,
     level: 16,
@@ -161,7 +162,7 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف فضي حاد.',
     rarity: 'rare',
-    attack: 60,
+    attack: 40,
     attackSpeed: 1.15,
     critChance: 7,
     level: 20,
@@ -175,7 +176,7 @@ export const weapons = {
     type: 'weapon',
     description: 'قوس مصنوع من الفضة.',
     rarity: 'rare',
-    attack: 65,
+    attack: 45,
     attackSpeed: 1.1,
     critChance: 8,
     level: 22,
@@ -183,13 +184,16 @@ export const weapons = {
     materials: [{ id: 'silver_bar', count: 8 }, { id: 'wood', count: 5 }]
   },
 
+  // ===================================
+  // الأسلحة المتوسطة - القوية - UPDATED
+  // ===================================
   fiery_greatsword: {
     id: 'fiery_greatsword',
     name: 'السيف العظيم الناري',
     type: 'weapon',
     description: 'سيف عملاق مشتعل.',
     rarity: 'rare',
-    attack: 80,
+    attack: 48,
     attackSpeed: 0.85,
     critChance: 8,
     level: 28,
@@ -203,11 +207,12 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف قديم يحتوي على تأثيرات سحرية.',
     rarity: 'rare',
-    attack: 85,
+    attack: 50,
     attackSpeed: 1.05,
     critChance: 10,
     level: 30,
-    element: 'arcane'
+    element: 'arcane',
+    source: 'magic_caves'
   },
 
   muramasa: {
@@ -216,27 +221,27 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف ياباني أسطوري، سريع جداً.',
     rarity: 'rare',
-    attack: 82,
+    attack: 45,
     attackSpeed: 1.6,
     critChance: 12,
     level: 30,
-    element: 'slashing'
+    element: 'slashing',
+    source: 'old_temple_chests'
   },
 
-  // ===================================
-  // الأسلحة المتوسطة - القوية
-  // ===================================
   the_bee_keeper: {
     id: 'the_bee_keeper',
     name: 'حارس النحل',
     type: 'weapon',
     description: 'سيف يطلق نحل صغير عند الهجوم.',
     rarity: 'rare',
-    attack: 78,
+    attack: 40,
     attackSpeed: 1.2,
     critChance: 9,
     level: 26,
-    element: 'nature'
+    element: 'nature',
+    source: 'queen_bee',
+    dropChance: 0.14
   },
 
   poisonous_dagger: {
@@ -245,11 +250,13 @@ export const weapons = {
     type: 'weapon',
     description: 'خنجر يسبب ضرر سمي.',
     rarity: 'rare',
-    attack: 88,
+    attack: 50,
     attackSpeed: 1.8,
     critChance: 10,
     level: 32,
-    element: 'poison'
+    element: 'poison',
+    source: 'ghoul',
+    dropChance: 0.1
   },
 
   ice_blade: {
@@ -258,11 +265,13 @@ export const weapons = {
     type: 'weapon',
     description: 'يطلق نوبات ثلجية.',
     rarity: 'rare',
-    attack: 95,
+    attack: 55,
     attackSpeed: 1.05,
     critChance: 9,
     level: 34,
-    element: 'ice'
+    element: 'ice',
+    source: 'ice_demon',
+    dropChance: 0.25
   },
 
   flame_staff: {
@@ -271,11 +280,13 @@ export const weapons = {
     type: 'weapon',
     description: 'عصا سحرية تطلق كرات نار.',
     rarity: 'rare',
-    attack: 100,
+    attack: 60,
     attackSpeed: 0.9,
     critChance: 6,
     level: 36,
-    element: 'fire'
+    element: 'fire',
+    source: 'fire_wyrm',
+    dropChance: 0.2
   },
 
   trident: {
@@ -284,11 +295,13 @@ export const weapons = {
     type: 'weapon',
     description: 'رمح ثلاثي الرؤوس يسقطه فيشرون.',
     rarity: 'epic',
-    attack: 110,
+    attack: 60,
     attackSpeed: 1.0,
     critChance: 10,
     level: 40,
-    element: 'water'
+    element: 'water',
+    source: 'duke_fishron',
+    dropChance: 0.25
   },
 
   dark_spear: {
@@ -297,11 +310,13 @@ export const weapons = {
     type: 'weapon',
     description: 'رمح يلفه الظلام.',
     rarity: 'epic',
-    attack: 125,
+    attack: 70,
     attackSpeed: 0.95,
     critChance: 12,
     level: 45,
-    element: 'dark'
+    element: 'dark',
+    source: 'dark_soldier',
+    dropChance: 0.15
   },
 
   vampire_knives: {
@@ -310,11 +325,13 @@ export const weapons = {
     type: 'weapon',
     description: 'تعيد جزء من الصحة عند الهجوم.',
     rarity: 'epic',
-    attack: 135,
+    attack: 75,
     attackSpeed: 2.0,
     critChance: 14,
     level: 48,
-    element: 'life_steal'
+    element: 'life_steal',
+    source: 'moon_lord',
+    dropChance: 0.05
   },
 
   excalibur: {
@@ -323,7 +340,7 @@ export const weapons = {
     type: 'weapon',
     description: 'السيف المقدس، قوي جداً.',
     rarity: 'epic',
-    attack: 150,
+    attack: 50,
     attackSpeed: 1.1,
     critChance: 12,
     level: 50,
@@ -337,16 +354,21 @@ export const weapons = {
     type: 'weapon',
     description: 'دمج أربعة سيوف قوية.',
     rarity: 'epic',
-    attack: 155,
+    attack: 47,
     attackSpeed: 1.15,
     critChance: 13,
     level: 52,
     element: 'dark',
-    materials: [{ id: 'muramasa', count: 1 }, { id: 'blade_of_grass', count: 1 }, { id: 'fiery_greatsword', count: 1 }]
+    materials: [
+      { id: 'muramasa', count: 1 }, 
+      { id: 'blade_of_grass', count: 1 }, 
+      { id: 'fiery_greatsword', count: 1 },
+      { id: 'true_excalibur', count: 1 }
+    ]
   },
 
   // ===================================
-  // الأسلحة القوية (Legendary & Mythical)
+  // الأسلحة القوية (Legendary & Mythical) - UPDATED
   // ===================================
   phantasm: {
     id: 'phantasm',
@@ -354,11 +376,13 @@ export const weapons = {
     type: 'weapon',
     description: 'قوس يطلق سهام أشباح.',
     rarity: 'legendary',
-    attack: 220,
+    attack: 120,
     attackSpeed: 1.6,
     critChance: 18,
     level: 70,
-    element: 'spirit'
+    element: 'spirit',
+    source: 'the_twins',
+    dropChance: 0.25
   },
 
   dragon_slayer: {
@@ -367,11 +391,13 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف مصمم لقتل التنانين.',
     rarity: 'legendary',
-    attack: 230,
+    attack: 120,
     attackSpeed: 1.0,
     critChance: 20,
     level: 75,
-    element: 'physical'
+    element: 'physical',
+    source: 'dragon_king',
+    dropChance: 0.05
   },
 
   death_scythe: {
@@ -380,11 +406,13 @@ export const weapons = {
     type: 'weapon',
     description: 'منجل يسحب أرواح الأعداء.',
     rarity: 'legendary',
-    attack: 240,
+    attack: 130,
     attackSpeed: 0.9,
     critChance: 20,
     level: 78,
-    element: 'dark'
+    element: 'dark',
+    source: 'death_knight',
+    dropChance: 0.1
   },
 
   flame_dragons_blade: {
@@ -393,11 +421,13 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف يحمل قوة التنين.',
     rarity: 'legendary',
-    attack: 260,
+    attack: 150,
     attackSpeed: 1.0,
     critChance: 18,
     level: 80,
-    element: 'fire'
+    element: 'fire',
+    source: 'fire_wyrm',
+    dropChance: 0.15
   },
 
   abyssal_edge: {
@@ -406,11 +436,13 @@ export const weapons = {
     type: 'weapon',
     description: 'شفرة مظلمة لا نهاية لها.',
     rarity: 'legendary',
-    attack: 280,
+    attack: 160,
     attackSpeed: 1.05,
     critChance: 22,
     level: 85,
-    element: 'void'
+    element: 'void',
+    source: 'abyssal_lord',
+    dropChance: 0.1
   },
 
   razorblade_typhoon: {
@@ -419,12 +451,17 @@ export const weapons = {
     type: 'weapon',
     description: 'يطلق إعصار من الشفرات.',
     rarity: 'legendary',
-    attack: 300,
+    attack: 160,
     attackSpeed: 1.4,
     critChance: 20,
     level: 88,
     element: 'wind',
-    materials: [{ id: 'soul_of_sight', count: 5 }, { id: 'soul_of_might', count: 5 }, { id: 'soul_of_fright', count: 5 }, { id: 'hallowed_bar', count: 10 }]
+    materials: [
+      { id: 'soul_of_sight', count: 5 }, 
+      { id: 'soul_of_might', count: 5 }, 
+      { id: 'soul_of_fright', count: 5 }, 
+      { id: 'hallowed_bar', count: 10 }
+    ]
   },
 
   phoenix_bow: {
@@ -433,11 +470,13 @@ export const weapons = {
     type: 'weapon',
     description: 'يطلق سهام نارية متجددة.',
     rarity: 'legendary',
-    attack: 320,
+    attack: 170,
     attackSpeed: 1.3,
     critChance: 18,
     level: 90,
-    element: 'fire'
+    element: 'fire',
+    source: 'infernal_beast',
+    dropChance: 0.1
   },
 
   daybreak: {
@@ -446,11 +485,13 @@ export const weapons = {
     type: 'weapon',
     description: 'رمح يسبب ضرراً شمسيًا متواصلاً.',
     rarity: 'legendary',
-    attack: 340,
+    attack: 190,
     attackSpeed: 1.0,
     critChance: 22,
     level: 92,
-    element: 'solar'
+    element: 'solar',
+    source: 'solar_eclipse',
+    dropChance: 0.15
   },
 
   terra_blade: {
@@ -459,11 +500,15 @@ export const weapons = {
     type: 'weapon',
     description: 'قوة الأرض الخارقة.',
     rarity: 'legendary',
-    attack: 360,
+    attack: 200,
     attackSpeed: 1.2,
     critChance: 25,
     level: 95,
-    element: 'earth'
+    element: 'earth',
+    materials: [
+      { id: 'true_excalibur', count: 1 },
+      { id: 'true_nights_edge', count: 1 }
+    ]
   },
 
   celebration: {
@@ -472,11 +517,13 @@ export const weapons = {
     type: 'weapon',
     description: 'تطلق صواريخ ملوّنة ومدمرة.',
     rarity: 'legendary',
-    attack: 380,
+    attack: 200,
     attackSpeed: 1.0,
     critChance: 15,
     level: 96,
-    element: 'explosive'
+    element: 'explosive',
+    source: 'martian_saucer',
+    dropChance: 0.3
   },
 
   nebula_blaze: {
@@ -485,7 +532,7 @@ export const weapons = {
     type: 'weapon',
     description: 'قاذف سحري سريع.',
     rarity: 'legendary',
-    attack: 420,
+    attack: 210,
     attackSpeed: 2.2,
     critChance: 28,
     level: 98,
@@ -499,11 +546,13 @@ export const weapons = {
     type: 'weapon',
     description: 'يطلق سهام المطر.',
     rarity: 'legendary',
-    attack: 460,
+    attack: 250,
     attackSpeed: 1.8,
     critChance: 30,
     level: 99,
-    element: 'storm'
+    element: 'storm',
+    source: 'pumpkin_moon',
+    dropChance: 0.15
   },
 
   the_deathbringer: {
@@ -512,11 +561,13 @@ export const weapons = {
     type: 'weapon',
     description: 'يستخدمه اللورد المظلم لإنهاء الحياة.',
     rarity: 'mythical',
-    attack: 520,
+    attack: 250,
     attackSpeed: 1.0,
     critChance: 35,
     level: 100,
-    element: 'dark'
+    element: 'dark',
+    source: 'dark_lord',
+    dropChance: 0.05
   },
 
   star_wrath: {
@@ -525,24 +576,28 @@ export const weapons = {
     type: 'weapon',
     description: 'يستدعي نجوماً من السماء.',
     rarity: 'mythical',
-    attack: 560,
+    attack: 300,
     attackSpeed: 1.0,
     critChance: 36,
     level: 100,
-    element: 'cosmic'
+    element: 'cosmic',
+    source: 'moon_lord',
+    dropChance: 0.05
   },
 
   gods_wrath: {
     id: 'gods_wrath',
-    name: 'غضب الإله',
+    name: 'غضب الظل',
     type: 'weapon',
     description: 'سلاح حاكم الظل.',
     rarity: 'mythical',
-    attack: 600,
+    attack: 300,
     attackSpeed: 1.05,
     critChance: 38,
     level: 100,
-    element: 'divine'
+    element: 'divine',
+    source: 'shadow_monarch',
+    dropChance: 0.02
   },
 
   the_last_prism: {
@@ -551,38 +606,45 @@ export const weapons = {
     type: 'weapon',
     description: 'يطلق شعاع ليزر سحري متعدد الألوان.',
     rarity: 'mythical',
-    attack: 650,
+    attack: 300,
     attackSpeed: 1.7,
     critChance: 40,
     level: 100,
-    element: 'prismatic'
+    element: 'prismatic',
+    source: 'moon_lord',
+    dropChance: 0.03
   },
 
   doomhammer: {
     id: 'doomhammer',
     name: 'مطرقة الهلاك',
     type: 'weapon',
-    description: 'مطرقة حاكم التحطيم.',
+    description: 'مطرقة التحطيم.',
     rarity: 'mythical',
-    attack: 700,
+    attack: 350,
     attackSpeed: 0.7,
     critChance: 30,
     level: 100,
-    element: 'physical'
+    element: 'physical',
+    source: 'monarch_of_destruction',
+    dropChance: 0.01
   },
 
   divine_sword: {
     id: 'divine_sword',
-    name: 'سيف الإله',
+    name: 'سيف الدمار',
     type: 'weapon',
-    description: 'سيف مصنوع من مواد إلهية.',
+    description: 'سيف مصنوع من مواد دمار.',
     rarity: 'mythical',
-    attack: 800,
+    attack: 400,
     attackSpeed: 1.2,
     critChance: 45,
     level: 100,
     element: 'divine',
-    materials: [{ id: 'divine_fragments', count: 5 }, { id: 'sacred_steel', count: 10 }]
+    materials: [
+      { id: 'divine_fragment', count: 5 }, 
+      { id: 'sacred_steel', count: 10 }
+    ]
   },
 
   soulfire_blade: {
@@ -591,12 +653,15 @@ export const weapons = {
     type: 'weapon',
     description: 'شفرة مشتعلة بأرواح الأعداء.',
     rarity: 'mythical',
-    attack: 900,
+    attack: 500,
     attackSpeed: 1.1,
     critChance: 50,
     level: 100,
     element: 'soulfire',
-    materials: [{ id: 'soul_shards', count: 10 }, { id: 'dark_iron', count: 15 }]
+    materials: [
+      { id: 'soul_shard', count: 10 }, 
+      { id: 'dark_iron', count: 15 }
+    ]
   },
 
   oblivions_end: {
@@ -605,24 +670,28 @@ export const weapons = {
     type: 'weapon',
     description: 'سلاح يتجاهل دفاعات العدو.',
     rarity: 'mythical',
-    attack: 1100,
+    attack: 600,
     attackSpeed: 1.0,
     critChance: 60,
     level: 100,
-    element: 'void'
+    element: 'void',
+    source: 'abyssal_overlord',
+    dropChance: 0.01
   },
 
   divinitys_edge: {
     id: 'divinitys_edge',
-    name: 'حدود الإلوهية',
+    name: 'حدود الزعامة',
     type: 'weapon',
-    description: 'سلاح الإله السماوي الأقوى.',
+    description: 'سلاح الزعيم الأقوى.',
     rarity: 'mythical',
-    attack: 1200,
+    attack: 700,
     attackSpeed: 1.3,
     critChance: 65,
     level: 100,
-    element: 'divine'
+    element: 'divine',
+    source: 'celestial_god',
+    dropChance: 0.01
   },
 
   meowmere: {
@@ -631,10 +700,171 @@ export const weapons = {
     type: 'weapon',
     description: 'سيف مجنون يطلق رؤوس قطط مفرقعة.',
     rarity: 'mythical',
-    attack: 400,
+    attack: 200,
     attackSpeed: 1.4,
     critChance: 30,
     level: 98,
-    element: 'chaos'
+    element: 'chaos',
+    source: 'moon_lord',
+    dropChance: 0.11
+  },
+
+  // ===================================
+  // أسلحة إضافية - NEW ADDITIONS
+  // ===================================
+  blade_of_grass: {
+    id: 'blade_of_grass',
+    name: 'شفرة العشب',
+    type: 'weapon',
+    description: 'سيف مصنوع من مواد الغابة.',
+    rarity: 'uncommon',
+    attack: 32,
+    attackSpeed: 1.1,
+    critChance: 6,
+    level: 18,
+    element: 'nature',
+    materials: [
+      { id: 'jungle_spores', count: 12 },
+      { id: 'stinger', count: 15 }
+    ]
+  },
+
+  true_excalibur: {
+    id: 'true_excalibur',
+    name: 'إكسكالابور الحقيقي',
+    type: 'weapon',
+    description: 'نسخة مطورة من إكسكالابور.',
+    rarity: 'legendary',
+    attack: 180,
+    attackSpeed: 1.15,
+    critChance: 15,
+    level: 60,
+    element: 'holy',
+    materials: [
+      { id: 'excalibur', count: 1 },
+      { id: 'broken_hero_sword', count: 1 }
+    ]
+  },
+
+  true_nights_edge: {
+    id: 'true_nights_edge',
+    name: 'حد السيف الليلي الحقيقي',
+    type: 'weapon',
+    description: 'نسخة مطورة من حد السيف الليلي.',
+    rarity: 'legendary',
+    attack: 185,
+    attackSpeed: 1.2,
+    critChance: 16,
+    level: 62,
+    element: 'dark',
+    materials: [
+      { id: 'nights_edge', count: 1 },
+      { id: 'broken_hero_sword', count: 1 }
+    ]
+  },
+
+  goblin_dagger: {
+    id: 'goblin_dagger',
+    name: 'خنجر الغوبلن',
+    type: 'weapon',
+    description: 'خنجر بدائي يستخدمه الغوبلن.',
+    rarity: 'common',
+    attack: 12,
+    attackSpeed: 1.8,
+    critChance: 5,
+    level: 5,
+    element: 'neutral',
+    source: 'low_level_goblin',
+    dropChance: 0.2
+  },
+
+  goblin_blade: {
+    id: 'goblin_blade',
+    name: 'سيف الغوبلن',
+    type: 'weapon',
+    description: 'سيف يستخدمه مقاتلو الغوبلن.',
+    rarity: 'uncommon',
+    attack: 35,
+    attackSpeed: 1.0,
+    critChance: 6,
+    level: 12,
+    element: 'neutral',
+    source: 'goblin_warrior',
+    dropChance: 0.25
+  },
+
+  phantom_sword: {
+    id: 'phantom_sword',
+    name: 'سيف الشبح',
+    type: 'weapon',
+    description: 'سيف شفاف يخترق الدروع.',
+    rarity: 'rare',
+    attack: 65,
+    attackSpeed: 1.3,
+    critChance: 12,
+    level: 50,
+    element: 'ghost',
+    source: 'phantom_knight',
+    dropChance: 0.25
+  },
+
+  dwarf_king_sword: {
+    id: 'dwarf_king_sword',
+    name: 'سيف ملك القزم',
+    type: 'weapon',
+    description: 'سيف قوي مصنوع في أعماق الجبال.',
+    rarity: 'epic',
+    attack: 85,
+    attackSpeed: 0.9,
+    critChance: 15,
+    level: 55,
+    element: 'earth',
+    source: 'dwarf_king',
+    dropChance: 0.1
+  },
+
+  igris_sword: {
+    id: 'igris_sword',
+    name: 'سيف إيغريت',
+    type: 'weapon',
+    description: 'سيف مشؤوم يقطر دماً.',
+    rarity: 'legendary',
+    attack: 140,
+    attackSpeed: 1.1,
+    critChance: 18,
+    level: 105,
+    element: 'blood',
+    source: 'igris_the_bloodred',
+    dropChance: 0.15
+  },
+
+  dark_lord_staff: {
+    id: 'dark_lord_staff',
+    name: 'عصا اللورد المظلم',
+    type: 'weapon',
+    description: 'عصا سحرية قوية من الظلام.',
+    rarity: 'mythical',
+    attack: 280,
+    attackSpeed: 0.8,
+    critChance: 25,
+    level: 125,
+    element: 'dark',
+    source: 'dark_lord',
+    dropChance: 0.1
+  },
+
+  abyssal_blade: {
+    id: 'abyssal_blade',
+    name: 'شفرة الهاوية',
+    type: 'weapon',
+    description: 'شفرة مصنوعة من قلب الهاوية.',
+    rarity: 'mythical',
+    attack: 320,
+    attackSpeed: 1.0,
+    critChance: 30,
+    level: 135,
+    element: 'void',
+    source: 'abyssal_lord',
+    dropChance: 0.08
   }
 };
