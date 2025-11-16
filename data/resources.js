@@ -624,4 +624,3 @@ export const resources = {
     items: [{ itemId: 'nebula_fragments', min: 2, max: 5, chance: 0.6 }]
   }
 };
-[file content end]
