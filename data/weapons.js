@@ -1,5 +1,4 @@
-[file name]: weapons.js
-[file content begin]
+
 import { resources } from './resources.js';
 
 export const weapons = {
