@@ -1,5 +1,4 @@
-[file name]: items_gates.js
-[file content begin]
+
 // data/items_gates.js
 export const itemsGates = {
   weak_essence: { id: 'weak_essence', name: 'جوهر ضعيف', type: 'resource', stack: 999 },
@@ -72,4 +71,3 @@ export const itemsGates = {
   jungle_spores: { id: 'jungle_spores', name: 'جراثيم الغابة', type: 'material', stack: 99 },
   stinger: { id: 'stinger', name: 'لسعة', type: 'material', stack: 99 }
 };
-[file content end]
