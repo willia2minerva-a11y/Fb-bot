@@ -11,7 +11,8 @@ export class BattleCommands extends BaseCommand {
             'هجوم': this.handleAttack.bind(this),
             'اضرب': this.handleAttack.bind(this),
             'هروب': this.handleEscape.bind(this),
-            'اهرب': this.handleEscape.bind(this)
+            'اهرب': this.handleEscape.bind(this),
+            'استكشف': this.handleGateExplore.bind(this) // 🆕 أمر جديد للبوابات
         };
     }
 
@@ -19,15 +20,15 @@ export class BattleCommands extends BaseCommand {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        const battleSystem = await this.getSystem('battle');
-        if (!battleSystem) {
-            return '❌ نظام القتال غير متوفر حالياً.';
-        }
-
         // 🆕 التحقق من وجود اللاعب في بوابة
         const gateSystem = await this.getSystem('gate');
         if (gateSystem && gateSystem.isPlayerInsideGate(player.userId)) {
-            return '🚪 لا يمكنك بدء معركة عادية وأنت داخل بوابة! استخدم `استكشف` داخل البوابة.';
+            return '🚪 لا يمكنك بدء معركة عادية وأنت داخل بوابة! استخدم `استكشف` للاستكشاف داخل البوابة.';
+        }
+
+        const battleSystem = await this.getSystem('battle');
+        if (!battleSystem) {
+            return '❌ نظام القتال غير متوفر حالياً.';
         }
 
         const result = await battleSystem.startBattle(player);
@@ -74,4 +75,28 @@ export class BattleCommands extends BaseCommand {
 
         return result.message;
     }
-}
+
+    // 🆕 دالة جديدة للاستكشاف داخل البوابات
+    async handleGateExplore(player) {
+        const approvalCheck = await this.checkPlayerApproval(player);
+        if (approvalCheck.error) return approvalCheck.error;
+
+        const gateSystem = await this.getSystem('gate');
+        if (!gateSystem || !gateSystem.isPlayerInsideGate(player.userId)) {
+            return '❌ هذا الأمر مخصص للاستكشاف داخل البوابات فقط! استخدم `قتال` للمعارك العادية.';
+        }
+
+        const battleSystem = await this.getSystem('battle');
+        if (!battleSystem) {
+            return '❌ نظام القتال غير متوفر حالياً.';
+        }
+
+        const result = await battleSystem.startBattle(player);
+
+        if (result.error) {
+            return result.error;
+        }
+
+        return `🚪 **استكشاف البوابة:**\n${result.message}`;
+    }
+    }
