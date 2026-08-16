@@ -343,4 +343,4 @@ export class BattleSystem {
             message: `${log}\n\n💀 **لقد هُزمت!** ${monsters.length} وحوش كانوا أقوى منك.\n\n👹 الوحوش: ${monstersList}\n خسرت **${goldLost} غولد**.\n تم نقلك إلى **${respawnLocationName}** للتعافي.\n صحتك الآن: ${player.health} HP.`  
         };
     }
-            }
+}  // ✅ قوس واحد فقط لإغلاق الكلاس
