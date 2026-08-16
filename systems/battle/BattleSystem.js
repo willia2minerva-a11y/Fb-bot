@@ -1,17 +1,27 @@
 // systems/battle/BattleSystem.js
+console.log('📁 BattleSystem.js يتم تحميله الآن...');
 
 import { monsters } from '../../data/monsters.js';
+console.log('✅ تم استيراد monsters');
+
 import { locations } from '../../data/locations.js';
+console.log('✅ تم استيراد locations');
+
 import { items } from '../../data/items.js';
+console.log('✅ تم استيراد items');
 
 export class BattleSystem {
 
     constructor() {
         console.log('⚔️ نظام المعارك تم تهيئته');  
         this.activeBattles = new Map();  
-        this.allMonsters = monsters;  
-        this.allLocations = locations;  
-        this.items = items;
+        this.allMonsters = monsters || {};  
+        this.allLocations = locations || {};  
+        this.items = items || {};
+        
+        console.log(`📊 عدد الوحوش: ${Object.keys(this.allMonsters).length}`);
+        console.log(`📍 عدد المواقع: ${Object.keys(this.allLocations).length}`);
+        console.log(`🎒 عدد العناصر: ${Object.keys(this.items).length}`);
     }
 
     // 🆕 دالة مساعدة لرسم شريط الصحة
@@ -34,12 +44,16 @@ export class BattleSystem {
         const playerLevel = player.level || 1;
 
         if (!locationInfo || !locationInfo.monsters || locationInfo.monsters.length === 0) {
+            console.log(`⚠️ لا توجد وحوش في الموقع: ${locationId}`);
             return null;
         }
 
         // تصفية الوحوش المتاحة في الموقع
         const availableMonsterIds = locationInfo.monsters.filter(id => this.allMonsters[id]);
-        if (availableMonsterIds.length === 0) return null;
+        if (availableMonsterIds.length === 0) {
+            console.log('⚠️ لا توجد وحوش صالحة في هذا الموقع');
+            return null;
+        }
 
         // تصنيف الوحوش حسب المستوى
         const suitableMonsters = availableMonsterIds
@@ -51,7 +65,10 @@ export class BattleSystem {
             })
             .sort((a, b) => a.level - b.level);
 
-        if (suitableMonsters.length === 0) return null;
+        if (suitableMonsters.length === 0) {
+            console.log('⚠️ لا توجد وحوش مناسبة لمستوى اللاعب');
+            return null;
+        }
 
         // تحديد عدد الوحوش في المعركة
         let monsterCount = 1;
@@ -82,6 +99,7 @@ export class BattleSystem {
             }
         }
 
+        console.log(`✅ تم اختيار ${selectedMonsters.length} وحوش للمعركة`);
         return selectedMonsters.length > 0 ? selectedMonsters : null;
     }
 
@@ -103,6 +121,8 @@ export class BattleSystem {
 
     // 1. بدء المعركة - محدثة
     async startBattle(player) {
+        console.log(`⚔️ startBattle called for player: ${player.name}`);
+        
         if (this.activeBattles.has(player.userId)) {  
             const activeBattle = this.activeBattles.get(player.userId);  
             return {  
@@ -116,8 +136,10 @@ export class BattleSystem {
              return { error: `😩 تحتاج ${staminaCost} نشاط لبدء القتال، لديك ${Math.floor(actualStamina)} فقط.` };  
         }  
         
+        console.log('🔍 جاري اختيار الوحوش...');
         const monsters = this._selectMonstersForBattle(player);
         if (!monsters) {  
+            console.log('❌ لا توجد وحوش مناسبة');
             player.stamina = Math.min(player.stamina + staminaCost, player.maxStamina);  
             return { error: `❌ لا توجد وحوش مناسبة لمستواك في هذا الموقع.` };  
         }  
@@ -133,6 +155,7 @@ export class BattleSystem {
         await player.save();  
 
         const monstersDisplay = this._createMonstersDisplay(monsters);
+        console.log('✅ تم بدء المعركة بنجاح');
 
         return {  
             success: true,  
@@ -154,6 +177,8 @@ export class BattleSystem {
 
     // 2. الهجوم - محدثة
     async attack(player) {
+        console.log(`⚔️ attack called for player: ${player.name}`);
+        
         const battleData = this.activeBattles.get(player.userId);  
         if (!battleData) {  
             return { error: '❌ أنت لست في معركة حالياً. استخدم `قتال` لبدء واحدة.' };  
@@ -216,6 +241,8 @@ export class BattleSystem {
 
     // 3. محاولة الهروب - محدثة
     async escape(player) {
+        console.log(`🏃 escape called for player: ${player.name}`);
+        
         const battleData = this.activeBattles.get(player.userId);  
         if (!battleData) {  
             return { error: '❌ أنت لست في معركة حالياً.' };  
@@ -343,4 +370,4 @@ export class BattleSystem {
             message: `${log}\n\n💀 **لقد هُزمت!** ${monsters.length} وحوش كانوا أقوى منك.\n\n👹 الوحوش: ${monstersList}\n خسرت **${goldLost} غولد**.\n تم نقلك إلى **${respawnLocationName}** للتعافي.\n صحتك الآن: ${player.health} HP.`  
         };
     }
-}  // ✅ قوس واحد فقط لإغلاق الكلاس
+                    }
