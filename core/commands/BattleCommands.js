@@ -12,7 +12,7 @@ export class BattleCommands extends BaseCommand {
             'اضرب': this.handleAttack.bind(this),
             'هروب': this.handleEscape.bind(this),
             'اهرب': this.handleEscape.bind(this),
-            'استكشف': this.handleGateExplore.bind(this) // 🆕 أمر جديد للبوابات
+            'استكشف': this.handleGateExplore.bind(this)
         };
     }
 
@@ -20,7 +20,7 @@ export class BattleCommands extends BaseCommand {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        // 🆕 التحقق من وجود اللاعب في بوابة
+        // التحقق من وجود اللاعب في بوابة
         const gateSystem = await this.getSystem('gate');
         if (gateSystem && gateSystem.isPlayerInsideGate(player.userId)) {
             return '🚪 لا يمكنك بدء معركة عادية وأنت داخل بوابة! استخدم `استكشف` للاستكشاف داخل البوابة.';
@@ -76,7 +76,6 @@ export class BattleCommands extends BaseCommand {
         return result.message;
     }
 
-    // 🆕 دالة جديدة للاستكشاف داخل البوابات
     async handleGateExplore(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
@@ -99,4 +98,4 @@ export class BattleCommands extends BaseCommand {
 
         return `🚪 **استكشاف البوابة:**\n${result.message}`;
     }
-    }
+}  // ✅ قوس واحد فقط هنا
