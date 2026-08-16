@@ -1,25 +1,17 @@
-
 // core/CommandHandler.js
 import Player from './Player.js';
-
-// 🛑 صحح مسارات utils - استخدم مساراً نسبياً صحيحاً
-import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js'; // ✅
-import { AdminSystem } from '../systems/admin/AdminSystem.js'; // ✅
-
-// 🛑 صحح مسارات الأوامر - جميعها في مجلد commands/
-import { RegistrationCommands } from './commands/RegistrationCommands.js'; // ✅
-import { GateCommands } from './commands/GateCommands.js'; // ✅
-import { BattleCommands } from './commands/BattleCommands.js'; // ✅
-import { EconomyCommands } from './commands/EconomyCommands.js'; // ✅
-import { CraftingCommands } from './commands/CraftingCommands.js'; // ✅
-import { ExplorationCommands } from './commands/ExplorationCommands.js'; // ✅
-import { InfoCommands } from './commands/InfoCommands.js'; // ✅
-import { MenuCommands } from './commands/MenuCommands.js'; // ✅
-
-// 🛑 صحح مسارات أدوات utils
-import { SystemLoader } from './utils/SystemLoader.js'; // ✅
-import { ArabicItemMap } from './utils/ArabicItemMap.js'; // ✅
-
+import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
+import { AdminSystem } from '../systems/admin/AdminSystem.js';
+import { RegistrationCommands } from './commands/RegistrationCommands.js';
+import { GateCommands } from './commands/GateCommands.js';
+import { BattleCommands } from './commands/BattleCommands.js';
+import { EconomyCommands } from './commands/EconomyCommands.js';
+import { CraftingCommands } from './commands/CraftingCommands.js';
+import { ExplorationCommands } from './commands/ExplorationCommands.js';
+import { InfoCommands } from './commands/InfoCommands.js';
+import { MenuCommands } from './commands/MenuCommands.js';
+import { SystemLoader } from './utils/SystemLoader.js';
+import { ArabicItemMap } from './utils/ArabicItemMap.js';
 
 export default class CommandHandler {
     constructor() {
@@ -29,79 +21,92 @@ export default class CommandHandler {
             this.adminSystem = new AdminSystem();
             this.cardGenerator = new ProfileCardGenerator();
             this.systems = {};
-
-            // 🆕 خريطة الترجمة الشاملة
             this.ARABIC_ITEM_MAP = ArabicItemMap.create();
-
-            // 🆕 تهيئة فئات الأوامر
+            
+            // تهيئة فئات الأوامر
             this.initCommandClasses();
-
-            // 🆕 تجميع جميع الأوامر
+            
+            // تجميع جميع الأوامر
             this.commands = this.collectAllCommands();
-
+            
             this.allowedBeforeApproval = ['بدء', 'معرفي', 'مساعدة', 'اوامر', 'حالتي', 'حالة'];
-
+            
             console.log('✅ CommandHandler تم تهيئته بنجاح');
+            console.log('📋 الأوامر المسجلة:', Object.keys(this.commands).join(', '));
         } catch (error) {
             console.error('❌ فشل في تهيئة CommandHandler:', error);
             throw error;
         }
     }
 
-    // 🆕 تهيئة فئات الأوامر
     initCommandClasses() {
-        this.registrationCommands = new RegistrationCommands(this);
-        this.gateCommands = new GateCommands(this);
-        this.battleCommands = new BattleCommands(this);
-        this.economyCommands = new EconomyCommands(this);
-        this.craftingCommands = new CraftingCommands(this);
-        this.explorationCommands = new ExplorationCommands(this);
-        this.infoCommands = new InfoCommands(this);
-        this.menuCommands = new MenuCommands(this);
+        try {
+            this.registrationCommands = new RegistrationCommands(this);
+            this.gateCommands = new GateCommands(this);
+            this.battleCommands = new BattleCommands(this);
+            this.economyCommands = new EconomyCommands(this);
+            this.craftingCommands = new CraftingCommands(this);
+            this.explorationCommands = new ExplorationCommands(this);
+            this.infoCommands = new InfoCommands(this);
+            this.menuCommands = new MenuCommands(this);
+            console.log('✅ تم تهيئة جميع فئات الأوامر');
+        } catch (error) {
+            console.error('❌ خطأ في تهيئة فئات الأوامر:', error);
+            throw error;
+        }
     }
 
-    // 🆕 تجميع جميع الأوامر من الفئات المختلفة
     collectAllCommands() {
-        return {
-            // أوامر القوائم
-            ...this.menuCommands.getCommands(),
+        const allCommands = {};
+        
+        try {
+            // دمج جميع الأوامر مع التحقق من وجودها
+            const commandSources = [
+                this.menuCommands,
+                this.registrationCommands,
+                this.infoCommands,
+                this.explorationCommands,
+                this.gateCommands,
+                this.craftingCommands,
+                this.battleCommands,
+                this.economyCommands
+            ];
 
-            // أوامر التسجيل
-            ...this.registrationCommands.getCommands(),
+            commandSources.forEach(source => {
+                if (source && typeof source.getCommands === 'function') {
+                    const commands = source.getCommands();
+                    if (commands) {
+                        Object.assign(allCommands, commands);
+                    }
+                }
+            });
 
-            // أوامر المعلومات
-            ...this.infoCommands.getCommands(),
-
-            // أوامر الاستكشاف
-            ...this.explorationCommands.getCommands(),
-
-            // أوامر البوابات
-            ...this.gateCommands.getCommands(),
-
-            // أوامر الصناعة
-            ...this.craftingCommands.getCommands(),
-
-            // أوامر القتال
-            ...this.battleCommands.getCommands(),
-
-            // أوامر الاقتصاد
-            ...this.economyCommands.getCommands(),
-        };
+            return allCommands;
+        } catch (error) {
+            console.error('❌ خطأ في تجميع الأوامر:', error);
+            return {};
+        }
     }
 
     async getSystem(systemName) {
-        if (!this.systems[systemName]) {
-            console.log(`🔄 جاري تحميل النظام: ${systemName}`);
-            this.systems[systemName] = await SystemLoader.loadSystem(systemName);
-
+        try {
             if (!this.systems[systemName]) {
-                console.log(`❌ فشل تحميل النظام: ${systemName}`);
+                console.log(`🔄 جاري تحميل النظام: ${systemName}`);
+                this.systems[systemName] = await SystemLoader.loadSystem(systemName);
+                
+                if (!this.systems[systemName]) {
+                    console.error(`❌ فشل تحميل النظام: ${systemName}`);
+                    return null;
+                }
+                console.log(`✅ تم تحميل النظام: ${systemName}`);
             }
+            return this.systems[systemName];
+        } catch (error) {
+            console.error(`❌ خطأ في تحميل النظام ${systemName}:`, error);
+            return null;
         }
-        return this.systems[systemName];
     }
 
-    // 🆕 دوال المساعدة للفئات الفرعية
     getRegistrationMessage(player) {
         const status = player.registrationStatus;
 
@@ -239,7 +244,6 @@ export default class CommandHandler {
         }
     }
 
-    // 🆕 دوال مساعدة لمعالجة الأوامر
     isCompoundCommand(fullCommand) {
         const compoundCommands = [
             'موافقة لاعب', 'اعطاء مورد', 'اعطاء ذهب', 'تغيير اسم',
@@ -289,13 +293,17 @@ export default class CommandHandler {
     }
 
     async handleAutoResponse(message) {
-        const autoResponseSys = await this.getSystem('autoResponse');
-        if (autoResponseSys) {
-            const autoResponse = autoResponseSys.findAutoResponse(message);
-            if (autoResponse) {
-                console.log(`🤖 رد تلقائي على: "${message}"`);
-                return autoResponse;
+        try {
+            const autoResponseSys = await this.getSystem('autoResponse');
+            if (autoResponseSys && typeof autoResponseSys.findAutoResponse === 'function') {
+                const autoResponse = autoResponseSys.findAutoResponse(message);
+                if (autoResponse) {
+                    console.log(`🤖 رد تلقائي على: "${message}"`);
+                    return autoResponse;
+                }
             }
+        } catch (error) {
+            console.error('❌ خطأ في الرد التلقائي:', error);
         }
         return null;
     }
@@ -317,4 +325,4 @@ export default class CommandHandler {
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-      }
+        }
