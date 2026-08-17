@@ -8,10 +8,10 @@ export class GatheringSystem {
   }
 
   showAvailableResources(player) {
-    const playerLocationId = player.currentLocation || 'forest'; // ✅ قيمة افتراضية
+    const playerLocationId = player.currentLocation || 'forest';
     
     if (!playerLocationId) {
-      return { message: '❌ موقعك الحالي غير معروف. استخدم "استكشف" لتحديد موقعك.' };
+      return { message: '❌ موقعك الحالي غير معروف.' };
     }
     
     let message = `🔍 **موارد قابلة للجمع في ${playerLocationId}**:\n`;
@@ -20,8 +20,12 @@ export class GatheringSystem {
     for (const resourceId in this.allResources) {
       const resource = this.allResources[resourceId];
       
-      // ✅ التحقق من وجود locations قبل استخدام includes
-      if (resource.locations && Array.isArray(resource.locations) && resource.locations.includes(playerLocationId)) {
+      // ✅ تخطي العناصر التي ليست موارد قابلة للجمع
+      if (!resource.locations || !resource.items || !resource.gatherTime) {
+        continue; // تخطي العناصر مثل furnace
+      }
+      
+      if (Array.isArray(resource.locations) && resource.locations.includes(playerLocationId)) {
         found = true;
         const gatherTimeSeconds = (resource.gatherTime / 1000).toFixed(1);
         message += `\n- **${resource.name}** (${resource.id}):\n`;
@@ -38,38 +42,34 @@ export class GatheringSystem {
     return { message };
   }
 
-  // الدالة أصبحت async لحفظ الموديل
   async gatherResources(player, resourceId) {
     const resource = this.allResources[resourceId];
-    const playerLocationId = player.currentLocation || 'forest'; // ✅ قيمة افتراضية
+    const playerLocationId = player.currentLocation || 'forest';
 
     if (!resource) {
       return { error: `❌ المورد "${resourceId}" غير موجود في قاعدة البيانات.` };
     }
 
-    // ✅ التحقق من وجود locations قبل استخدام includes
-    if (!resource.locations || !Array.isArray(resource.locations) || !resource.locations.includes(playerLocationId)) {
+    // ✅ التحقق من أن العنصر قابل للجمع
+    if (!resource.locations || !resource.items || !resource.gatherTime) {
+      return { error: `❌ **${resource.name}** ليس مورداً قابلاً للجمع.` };
+    }
+
+    if (!Array.isArray(resource.locations) || !resource.locations.includes(playerLocationId)) {
       return { error: `❌ لا يمكنك جمع **${resource.name}** في موقعك الحالي (${playerLocationId}).` };
     }
-    
-    // يمكنك إضافة منطق التحقق من الأداة هنا لاحقًا
 
     let totalQuantity = 0;
     let itemsGained = [];
     
-    // ✅ التحقق من وجود items قبل التكرار
-    if (resource.items && Array.isArray(resource.items)) {
-      for (const itemDrop of resource.items) {
-        if (Math.random() <= itemDrop.chance) {
-          const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
-          
-          if (quantity > 0) {
-              // ✅ استخدام الاسم الصحيح للعنصر
-              const itemName = itemDrop.itemId || 'مورد';
-              player.addItem(itemDrop.itemId, itemName, 'resource', quantity);
-              itemsGained.push({ name: itemName, quantity });
-              totalQuantity += quantity;
-          }
+    for (const itemDrop of resource.items) {
+      if (Math.random() <= itemDrop.chance) {
+        const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
+        
+        if (quantity > 0) {
+            player.addItem(itemDrop.itemId, itemDrop.itemId, 'resource', quantity);
+            itemsGained.push({ name: itemDrop.itemId, quantity });
+            totalQuantity += quantity;
         }
       }
     }
@@ -78,12 +78,8 @@ export class GatheringSystem {
         return { success: false, message: `🌿 حاولت جمع **${resource.name}** لكنك لم تجد شيئًا هذه المرة! حاول مجددًا.` };
     }
 
-    // إضافة الخبرة
-    if (typeof player.addExperience === 'function') {
-      player.addExperience(resource.experience || 0);
-    }
+    player.addExperience(resource.experience || 0);
     
-    // 💾 حفظ التغييرات على موديل Mongoose
     await player.save(); 
     
     const itemsMessage = itemsGained.map(item => `   • ${item.quantity} × ${item.name}`).join('\n');
