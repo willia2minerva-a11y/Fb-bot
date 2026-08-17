@@ -746,7 +746,7 @@ export const monsters = {
   // ===================================
   // 8. وحوش أخرى (مناسبات/أحداث) - UPDATED
   // ===================================
-  t Turkor_the_ungodly: {
+  Turkor_the_ungodly: {
     id: 'turkor_the_ungodly',
     name: 'تيركور اللاهوتي (Turkor the Ungodly)',
     level: 30,
