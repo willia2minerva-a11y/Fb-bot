@@ -8,13 +8,20 @@ export class GatheringSystem {
   }
 
   showAvailableResources(player) {
-    const playerLocationId = player.currentLocation; 
+    const playerLocationId = player.currentLocation || 'forest'; // ✅ قيمة افتراضية
+    
+    if (!playerLocationId) {
+      return { message: '❌ موقعك الحالي غير معروف. استخدم "استكشف" لتحديد موقعك.' };
+    }
+    
     let message = `🔍 **موارد قابلة للجمع في ${playerLocationId}**:\n`;
     let found = false;
 
     for (const resourceId in this.allResources) {
       const resource = this.allResources[resourceId];
-      if (resource.locations.includes(playerLocationId)) {
+      
+      // ✅ التحقق من وجود locations قبل استخدام includes
+      if (resource.locations && Array.isArray(resource.locations) && resource.locations.includes(playerLocationId)) {
         found = true;
         const gatherTimeSeconds = (resource.gatherTime / 1000).toFixed(1);
         message += `\n- **${resource.name}** (${resource.id}):\n`;
@@ -34,13 +41,14 @@ export class GatheringSystem {
   // الدالة أصبحت async لحفظ الموديل
   async gatherResources(player, resourceId) {
     const resource = this.allResources[resourceId];
-    const playerLocationId = player.currentLocation; 
+    const playerLocationId = player.currentLocation || 'forest'; // ✅ قيمة افتراضية
 
     if (!resource) {
       return { error: `❌ المورد "${resourceId}" غير موجود في قاعدة البيانات.` };
     }
 
-    if (!resource.locations.includes(playerLocationId)) {
+    // ✅ التحقق من وجود locations قبل استخدام includes
+    if (!resource.locations || !Array.isArray(resource.locations) || !resource.locations.includes(playerLocationId)) {
       return { error: `❌ لا يمكنك جمع **${resource.name}** في موقعك الحالي (${playerLocationId}).` };
     }
     
@@ -49,15 +57,19 @@ export class GatheringSystem {
     let totalQuantity = 0;
     let itemsGained = [];
     
-    for (const itemDrop of resource.items) {
-      if (Math.random() <= itemDrop.chance) {
-        const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
-        
-        if (quantity > 0) {
-            // يفترض أن itemDrop.itemId هو اسم العنصر أيضاً
-            player.addItem(itemDrop.itemId, itemDrop.itemId, 'resource', quantity);
-            itemsGained.push({ name: itemDrop.itemId, quantity });
-            totalQuantity += quantity;
+    // ✅ التحقق من وجود items قبل التكرار
+    if (resource.items && Array.isArray(resource.items)) {
+      for (const itemDrop of resource.items) {
+        if (Math.random() <= itemDrop.chance) {
+          const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
+          
+          if (quantity > 0) {
+              // ✅ استخدام الاسم الصحيح للعنصر
+              const itemName = itemDrop.itemId || 'مورد';
+              player.addItem(itemDrop.itemId, itemName, 'resource', quantity);
+              itemsGained.push({ name: itemName, quantity });
+              totalQuantity += quantity;
+          }
         }
       }
     }
@@ -67,7 +79,9 @@ export class GatheringSystem {
     }
 
     // إضافة الخبرة
-    player.addExperience(resource.experience);
+    if (typeof player.addExperience === 'function') {
+      player.addExperience(resource.experience || 0);
+    }
     
     // 💾 حفظ التغييرات على موديل Mongoose
     await player.save(); 
@@ -76,8 +90,8 @@ export class GatheringSystem {
 
     return {
       success: true,
-      message: `⛏️ **نجاح! تم جمع الموارد في ${playerLocationId}**\n\n**الموارد المكتسبة:**\n${itemsMessage}\n\n✨ +${resource.experience} خبرة`,
-      gainedExp: resource.experience
+      message: `⛏️ **نجاح! تم جمع الموارد في ${playerLocationId}**\n\n**الموارد المكتسبة:**\n${itemsMessage}\n\n✨ +${resource.experience || 0} خبرة`,
+      gainedExp: resource.experience || 0
     };
   }
 }
