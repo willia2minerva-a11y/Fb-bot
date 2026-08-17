@@ -8,11 +8,13 @@ export class GatheringSystem {
   }
 
   showAvailableResources(player) {
-    const playerLocationId = player.currentLocation || 'forest';
+    console.log('🔍 showAvailableResources called');
+    console.log('👤 player:', player ? 'exists' : 'null');
+    console.log('📍 player.currentLocation:', player?.currentLocation);
+    console.log('📦 resources count:', Object.keys(this.allResources).length);
     
-    if (!playerLocationId) {
-      return { message: '❌ موقعك الحالي غير معروف.' };
-    }
+    const playerLocationId = player?.currentLocation || 'forest';
+    console.log('📍 استخدام الموقع:', playerLocationId);
     
     let message = `🔍 **موارد قابلة للجمع في ${playerLocationId}**:\n`;
     let found = false;
@@ -20,12 +22,18 @@ export class GatheringSystem {
     for (const resourceId in this.allResources) {
       const resource = this.allResources[resourceId];
       
-      // ✅ تخطي العناصر التي ليست موارد قابلة للجمع
-      if (!resource.locations || !resource.items || !resource.gatherTime) {
-        continue; // تخطي العناصر مثل furnace
+      // ✅ تشخيص الموارد التي بدون locations
+      if (!resource.locations) {
+        console.log(`⚠️ المورد ${resourceId} بدون locations - تم تخطيه`);
+        continue;
       }
       
-      if (Array.isArray(resource.locations) && resource.locations.includes(playerLocationId)) {
+      if (!Array.isArray(resource.locations)) {
+        console.log(`⚠️ المورد ${resourceId} - locations ليست مصفوفة:`, typeof resource.locations);
+        continue;
+      }
+      
+      if (resource.locations.includes(playerLocationId)) {
         found = true;
         const gatherTimeSeconds = (resource.gatherTime / 1000).toFixed(1);
         message += `\n- **${resource.name}** (${resource.id}):\n`;
@@ -44,32 +52,33 @@ export class GatheringSystem {
 
   async gatherResources(player, resourceId) {
     const resource = this.allResources[resourceId];
-    const playerLocationId = player.currentLocation || 'forest';
+    const playerLocationId = player?.currentLocation || 'forest';
 
     if (!resource) {
       return { error: `❌ المورد "${resourceId}" غير موجود في قاعدة البيانات.` };
     }
 
-    // ✅ التحقق من أن العنصر قابل للجمع
-    if (!resource.locations || !resource.items || !resource.gatherTime) {
+    if (!resource.locations || !Array.isArray(resource.locations)) {
       return { error: `❌ **${resource.name}** ليس مورداً قابلاً للجمع.` };
     }
 
-    if (!Array.isArray(resource.locations) || !resource.locations.includes(playerLocationId)) {
+    if (!resource.locations.includes(playerLocationId)) {
       return { error: `❌ لا يمكنك جمع **${resource.name}** في موقعك الحالي (${playerLocationId}).` };
     }
 
     let totalQuantity = 0;
     let itemsGained = [];
     
-    for (const itemDrop of resource.items) {
-      if (Math.random() <= itemDrop.chance) {
-        const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
-        
-        if (quantity > 0) {
-            player.addItem(itemDrop.itemId, itemDrop.itemId, 'resource', quantity);
-            itemsGained.push({ name: itemDrop.itemId, quantity });
-            totalQuantity += quantity;
+    if (resource.items && Array.isArray(resource.items)) {
+      for (const itemDrop of resource.items) {
+        if (Math.random() <= itemDrop.chance) {
+          const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
+          
+          if (quantity > 0) {
+              player.addItem(itemDrop.itemId, itemDrop.itemId, 'resource', quantity);
+              itemsGained.push({ name: itemDrop.itemId, quantity });
+              totalQuantity += quantity;
+          }
         }
       }
     }
@@ -90,4 +99,4 @@ export class GatheringSystem {
       gainedExp: resource.experience || 0
     };
   }
-}
+  }
