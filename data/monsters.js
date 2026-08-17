@@ -746,23 +746,7 @@ export const monsters = {
   // ===================================
   // 8. وحوش أخرى (مناسبات/أحداث) - UPDATED
   // ===================================
-  Turkor_the_ungodly: {
-    id: 'turkor_the_ungodly',
-    name: 'تيركور اللاهوتي (Turkor the Ungodly)',
-    level: 30,
-    health: 8000,
-    maxHealth: 8000,
-    damage: 75,
-    gold: 1000,
-    exp: 2000,
-    isBoss: true,
-    locations: ['forest'],
-    spawnCondition: 'thanksgiving',
-    drops: [
-      { itemId: 'wishbone', chance: 0.05 },
-      { itemId: 'turkey_feather', chance: 0.2, min: 3, max: 8 }
-    ]
-  },
+  
   martian_probe: {
     id: 'martian_probe',
     name: 'استكشاف المريخ (Martian Probe)',
