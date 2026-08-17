@@ -42,7 +42,7 @@ export class ExplorationCommands extends BaseCommand {
             return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
         }
 
-        const locationId = this.ARABIC_ITEM_MAP[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();
+        const locationId = this.commandHandler?.ARABIC_ITEM_MAP?.[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();
 
         try {
             const travelSystem = await this.getSystem('travel');
@@ -67,6 +67,11 @@ export class ExplorationCommands extends BaseCommand {
     }
 
     async handleGather(player, args) {
+        console.log('🎯 handleGather called');
+        console.log('👤 player:', player ? 'exists' : 'null');
+        console.log('📍 player.currentLocation:', player?.currentLocation);
+        console.log('📝 args:', args);
+        
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
@@ -74,13 +79,25 @@ export class ExplorationCommands extends BaseCommand {
         if (!gatheringSystem) {
             return '❌ نظام الجمع غير متوفر حالياً.';
         }
+        
+        console.log('✅ gatheringSystem loaded');
 
         if (args.length === 0) {
-            return gatheringSystem.showAvailableResources(player).message;
+            console.log('🔍 عرض الموارد المتاحة...');
+            try {
+                const result = gatheringSystem.showAvailableResources(player);
+                console.log('📋 result:', result);
+                return result.message || '❌ لا توجد موارد متاحة.';
+            } catch (error) {
+                console.error('❌ خطأ في showAvailableResources:', error);
+                console.error('❌ Stack:', error.stack);
+                return '❌ حدث خطأ في عرض الموارد.';
+            }
         }
 
         const rawResourceName = args.join(' ');
-        const resourceId = this.ARABIC_ITEM_MAP[rawResourceName.toLowerCase()] || rawResourceName.toLowerCase();
+        const resourceId = this.commandHandler?.ARABIC_ITEM_MAP?.[rawResourceName.toLowerCase()] || rawResourceName.toLowerCase();
+        console.log('🔍 resourceId:', resourceId);
 
         const result = await gatheringSystem.gatherResources(player, resourceId);
 
@@ -90,4 +107,4 @@ export class ExplorationCommands extends BaseCommand {
 
         return result.message;
     }
-}
+            }
