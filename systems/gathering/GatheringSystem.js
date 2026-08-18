@@ -4,46 +4,90 @@ import { resources } from '../../data/resources.js';
 export class GatheringSystem {
   constructor() {
     this.allResources = resources;
-    this.gatheringCooldowns = new Map(); // userId => timestamp
+    this.gatheringCooldowns = new Map();
     console.log('🌿 نظام جمع الموارد تم تهيئته. عدد الموارد القابلة للجمع:', Object.keys(this.allResources).length);
   }
 
-  // ✅ دالة لتحديد الكولداون حسب ندرة المورد - نسخة أطول
+  // ✅ دالة لتحديد الإيموجي المناسب حسب نوع المورد
+  _getResourceEmoji(resourceId, resourceName) {
+    const emojiMap = {
+      // موارد الطبيعة
+      'wood': '🪵',
+      'stone': '🪨',
+      'vine': '🌿',
+      'honey': '🍯',
+      'wheat': '🌾',
+      'clay': '🧱',
+      'bone': '🦴',
+      'raw_meat': '🥩',
+      'raw_fish': '🐟',
+      'slime_gel': '🫧',
+      'spider_web': '🕸️',
+      
+      // الخامات
+      'copper_ore': '🟤',
+      'copper_bar': '🟤',
+      'iron_ore': '⚙️',
+      'iron_bar': '⚙️',
+      'silver_ore': '⚪',
+      'silver_bar': '⚪',
+      'gold_ore': '🪙',
+      'gold_bar': '🪙',
+      'platinum_ore': '💎',
+      'platinum_bar': '💎',
+      'hellstone': '🔥',
+      'hellstone_bar': '🔥',
+      'demonite_ore': '😈',
+      'coal': '⚫',
+      
+      // الأرواح والشظايا
+      'soul_of_light': '🌟',
+      'soul_of_night': '🌙',
+      'soul_of_might': '💪',
+      'soul_of_fright': '👻',
+      'soul_of_sight': '👁️',
+      'soul_shard': '💠',
+      'divine_fragment': '✨',
+      'divine_steel': '⚡',
+      'celestial_fragment': '🌌',
+      'dark_crystal': '🔮',
+      'moon_dust': '🌙',
+      'solar_fragment': '☀️',
+      'nebula_fragments': '🌠',
+      
+      // موارد نادرة
+      'wyvern_wings': '🪽',
+      'harpy_feather': '🪶',
+      'plantera_bulb': '🌸',
+      'lihzahrd_power_cell': '🔋',
+      'broken_hero_sword': '🗡️',
+      'hallowed_bar': '🪙',
+      'sacred_steel': '⚡',
+      'gods_essence': '💫',
+      'infernal_ring': '🔥',
+      'dark_abyss_core': '🕳️',
+      'abyssal_blade_resource': '🗡️',
+      'dragon_kings_horn': '🐉',
+      
+      // افتراضي
+      'default': '📦'
+    };
+    
+    return emojiMap[resourceId] || emojiMap['default'];
+  }
+
   _getCooldownByRarity(rarity) {
     const cooldowns = {
-      'common': 15000,      // 15 ثانية
-      'uncommon': 25000,    // 25 ثانية
-      'rare': 45000,        // 45 ثانية
-      'epic': 90000,        // 1.5 دقيقة
-      'legendary': 180000,  // 3 دقائق
-      'mythic': 300000      // 5 دقائق
+      'common': 15000,
+      'uncommon': 25000,
+      'rare': 45000,
+      'epic': 90000,
+      'legendary': 180000,
+      'mythic': 300000
     };
-    return cooldowns[rarity] || 15000; // افتراضي 15 ثانية
+    return cooldowns[rarity] || 15000;
   }
 
-  // ✅ دالة لتحديد الكولداون حسب مستوى الصعوبة - نسخة أطول
-  _getCooldownByDifficulty(difficultyLevel) {
-    const cooldowns = {
-      1: 15000,   // 15 ثانية
-      2: 25000,   // 25 ثانية
-      3: 45000,   // 45 ثانية
-      4: 90000,   // 1.5 دقيقة
-      5: 180000   // 3 دقائق
-    };
-    return cooldowns[difficultyLevel] || 15000;
-  }
-
-  // ✅ دالة موحدة لتحديد الكولداون
-  _getCooldownForResource(resource) {
-    if (resource.rarity) {
-      return this._getCooldownByRarity(resource.rarity);
-    } else if (resource.difficultyLevel) {
-      return this._getCooldownByDifficulty(resource.difficultyLevel);
-    }
-    return 15000; // افتراضي 15 ثانية
-  }
-
-  // ✅ دالة لتنسيق الوقت بشكل جميل
   _formatCooldown(ms) {
     const seconds = Math.floor(ms / 1000);
     if (seconds < 60) {
@@ -58,25 +102,18 @@ export class GatheringSystem {
     }
   }
 
-  // ✅ دالة للتحقق من الكولداون
   _isOnCooldown(userId) {
     const cooldownData = this.gatheringCooldowns.get(userId);
     if (!cooldownData) return false;
-    
-    const now = Date.now();
-    return now < cooldownData.endTime;
+    return Date.now() < cooldownData.endTime;
   }
 
-  // ✅ دالة للحصول على الوقت المتبقي
   _getRemainingCooldown(userId) {
     const cooldownData = this.gatheringCooldowns.get(userId);
     if (!cooldownData) return 0;
-    
-    const now = Date.now();
-    return Math.max(0, cooldownData.endTime - now);
+    return Math.max(0, cooldownData.endTime - Date.now());
   }
 
-  // ✅ دالة لتحديث الكولداون
   _setCooldown(userId, duration) {
     this.gatheringCooldowns.set(userId, {
       startTime: Date.now(),
@@ -85,7 +122,6 @@ export class GatheringSystem {
     });
   }
 
-  // ✅ دالة لتنظيف الكولداونات المنتهية
   _cleanupCooldowns() {
     const now = Date.now();
     for (const [userId, cooldownData] of this.gatheringCooldowns.entries()) {
@@ -96,45 +132,41 @@ export class GatheringSystem {
   }
 
   showAvailableResources(player) {
-    // تنظيف الكولداونات القديمة
     this._cleanupCooldowns();
     
     const playerLocationId = player?.currentLocation || 'forest';
+    const locationName = this._getLocationName(playerLocationId);
     
-    let message = `🔍 **موارد قابلة للجمع في ${playerLocationId}**:\n`;
+    let message = `🔍 **موارد ${locationName}**\n`;
     let found = false;
 
-    // ✅ عرض الكولداون المتبقي إذا كان هناك
+    // عرض الكولداون المتبقي
     if (this._isOnCooldown(player.userId)) {
       const remainingTime = this._getRemainingCooldown(player.userId);
       const formattedTime = this._formatCooldown(remainingTime);
-      const cooldownData = this.gatheringCooldowns.get(player.userId);
-      message += `\n⏳ **في فترة انتظار التجميع:** ${formattedTime}\n`;
-      message += `📦 **آخر مورد:** ${cooldownData?.resourceName || 'غير معروف'}\n`;
+      message += `\n⏳ **في فترة انتظار:** ${formattedTime}\n`;
     }
 
     for (const resourceId in this.allResources) {
       const resource = this.allResources[resourceId];
       
-      // تخطي العناصر بدون locations
       if (!resource || !resource.locations || !Array.isArray(resource.locations)) {
         continue;
       }
       
-      // تخطي العناصر التي بدون items أو gatherTime
       if (!resource.items || !resource.gatherTime) {
         continue;
       }
       
       if (resource.locations.includes(playerLocationId)) {
         found = true;
-        const cooldownTime = this._getCooldownForResource(resource);
+        const cooldownTime = this._getCooldownByRarity(resource.rarity || 'common');
         const formattedCooldown = this._formatCooldown(cooldownTime);
+        const emoji = this._getResourceEmoji(resourceId, resource.name);
         
-        message += `\n- **${resource.name}** (${resource.id}):\n`;
-        message += `  • الخبرة: +${resource.experience} EXP\n`;
-        message += `  • الندرة: ${resource.rarity || 'عادي'}\n`;
-        message += `  • ⏳ وقت الانتظار: ${formattedCooldown}\n`;
+        message += `\n${emoji} ${resource.name}\n`;
+        message += `   ⏳ الانتظار: ${formattedCooldown}\n`;
+        message += `   📈 الخبرة: +${resource.experience} EXP\n`;
       }
     }
 
@@ -142,16 +174,62 @@ export class GatheringSystem {
         message += "\n❌ لا توجد موارد قابلة للجمع هنا حاليًا.";
     }
 
-    message += `\n\n💡 **للتجميع:** استخدم أمر "اجمع [ID المورد]" (مثال: اجمع wood)\n`;
-    message += `⚠️ **ملاحظة:** كل مورد له وقت انتظار حسب ندرته - لا يمكنك السبام!`;
+    message += `\n\n💡 استخدم: اجمع [اسم المورد]`;
     return { message };
   }
 
+  _getLocationName(locationId) {
+    const locationNames = {
+      'forest': 'الغابة',
+      'desert': 'الصحراء',
+      'mountain': 'الجبل',
+      'cave': 'الكهف',
+      'plains': 'السهول',
+      'snow': 'الثلوج',
+      'sky': 'السماء',
+      'ocean': 'المحيط',
+      'river': 'النهر',
+      'hell': 'الجحيم',
+      'jungle': 'الغابة الاستوائية',
+      'underground_jungle': 'الغابة الجوفية',
+      'jungle_temple': 'معبد الغابة',
+      'old_temple': 'المعبد القديم',
+      'lunar_temple': 'معبد القمر',
+      'hallowed': 'الأرض المقدسة',
+      'forge': 'المسبك',
+      'solar_eclipse': 'الكسوف الشمسي',
+      'hardmode_areas': 'مناطق الهارد مود',
+      'caves_hardmode': 'كهوف الهارد مود',
+      'hardmode_bosses': 'زعماء الهارد مود',
+      'divine_dungeon': 'الزنزانة الإلهية',
+      'final_stage': 'المرحلة النهائية',
+      'celestial_gate': 'البوابة السماوية',
+      'celestial_realm': 'العالم السماوي',
+      'abyss_gate': 'بوابة الهاوية',
+      'ultimate_dungeon': 'الزنزانة النهائية',
+      'double_dungeon': 'الزنزانة المزدوجة',
+      'dark_castle': 'القلعة المظلمة',
+      'magic_castle': 'القلعة السحرية',
+      'rulers_castle': 'قلعة الحاكم',
+      'order_castle': 'قلعة النظام',
+      'heavenly_dungeon': 'الزنزانة السماوية',
+      'e_d_gates': 'بوابات E-D',
+      'b_a_gates': 'بوابات B-A',
+      'c_b_gates': 'بوابات C-B',
+      'a_s_gates': 'بوابات A-S',
+      's_rank_gates': 'بوابات S',
+      'a_gates': 'بوابات A',
+      'c_a_gates': 'بوابات C-A',
+      'a_b_gates': 'بوابات A-B',
+      'default': locationId
+    };
+    
+    return locationNames[locationId] || locationId;
+  }
+
   async gatherResources(player, resourceId) {
-    // تنظيف الكولداونات القديمة
     this._cleanupCooldowns();
     
-    // ✅ التحقق من الكولداون أولاً
     if (this._isOnCooldown(player.userId)) {
       const remainingTime = this._getRemainingCooldown(player.userId);
       const formattedTime = this._formatCooldown(remainingTime);
@@ -159,15 +237,16 @@ export class GatheringSystem {
       const lastResource = cooldownData?.resourceName || 'المورد';
       
       return { 
-        error: `⏳ **انتظر!** لا يمكنك التجميع الآن.\n\n📦 **آخر مورد جمعته:** ${lastResource}\n⏱️ **الوقت المتبقي:** ${formattedTime}\n\n⚠️ لا ترسل سبام، انتظر حتى ينتهي الوقت!` 
+        error: `⏳ **انتظر!** لا يمكنك التجميع الآن.\n\n📦 **آخر مورد:** ${lastResource}\n⏱️ **الوقت المتبقي:** ${formattedTime}\n\n⚠️ لا ترسل سبام!` 
       };
     }
 
     const resource = this.allResources[resourceId];
     const playerLocationId = player?.currentLocation || 'forest';
+    const locationName = this._getLocationName(playerLocationId);
 
     if (!resource) {
-      return { error: `❌ المورد "${resourceId}" غير موجود في قاعدة البيانات.` };
+      return { error: `❌ المورد "${resourceId}" غير موجود.` };
     }
 
     if (!resource.locations || !Array.isArray(resource.locations)) {
@@ -179,16 +258,12 @@ export class GatheringSystem {
     }
 
     if (!resource.locations.includes(playerLocationId)) {
-      return { error: `❌ لا يمكنك جمع **${resource.name}** في موقعك الحالي (${playerLocationId}).` };
+      return { error: `❌ لا يمكنك جمع **${resource.name}** في ${locationName}.` };
     }
 
-    // ✅ تحديد الكولداون حسب ندرة المورد
-    const cooldownTime = this._getCooldownForResource(resource);
-    
-    // ✅ تعيين الكولداون قبل بدء التجميع
+    const cooldownTime = this._getCooldownByRarity(resource.rarity || 'common');
     this._setCooldown(player.userId, cooldownTime);
     
-    // ✅ حفظ اسم المورد في الكولداون
     const cooldownData = this.gatheringCooldowns.get(player.userId);
     cooldownData.resourceName = resource.name;
 
@@ -207,24 +282,25 @@ export class GatheringSystem {
       }
     }
     
+    const emoji = this._getResourceEmoji(resourceId, resource.name);
+    const formattedCooldown = this._formatCooldown(cooldownTime);
+    
     if (totalQuantity === 0) {
         return { 
           success: false, 
-          message: `🌿 حاولت جمع **${resource.name}** لكنك لم تجد شيئًا هذه المرة!\n\n⏳ **وقت الانتظار قبل المحاولة التالية:** ${this._formatCooldown(cooldownTime)}` 
+          message: `${emoji} حاولت جمع **${resource.name}** لكنك لم تجد شيئًا!\n\n⏳ **وقت الانتظار:** ${formattedCooldown}` 
         };
     }
 
     player.addExperience(resource.experience || 0);
-    
     await player.save(); 
     
     const itemsMessage = itemsGained.map(item => `   • ${item.quantity} × ${item.name}`).join('\n');
-    const formattedCooldown = this._formatCooldown(cooldownTime);
 
     return {
       success: true,
-      message: `⛏️ **نجاح! تم جمع الموارد في ${playerLocationId}**\n\n**المورد:** ${resource.name}\n**الندرة:** ${resource.rarity || 'عادي'}\n\n**الموارد المكتسبة:**\n${itemsMessage}\n\n✨ +${resource.experience || 0} خبرة\n\n⏳ **وقت الانتظار قبل التجميع التالي:** ${formattedCooldown}`,
+      message: `${emoji} **تم جمع ${resource.name} بنجاح!**\n\n**الموارد المكتسبة:**\n${itemsMessage}\n\n📈 +${resource.experience || 0} خبرة\n\n⏳ **وقت الانتظار:** ${formattedCooldown}`,
       gainedExp: resource.experience || 0
     };
   }
-}
+      }
