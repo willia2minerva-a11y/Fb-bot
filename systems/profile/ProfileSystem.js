@@ -2,6 +2,7 @@
 import Player from '../../core/Player.js';
 import { locations } from '../../data/locations.js'; 
 import { items as ITEMS_DATA } from '../../data/items.js';
+import { resources as RESOURCES_DATA } from '../../data/resources.js';
 
 export class ProfileSystem {
     
@@ -13,6 +14,13 @@ export class ProfileSystem {
         if (level >= 30) return 'C';
         if (level >= 15) return 'D';
         return 'E';
+    }
+
+    // ✅ دالة ترجمة موحدة
+    _translateItemName(itemId) {
+        if (RESOURCES_DATA[itemId]?.name) return RESOURCES_DATA[itemId].name;
+        if (ITEMS_DATA[itemId]?.name) return ITEMS_DATA[itemId].name;
+        return itemId;
     }
 
     // دالة لعرض حالة اللاعب (Status) - تنسيق مُحسّن
@@ -30,15 +38,15 @@ export class ProfileSystem {
         const currentLocationId = player.currentLocation || 'forest';
         const currentLocationName = locations[currentLocationId] ? locations[currentLocationId].name : currentLocationId;
         
-        const weaponName = ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد';
-        const armorName = ITEMS_DATA[player.equipment.armor]?.name || 'لا يوجد';
-        const accessoryName = ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد';
-        const toolName = ITEMS_DATA[player.equipment.tool]?.name || 'لا يوجد';
+        const weaponName = this._translateItemName(player.equipment.weapon);
+        const armorName = this._translateItemName(player.equipment.armor);
+        const accessoryName = this._translateItemName(player.equipment.accessory);
+        const toolName = this._translateItemName(player.equipment.tool);
         
         let statusMessage = `╔═════════════ 👤  ملف اللاعب: ${player.name} ════════════╗\n`;
         statusMessage += `\n📜 معلومات أساسية\n`;
         statusMessage += `├── المعرف (ID): ${player.playerId || 'N/A'}\n`;
-        statusMessage += `├── المستوى: **${player.level}**\n`;
+        statusMessage += `├── المستوى: ${player.level}\n`;
         statusMessage += `├── 🌟 الرانك: ${rank}\n`;
         statusMessage += `└── 💰 الذهب: ${player.gold}\n`;
 
@@ -48,8 +56,8 @@ export class ProfileSystem {
         statusMessage += `└── 🏃  النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}\n`;
 
         statusMessage += `\n⚔️ قوة القتال والمعدات\n`;
-        statusMessage += `├── 🔥 الهجوم (بالمعدات): **${attackDamage}**\n`;
-        statusMessage += `├── 🛡️ الدفاع (بالمعدات): **${defense}**\n`;
+        statusMessage += `├── 🔥 الهجوم (بالمعدات): ${attackDamage}\n`;
+        statusMessage += `├── 🛡️ الدفاع (بالمعدات): ${defense}\n`;
         statusMessage += `├── ⚔️ السلاح: ${weaponName}\n`;
         statusMessage += `├── 🛡️ الدرع: ${armorName}\n`;
         statusMessage += `├── 💍 إكسسوار: ${accessoryName}\n`;
@@ -72,17 +80,18 @@ export class ProfileSystem {
         let text = `🎒 حقيبة ${player.name}\n\n`;
         
         if (player.equipment) {
-            text += `⚔️ **المجهز حالياً:**\n`;
-            text += `• سلاح: ${ITEMS_DATA[player.equipment.weapon]?.name || 'لا يوجد'}\n`;
-            text += `• درع: ${ITEMS_DATA[player.equipment.armor]?.name || 'لا يوجد'}\n`;
-            text += `• إكسسوار: ${ITEMS_DATA[player.equipment.accessory]?.name || 'لا يوجد'}\n`;
-            text += `• أداة: ${ITEMS_DATA[player.equipment.tool]?.name || 'لا يوجد'}\n`;
+            text += `⚔️ المجهز حالياً:\n`;
+            text += `• سلاح: ${this._translateItemName(player.equipment.weapon)}\n`;
+            text += `• درع: ${this._translateItemName(player.equipment.armor)}\n`;
+            text += `• إكسسوار: ${this._translateItemName(player.equipment.accessory)}\n`;
+            text += `• أداة: ${this._translateItemName(player.equipment.tool)}\n`;
             text += `\n═══════════════════════════════════════\n`;
         }
         
-        text += `📦 **المخزون:**\n`;
+        text += `📦 المخزون:\n`;
         player.inventory.forEach(item => {
-            text += `• ${item.name} ×${item.quantity}\n`;
+            const displayName = this._translateItemName(item.id) || this._translateItemName(item.name) || item.name;
+            text += `• ${displayName} ×${item.quantity}\n`;
         });
         
         return text;
@@ -98,9 +107,9 @@ export class ProfileSystem {
         const resourcesGathered = player.stats?.resourcesGathered || 0;
         const battlesWon = player.stats?.battlesWon || 0;
 
-        const weapon = player.equipment?.weapon ? ITEMS_DATA[player.equipment.weapon]?.name : 'لا يوجد';
-        const armor = player.equipment?.armor ? ITEMS_DATA[player.equipment.armor]?.name : 'لا يوجد';
-        const accessory = player.equipment?.accessory ? ITEMS_DATA[player.equipment.accessory]?.name : 'لا يوجد';
+        const weapon = this._translateItemName(player.equipment?.weapon);
+        const armor = this._translateItemName(player.equipment?.armor);
+        const accessory = this._translateItemName(player.equipment?.accessory);
 
         return `📋 بروفايل ${player.name}
 ────────────────
@@ -174,6 +183,6 @@ export class ProfileSystem {
 
         console.log(`✅ تم تغيير اسم اللاعب ${oldName} إلى ${newName}`);
         
-        return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: **${newName}**`;
+        return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: ${newName}`;
     }
-            }
+    }
