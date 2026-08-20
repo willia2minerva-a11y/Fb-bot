@@ -1,11 +1,11 @@
 // systems/profile/ProfileSystem.js
 import Player from '../../core/Player.js';
-import { locations } from '../../data/locations.js'; 
+import { locations } from '../../data/locations.js';
 import { items as ITEMS_DATA } from '../../data/items.js';
 import { resources as RESOURCES_DATA } from '../../data/resources.js';
 
 export class ProfileSystem {
-    
+
     _getPlayerRank(level) {
         if (level >= 90) return 'SS';
         if (level >= 75) return 'S';
@@ -16,8 +16,9 @@ export class ProfileSystem {
         return 'E';
     }
 
-    // ✅ دالة ترجمة موحدة
+    // ✅ دالة ترجمة موحدة تتعامل مع null/undefined
     _translateItemName(itemId) {
+        if (!itemId || itemId === 'null' || itemId === 'undefined') return 'لا يوجد';
         if (RESOURCES_DATA[itemId]?.name) return RESOURCES_DATA[itemId].name;
         if (ITEMS_DATA[itemId]?.name) return ITEMS_DATA[itemId].name;
         return itemId;
@@ -26,23 +27,23 @@ export class ProfileSystem {
     // دالة لعرض حالة اللاعب (Status) - تنسيق مُحسّن
     getPlayerStatus(player) {
         const actualStamina = player.getActualStamina();
-        
+
         const expProgress = player.experience || 0;
         const requiredExp = (player.level || 1) * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
-        
+
         const attackDamage = player.getAttackDamage(ITEMS_DATA);
         const defense = player.getDefense(ITEMS_DATA);
         const rank = this._getPlayerRank(player.level);
-        
+
         const currentLocationId = player.currentLocation || 'forest';
         const currentLocationName = locations[currentLocationId] ? locations[currentLocationId].name : currentLocationId;
-        
+
         const weaponName = this._translateItemName(player.equipment.weapon);
         const armorName = this._translateItemName(player.equipment.armor);
         const accessoryName = this._translateItemName(player.equipment.accessory);
         const toolName = this._translateItemName(player.equipment.tool);
-        
+
         let statusMessage = `╔═════════════ 👤  ملف اللاعب: ${player.name} ════════════╗\n`;
         statusMessage += `\n📜 معلومات أساسية\n`;
         statusMessage += `├── المعرف (ID): ${player.playerId || 'N/A'}\n`;
@@ -62,7 +63,7 @@ export class ProfileSystem {
         statusMessage += `├── 🛡️ الدرع: ${armorName}\n`;
         statusMessage += `├── 💍 إكسسوار: ${accessoryName}\n`;
         statusMessage += `└── ⛏️ الأداة: ${toolName}\n`;
-        
+
         statusMessage += `\n📈 الخبرة\n`;
         statusMessage += `└── 💡  التقدم: ${expPercentage}% (${expProgress}/${requiredExp})\n`;
 
@@ -71,14 +72,13 @@ export class ProfileSystem {
         return statusMessage;
     }
 
-    
     getPlayerInventory(player) {
         if (!player.inventory || player.inventory.length === 0) {
             return `🎒 حقيبة ${player.name}\n\nالحقيبة فارغة`;
         }
-        
+
         let text = `🎒 حقيبة ${player.name}\n\n`;
-        
+
         if (player.equipment) {
             text += `⚔️ المجهز حالياً:\n`;
             text += `• سلاح: ${this._translateItemName(player.equipment.weapon)}\n`;
@@ -87,21 +87,21 @@ export class ProfileSystem {
             text += `• أداة: ${this._translateItemName(player.equipment.tool)}\n`;
             text += `\n═══════════════════════════════════════\n`;
         }
-        
+
         text += `📦 المخزون:\n`;
         player.inventory.forEach(item => {
             const displayName = this._translateItemName(item.id) || this._translateItemName(item.name) || item.name;
             text += `• ${displayName} ×${item.quantity}\n`;
         });
-        
+
         return text;
     }
-    
+
     getPlayerProfile(player) {
         const expProgress = player.experience || 0;
         const requiredExp = (player.level || 1) * 100;
         const expPercentage = Math.floor((expProgress / requiredExp) * 100) || 0;
-        
+
         const monstersKilled = player.stats?.monstersKilled || 0;
         const questsCompleted = player.stats?.questsCompleted || 0;
         const resourcesGathered = player.stats?.resourcesGathered || 0;
@@ -113,7 +113,7 @@ export class ProfileSystem {
 
         return `📋 بروفايل ${player.name}
 ────────────────
-✨ المستوى: ${player.level} 
+✨ المستوى: ${player.level}
 ⭐ الخبرة: ${expProgress}/${requiredExp} (${expPercentage}%)
 ❤️ الصحة: ${player.health}/${player.maxHealth}
 💰 الذهب: ${player.gold}
@@ -129,26 +129,26 @@ export class ProfileSystem {
 
 📍 الموقع الحالي: ${player.currentLocation || 'القرية'}`;
     }
-    
+
     async changeName(player, args, senderId) {
         const ADMIN_PSID = process.env.ADMIN_PSID;
-        
+
         if (senderId !== ADMIN_PSID) {
             return '❌ ليس لديك الصلاحية لاستخدام هذا الأمر.';
         }
 
         let newName = args.join(' ').trim();
-        
+
         if (!newName) {
             return 'يرجى تحديد اسم جديد. مثال: تغيير_اسم JohnDoe';
         }
 
         let targetPlayer = player;
-        
-        if (args.length > 1 && args[0].length > 10 && !isNaN(args[0])) { 
+
+        if (args.length > 1 && args[0].length > 10 && !isNaN(args[0])) {
             const targetId = args[0];
             targetPlayer = await Player.findOne({ userId: targetId });
-            
+
             if (!targetPlayer) {
                 return `❌ لم يتم العثور على لاعب بالمعرف: ${targetId}`;
             }
@@ -167,7 +167,7 @@ export class ProfileSystem {
             return '❌ الاسم يجب أن يحتوي على أحرف إنجليزية فقط.';
         }
 
-        const existingPlayer = await Player.findOne({ 
+        const existingPlayer = await Player.findOne({
             name: new RegExp(`^${newName}$`, 'i'),
             userId: { $ne: targetPlayer.userId }
         });
@@ -182,7 +182,7 @@ export class ProfileSystem {
         await targetPlayer.save();
 
         console.log(`✅ تم تغيير اسم اللاعب ${oldName} إلى ${newName}`);
-        
+
         return `✅ تم تحديث اسم اللاعب ${oldName} بنجاح إلى: ${newName}`;
     }
     }
