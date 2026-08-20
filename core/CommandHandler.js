@@ -22,16 +22,18 @@ export default class CommandHandler {
             this.cardGenerator = new ProfileCardGenerator();
             this.systems = {};
             this.ARABIC_ITEM_MAP = ArabicItemMap.create();
-            
+
+            this.adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
+            this.adminDisplayName = process.env.ADMIN_DISPLAY_NAME || 'المدير';
+
             this.initCommandClasses();
             this.commands = this.collectAllCommands();
-            
-            // ✅ القائمة الصحيحة - تشمل أوامر إكمال التسجيل
+
             this.allowedBeforeApproval = [
                 'بدء', 'معرفي', 'مساعدة', 'اوامر', 'حالتي', 'حالة',
                 'ذكر', 'انثى', 'أنثى', 'اسمي'
             ];
-            
+
             console.log('✅ CommandHandler تم تهيئته بنجاح');
             console.log('📋 الأوامر المسجلة:', Object.keys(this.commands).join(', '));
         } catch (error) {
@@ -59,7 +61,7 @@ export default class CommandHandler {
 
     collectAllCommands() {
         const allCommands = {};
-        
+
         try {
             const commandSources = [
                 this.menuCommands,
@@ -93,7 +95,7 @@ export default class CommandHandler {
             if (!this.systems[systemName]) {
                 console.log(`🔄 جاري تحميل النظام: ${systemName}`);
                 this.systems[systemName] = await SystemLoader.loadSystem(systemName);
-                
+
                 if (!this.systems[systemName]) {
                     console.error(`❌ فشل تحميل النظام: ${systemName}`);
                     return null;
@@ -109,16 +111,14 @@ export default class CommandHandler {
 
     getRegistrationMessage(player) {
         const status = player.registrationStatus;
-
-        // ✅ متغير رابط حساب المدير
-        const adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
+        const adminLink = this.adminProfileUrl;
 
         if (status === 'pending') {
             return `🔒 حسابك غير مفعّل بعد
-            
+
 ⏳ الحالة: قيد الانتظار للموافقة
 
-📋 الأوامر المتاحة لك حالياً:
+📋 الأوامر المتاحة لك:
 • بدء - متابعة التسجيل
 • حالتي - عرض حالتك الحالية
 • معرفي - عرض معرفك للمدير
@@ -126,8 +126,8 @@ export default class CommandHandler {
 
 💡 للتفعيل:
 1. اكتب "معرفي" للحصول على معرفك
-2. أرسل المعرف للمدير عبر الرابط التالي:
-${adminProfileUrl}
+2. أرسل المعرف إلى ${this.adminDisplayName} عبر الرابط:
+${adminLink}
 3. انتظر الموافقة`;
         } else if (status === 'approved') {
             return `✅ تمت موافقة المدير على حسابك!
@@ -146,37 +146,32 @@ ${adminProfileUrl}
     }
 
     getLimitedHelpMenu() {
-        return `╔══════════ 🎮 الأوامر المتاحة حالياً ══════════╗
-║
-║ • بدء - بدء التسجيل أو متابعة الإعداد
-║ • حالتي/حالة - عرض حالتك الحالية
-║ • معرفي - عرض معرفك لإرساله للمدير
-║ • مساعدة - عرض هذه القائمة
-║
-║ 📝 لتصبح لاعباً كاملاً، يجب:
-║ 1. الحصول على موافقة المدير
-║ 2. اختيار الجنس (ذكر/أنثى)
-║ 3. اختيار اسم إنجليزي
-║
-╚══════════════════════════════════════════════╝`;
+        return `🎮 الأوامر المتاحة حالياً
+
+• بدء - بدء التسجيل أو متابعة الإعداد
+• حالتي/حالة - عرض حالتك الحالية
+• معرفي - عرض معرفك لإرساله للمدير
+• مساعدة - عرض هذه القائمة
+
+📝 لتصبح لاعباً كاملاً، يجب:
+1. الحصول على موافقة المدير
+2. اختيار الجنس (ذكر/أنثى)
+3. اختيار اسم إنجليزي`;
     }
 
     getLimitedMenu() {
-        return `╔══════════ 🎮 القائمة الرئيسية المحدودة ══════════╗
-║
-║ 📋 الأوامر المتاحة لك حالياً:
-║
-║ • بدء - بدء/متابعة التسجيل
-║ • حالتي - عرض حالتك الحالية  
-║ • معرفي - عرض المعرف للمدير
-║ • مساعدة - عرض الأوامر المتاحة
-║
-║ 📝 لتصبح لاعباً كاملاً، يجب:
-║ 1. الحصول على موافقة المدير
-║ 2. اختيار الجنس (ذكر/أنثى)
-║ 3. اختيار اسم إنجليزي
-║
-╚══════════════════════════════════════════════╝`;
+        return `🎮 القائمة الرئيسية المحدودة
+
+📋 الأوامر المتاحة لك حالياً:
+• بدء - بدء/متابعة التسجيل
+• حالتي - عرض حالتك الحالية
+• معرفي - عرض المعرف للمدير
+• مساعدة - عرض الأوامر المتاحة
+
+📝 لتصبح لاعباً كاملاً، يجب:
+1. الحصول على موافقة المدير
+2. اختيار الجنس (ذكر/أنثى)
+3. اختيار اسم إنجليزي`;
     }
 
     async process(sender, message) {
@@ -187,7 +182,6 @@ ${adminProfileUrl}
         let command = commandParts[0];
         let args = commandParts.slice(1);
 
-        // معالجة الأوامر المركبة
         const fullCommand = command + (args[0] ? ` ${args[0]}` : '');
         if (this.isCompoundCommand(fullCommand)) {
             const result = this.handleCompoundCommand(fullCommand, commandParts);
@@ -197,14 +191,12 @@ ${adminProfileUrl}
 
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
-        // معالجة أوامر المدير أولاً
         const userIsAdmin = this.adminSystem.isAdmin(id);
         if (userIsAdmin) {
             const adminResult = await this.handleAdminCommand(command, args, id);
             if (adminResult) return adminResult;
         }
 
-        // الردود التلقائية
         const autoResponse = await this.handleAutoResponse(message);
         if (autoResponse) return autoResponse;
 
@@ -224,7 +216,6 @@ ${adminProfileUrl}
                 return '❌ تم حظرك من اللعبة.';
             }
 
-            // التحقق من حالة اللاعب
             if (!player.isApproved() && !this.allowedBeforeApproval.includes(command)) {
                 return this.getRegistrationMessage(player);
             }
@@ -252,7 +243,8 @@ ${adminProfileUrl}
         const compoundCommands = [
             'موافقة لاعب', 'اعطاء مورد', 'اعطاء ذهب', 'تغيير اسم',
             'زيادة صحة', 'زيادة مانا', 'اعادة بيانات', 'حظر لاعب',
-            'تغيير جنس', 'عرض الردود'
+            'تغيير جنس', 'عرض الردود',
+            'صناعة كاملة', 'فرن كاملة'
         ];
         return compoundCommands.includes(fullCommand);
     }
@@ -268,7 +260,9 @@ ${adminProfileUrl}
             'اعادة بيانات': 'اعادة_بيانات',
             'حظر لاعب': 'حظر_لاعب',
             'تغيير جنس': 'تغيير_جنس',
-            'عرض الردود': 'عرض_الردود'
+            'عرض الردود': 'عرض_الردود',
+            'صناعة كاملة': 'صناعة_كاملة',
+            'فرن كاملة': 'فرن_كاملة'
         };
 
         return {
@@ -329,4 +323,4 @@ ${adminProfileUrl}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-}
+    }
