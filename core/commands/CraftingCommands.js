@@ -1,5 +1,5 @@
 // core/commands/CraftingCommands.js
-import { BaseCommand } from './commands/BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 
 export class CraftingCommands extends BaseCommand {
   getCommands() {
@@ -114,4 +114,4 @@ export class CraftingCommands extends BaseCommand {
   async handleUnequip(player, args) {
     return '❌ نظام نزع المعدات قيد التطوير';
   }
-}
+  }
