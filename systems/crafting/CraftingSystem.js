@@ -12,10 +12,6 @@ export class CraftingSystem {
   // Helpers
   // ===================================
   
-  /**
-   * تحديد ما إذا كانت الوصفة ستظهر للاعب
-   * تظهر إذا كان يملك مادة واحدة على الأقل من أي مادة مطلوبة
-   */
   _shouldShowRecipe(player, recipe) {
     for (const materialId in recipe.materials) {
       if (player.getItemQuantity(materialId) > 0) {
@@ -46,16 +42,32 @@ export class CraftingSystem {
   _formatRecipes(recipesList, player, title) {
     let text = `\n${title} (${recipesList.length})\n`;
     recipesList.forEach(recipe => {
-      text += `\n✨ ${recipe.name} (المستوى ${recipe.requiredLevel || 1})\n`;
-      const matParts = [];
+      // بناء أسطر البطاقة
+      const headerLine = `${recipe.name} (م ${recipe.requiredLevel || 1})`;
+      const lines = [headerLine];
+      
       for (const matId in recipe.materials) {
         const needed = recipe.materials[matId];
         const owned = player.getItemQuantity(matId);
         const matName = this.ITEMS[matId]?.name || matId;
         const icon = owned >= needed ? '✅' : '❌';
-        matParts.push(`${icon} ${matName}: ${owned}/${needed}`);
+        lines.push(`${icon} ${matName}: ${owned}/${needed}`);
       }
-      text += `   📦 المواد: ${matParts.join(' | ')}\n`;
+      
+      // حساب أطول سطر
+      const maxLineLength = Math.max(...lines.map(l => l.length));
+      const boxWidth = maxLineLength + 4; // مساحة لحدود │
+      
+      // رسم الإطار
+      const topBorder = '┌' + '─'.repeat(boxWidth) + '┐';
+      const bottomBorder = '└' + '─'.repeat(boxWidth) + '┘';
+      
+      text += topBorder + '\n';
+      lines.forEach(line => {
+        const padding = boxWidth - line.length - 2; // خصم حرفي │
+        text += '│ ' + line + ' '.repeat(Math.max(0, padding)) + ' │\n';
+      });
+      text += bottomBorder + '\n\n';
     });
     return text;
   }
@@ -243,4 +255,4 @@ export class CraftingSystem {
     }
     return lower;
   }
-  }
+                                                                            }
