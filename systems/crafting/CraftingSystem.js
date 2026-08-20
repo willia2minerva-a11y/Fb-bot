@@ -15,9 +15,7 @@ export class CraftingSystem {
 
   _shouldShowRecipe(player, recipe) {
     for (const materialId in recipe.materials) {
-      if (player.getItemQuantity(materialId) > 0) {
-        return true;
-      }
+      if (player.getItemQuantity(materialId) > 0) return true;
     }
     return false;
   }
@@ -28,14 +26,9 @@ export class CraftingSystem {
       const recipe = this.RECIPES[id];
       const itemInfo = this.ITEMS[recipe.id] || {};
       const isFurnace = recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food';
-
-      if (typeFilter === 'FURNACE' && isFurnace) {
-        list.push(recipe);
-      } else if (typeFilter === 'NORMAL' && !isFurnace) {
-        list.push(recipe);
-      } else if (typeFilter === 'ALL') {
-        list.push(recipe);
-      }
+      if (typeFilter === 'FURNACE' && isFurnace) list.push(recipe);
+      else if (typeFilter === 'NORMAL' && !isFurnace) list.push(recipe);
+      else if (typeFilter === 'ALL') list.push(recipe);
     }
     return list;
   }
@@ -43,11 +36,10 @@ export class CraftingSystem {
   _formatRecipes(recipesList, player, title) {
     let text = `\n${title} (${recipesList.length})\n`;
 
-    recipesList.forEach(recipe => {
-      // تجهيز أسطر المحتوى
+    // تجهيز بيانات كل وصفة (المحتوى الداخلي واسم العنصر)
+    const cards = recipesList.map(recipe => {
       const levelLine = `◀️ المستوى : ${recipe.requiredLevel || 1}`;
       const materialLines = [];
-
       for (const matId in recipe.materials) {
         const needed = recipe.materials[matId];
         const owned = player.getItemQuantity(matId);
@@ -55,41 +47,46 @@ export class CraftingSystem {
         const icon = owned >= needed ? '✅' : '❌';
         materialLines.push(`${icon} ${matName}: ${owned}/${needed}`);
       }
-
-      // جميع أسطر المحتوى داخل البطاقة (بدون اسم العنصر)
       const contentLines = [levelLine, ...materialLines];
+      return { name: recipe.name, contentLines };
+    });
 
-      // أطول سطر محتوى (عدد الأحرف)
-      const maxContentLength = Math.max(...contentLines.map(l => l.length));
+    // حساب أقصى طول نص داخلي (بدون │ ومسافات) عبر جميع البطاقات
+    let maxContentTextLength = 0;
+    let maxTitleLength = 0;
+    for (const card of cards) {
+      for (const line of card.contentLines) {
+        if (line.length > maxContentTextLength) maxContentTextLength = line.length;
+      }
+      const titleLength = card.name.length + 2; // نضيف مسافة على كل جانب
+      if (titleLength > maxTitleLength) maxTitleLength = titleLength;
+    }
 
-      // اسم العنصر الذي سيظهر في السطر العلوي
-      const recipeName = recipe.name;
-      const titleText = ` ${recipeName} `;
-      const titleTextLength = titleText.length;
+    // العرض الإجمالي للسطر = أقصى طول نص + 4 (2 للمسافات الجانبية + 2 للزوايا/الأطراف)
+    // لكن السطر العلوي والسفلي يحتاجان إلى 2 فقط للزوايا
+    const totalWidth = Math.max(maxContentTextLength + 4, maxTitleLength + 2, 20); // 20 كحد أدنى
 
-      // عرض الجزء الداخلي (بين │ │) نأخذ الأكبر ونضيف هامش 2
-      const innerWidth = Math.max(maxContentLength, titleTextLength) + 2;
+    // بناء البطاقات
+    cards.forEach(card => {
+      const titleText = ` ${card.name} `;
+      const titleLength = titleText.length;
 
-      // بناء أسطر المحتوى بمحاذاة
-      const formattedContentLines = contentLines.map(line => {
-        const padding = innerWidth - line.length;
-        return '│ ' + line + ' '.repeat(Math.max(0, padding)) + ' │';
-      });
-
-      // بناء السطر العلوي: ┐ + شرطات + اسم + شرطات + ┌
-      const totalDashes = innerWidth - titleTextLength;
+      // توزيع الشرطات على جانبي العنوان ليكون الطول الإجمالي = totalWidth
+      const totalDashes = totalWidth - 2 - titleLength; // نخصم الزاويتين
       const leftDashes = Math.floor(totalDashes / 2);
       const rightDashes = totalDashes - leftDashes;
+
       const topLine = '┐' + '─'.repeat(leftDashes) + titleText + '─'.repeat(rightDashes) + '┌';
+      const bottomLine = '┘' + '─'.repeat(totalWidth - 2) + '└'; // شرطات بنفس الطول
 
-      // بناء السطر السفلي: ┘ + شرطات + └
-      const bottomLine = '┘' + '─'.repeat(innerWidth + 2) + '└';
-
-      // تجميع البطاقة
       text += topLine + '\n';
-      formattedContentLines.forEach(line => {
-        text += line + '\n';
+
+      // كتابة أسطر المحتوى مع حشو لإجمالي الطول
+      card.contentLines.forEach(line => {
+        const padding = totalWidth - 4 - line.length; // نخصم │ والمسافتين
+        text += '│ ' + line + ' '.repeat(Math.max(0, padding)) + ' │\n';
       });
+
       text += bottomLine + '\n\n';
     });
 
@@ -281,4 +278,4 @@ export class CraftingSystem {
     }
     return lower;
   }
-      }
+}
