@@ -6,12 +6,12 @@ export class CraftingCommands extends BaseCommand {
     return {
       'وصفات': this.handleShowRecipes.bind(this),
       'صناعة': this.handleShowRecipes.bind(this),
-      'صناعة كاملة': this.handleShowAllRecipes.bind(this),
-      'وصفات كاملة': this.handleShowAllRecipes.bind(this),
+      'صناعة_كاملة': this.handleShowAllRecipes.bind(this),
+      'وصفات_كاملة': this.handleShowAllRecipes.bind(this),
       'اصنع': this.handleCraft.bind(this),
       'صنع': this.handleCraft.bind(this),
       'فرن': this.handleFurnace.bind(this),
-      'فرن كاملة': this.handleFullFurnace.bind(this),
+      'فرن_كاملة': this.handleFullFurnace.bind(this),
       'طهو': this.handleCook.bind(this),
       'صهر': this.handleSmelt.bind(this),
       'جهز': this.handleEquip.bind(this),
@@ -114,4 +114,4 @@ export class CraftingCommands extends BaseCommand {
   async handleUnequip(player, args) {
     return '❌ نظام نزع المعدات قيد التطوير';
   }
-  }
+}
