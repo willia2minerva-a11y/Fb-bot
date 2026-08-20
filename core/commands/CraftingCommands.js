@@ -1,258 +1,117 @@
-import { recipes } from '../../data/recipes.js';
-import { items } from '../../data/items.js';
+// core/commands/CraftingCommands.js
+import { BaseCommand } from './commands/BaseCommand.js';
 
-export class CraftingSystem {
-  constructor() {
-    this.RECIPES = recipes;
-    this.ITEMS = items;
-    console.log(`🔨 نظام الصناعة تم تهيئته. (وصفات: ${Object.keys(this.RECIPES).length})`);
-  }
-
-  // ===================================
-  // Helpers
-  // ===================================
-  
-  _shouldShowRecipe(player, recipe) {
-    for (const materialId in recipe.materials) {
-      if (player.getItemQuantity(materialId) > 0) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  _getRecipesByType(typeFilter) {
-    const list = [];
-    for (const id in this.RECIPES) {
-      const recipe = this.RECIPES[id];
-      const itemInfo = this.ITEMS[recipe.id] || {};
-      const isFurnace = recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food';
-      
-      if (typeFilter === 'FURNACE' && isFurnace) {
-        list.push(recipe);
-      } else if (typeFilter === 'NORMAL' && !isFurnace) {
-        list.push(recipe);
-      } else if (typeFilter === 'ALL') {
-        list.push(recipe);
-      }
-    }
-    return list;
-  }
-
-  _formatRecipes(recipesList, player, title) {
-    let text = `\n${title} (${recipesList.length})\n`;
-    recipesList.forEach(recipe => {
-      // بناء أسطر البطاقة
-      const headerLine = `${recipe.name} (م ${recipe.requiredLevel || 1})`;
-      const lines = [headerLine];
-      
-      for (const matId in recipe.materials) {
-        const needed = recipe.materials[matId];
-        const owned = player.getItemQuantity(matId);
-        const matName = this.ITEMS[matId]?.name || matId;
-        const icon = owned >= needed ? '✅' : '❌';
-        lines.push(`${icon} ${matName}: ${owned}/${needed}`);
-      }
-      
-      // حساب أطول سطر
-      const maxLineLength = Math.max(...lines.map(l => l.length));
-      const boxWidth = maxLineLength + 4; // مساحة لحدود │
-      
-      // رسم الإطار
-      const topBorder = '┌' + '─'.repeat(boxWidth) + '┐';
-      const bottomBorder = '└' + '─'.repeat(boxWidth) + '┘';
-      
-      text += topBorder + '\n';
-      lines.forEach(line => {
-        const padding = boxWidth - line.length - 2; // خصم حرفي │
-        text += '│ ' + line + ' '.repeat(Math.max(0, padding)) + ' │\n';
-      });
-      text += bottomBorder + '\n\n';
-    });
-    return text;
-  }
-
-  isFurnaceRecipe(itemId) {
-    const recipe = this.RECIPES[itemId];
-    const itemInfo = this.ITEMS[itemId] || {};
-    return recipe && (recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food');
-  }
-
-  // ===================================
-  // Main Crafting
-  // ===================================
-  async craftItem(player, itemId, quantity = 1) {
-    const recipe = this.RECIPES[itemId];
-    if (!recipe) {
-      const name = this.ITEMS[itemId]?.name || itemId;
-      return { error: `❌ لا توجد وصفة لـ ${name}` };
-    }
-    
-    if (quantity < 1 || quantity > 100) {
-      return { error: '❌ الكمية يجب أن تكون بين 1 و 100' };
-    }
-
-    if (player.level < (recipe.requiredLevel || 1)) {
-      return { error: `❌ تحتاج المستوى ${recipe.requiredLevel || 1} لصنع ${recipe.name}` };
-    }
-
-    const staminaCostPerItem = 10;
-    const totalStaminaCost = staminaCostPerItem * quantity;
-    const actualStamina = player.getActualStamina();
-    if (actualStamina < totalStaminaCost) {
-      return { error: `😩 النشاط غير كافٍ! تحتاج ${totalStaminaCost} لكن لديك ${Math.floor(actualStamina)}` };
-    }
-
-    const missing = [];
-    for (const matId in recipe.materials) {
-      const needed = recipe.materials[matId] * quantity;
-      const owned = player.getItemQuantity(matId);
-      if (owned < needed) {
-        const matName = this.ITEMS[matId]?.name || matId;
-        missing.push(`❌ ${matName}: ${owned}/${needed}`);
-      }
-    }
-    if (missing.length > 0) {
-      return { error: `❌ مواد غير كافية:\n${missing.join('\n')}` };
-    }
-
-    for (const matId in recipe.materials) {
-      player.removeItem(matId, recipe.materials[matId] * quantity);
-    }
-    player.useStamina(totalStaminaCost);
-
-    const itemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
-    player.addItem(itemInfo.id, itemInfo.name, itemInfo.type, quantity);
-
-    if (player.stats) {
-      player.stats.itemsCrafted = (player.stats.itemsCrafted || 0) + quantity;
-    }
-
-    await player.save();
-
+export class CraftingCommands extends BaseCommand {
+  getCommands() {
     return {
-      success: true,
-      message: `✅ تم صنع ${quantity} × ${itemInfo.name} بنجاح!\n- استهلكت ${totalStaminaCost} نشاط.`,
-      item: itemInfo,
-      quantity
+      'وصفات': this.handleShowRecipes.bind(this),
+      'صناعة': this.handleShowRecipes.bind(this),
+      'صناعة كاملة': this.handleShowAllRecipes.bind(this),
+      'وصفات كاملة': this.handleShowAllRecipes.bind(this),
+      'اصنع': this.handleCraft.bind(this),
+      'صنع': this.handleCraft.bind(this),
+      'فرن': this.handleFurnace.bind(this),
+      'فرن كاملة': this.handleFullFurnace.bind(this),
+      'طهو': this.handleCook.bind(this),
+      'صهر': this.handleSmelt.bind(this),
+      'جهز': this.handleEquip.bind(this),
+      'تجهيز': this.handleEquip.bind(this),
+      'البس': this.handleEquip.bind(this),
+      'انزع': this.handleUnequip.bind(this),
+      'خلع': this.handleUnequip.bind(this)
     };
   }
 
-  // ===================================
-  // Furnace & Cooking
-  // ===================================
-  showFurnaceRecipes(player, showFullList = false) {
-    const allFurnace = this._getRecipesByType('FURNACE');
-    const filtered = showFullList ? allFurnace : allFurnace.filter(r => this._shouldShowRecipe(player, r));
-    
-    let message = `🔥 وصفات الفرن\n`;
-    
-    const hasFurnace = player.getItemQuantity('furnace') > 0;
-    if (!hasFurnace) {
-      const recipe = this.RECIPES['furnace'];
-      message += `\n❌ الفرن غير مبني!\n`;
-      message += `📦 لبنائه استخدم: "اصنع فرن"\n`;
-      message += `📋 المواد المطلوبة: `;
-      if (recipe) {
-        const parts = [];
-        for (const [id, q] of Object.entries(recipe.materials)) {
-          parts.push(`${q} ${this.ITEMS[id]?.name || id}`);
-        }
-        message += parts.join(' و ');
-      }
-      message += `\n💡 بعد بناء الفرن ستتمكن من الصهر والطهي.`;
-      return { message };
-    }
-
-    const smelting = filtered.filter(r => this.ITEMS[r.id]?.type === 'bar');
-    const cooking = filtered.filter(r => this.ITEMS[r.id]?.type === 'food');
-
-    if (smelting.length) message += this._formatRecipes(smelting, player, '🪙 السبائك (صهر)');
-    if (cooking.length) message += this._formatRecipes(cooking, player, '🍲 الطبخ');
-    if (!smelting.length && !cooking.length) message += `\n❌ لا توجد وصفات فرن متاحة.`;
-
-    message += `\n💡 للصهر: "صهر [اسم الخام] [كمية]"`;
-    message += `\n💡 للطهي: "طهو [اسم الطعام] [كمية]"`;
-    if (!showFullList && filtered.length < allFurnace.length) {
-      message += `\n💡 لعرض جميع وصفات الفرن: "فرن كاملة"`;
-    }
-    return { message };
+  async handleShowRecipes(player) {
+    if (!await this.checkPlayerApproval(player)) return;
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الصناعة غير متوفر';
+    return system.showAvailableRecipes(player).message;
   }
 
-  showAvailableRecipes(player, showFullList = false) {
-    const allNormal = this._getRecipesByType('NORMAL');
-    const filtered = showFullList ? allNormal : allNormal.filter(r => this._shouldShowRecipe(player, r));
-    
-    let message = `🔨 الصناعة\n`;
-    message += `📝 الوصفات المتاحة لك (${filtered.length} / ${allNormal.length})\n`;
-
-    const categorized = {};
-    filtered.forEach(r => {
-      const type = this.ITEMS[r.id]?.type || 'other';
-      if (!categorized[type]) categorized[type] = [];
-      categorized[type].push(r);
-    });
-
-    const order = ['tool_station', 'weapon', 'tool', 'armor', 'accessory', 'potion', 'other'];
-    let found = false;
-    for (const type of order) {
-      const list = categorized[type] || [];
-      if (list.length) {
-        found = true;
-        const typeName = {
-          'tool_station': '⚙️ محطات عمل',
-          'weapon': '⚔️ أسلحة',
-          'tool': '⛏️ أدوات',
-          'armor': '🛡️ دروع',
-          'accessory': '💍 إكسسوارات',
-          'potion': '🧪 جرعات',
-          'other': '📦 أخرى'
-        }[type];
-        message += this._formatRecipes(list, player, typeName);
-      }
-    }
-    if (!found) message += `\n❌ لا توجد وصفات متاحة. اجمع المزيد من المواد!`;
-
-    message += `\n💡 للصناعة: "اصنع [اسم العنصر] [كمية]"`;
-    message += `\n💡 للفرن: "فرن"`;
-    if (!showFullList && filtered.length < allNormal.length) {
-      message += `\n💡 لعرض جميع الوصفات: "صناعة كاملة"`;
-    }
-    return { message };
+  async handleShowAllRecipes(player) {
+    if (!await this.checkPlayerApproval(player)) return;
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الصناعة غير متوفر';
+    return system.showAvailableRecipes(player, true).message;
   }
 
-  async cook(player, itemName, quantity = 1) {
-    return await this._processFurnace(player, itemName, quantity, 'food');
+  async handleCraft(player, args) {
+    if (!await this.checkPlayerApproval(player)) return;
+    if (args.length === 0) return this.handleShowRecipes(player);
+
+    let quantity = 1;
+    let nameParts = [...args];
+    const lastArg = args[args.length - 1];
+    if (!isNaN(lastArg)) {
+      quantity = parseInt(lastArg);
+      nameParts = args.slice(0, -1);
+      if (quantity < 1 || quantity > 100) return '❌ الكمية بين 1 و 100';
+    }
+    const rawName = nameParts.join(' ');
+    const itemId = this.commandHandler.ARABIC_ITEM_MAP?.[rawName.toLowerCase()] || rawName.toLowerCase();
+
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الصناعة غير متوفر';
+    const result = await system.craftItem(player, itemId, quantity);
+    return result.error || result.message;
   }
 
-  async smelt(player, itemName, quantity = 1) {
-    return await this._processFurnace(player, itemName, quantity, 'bar');
+  async handleFurnace(player) {
+    if (!await this.checkPlayerApproval(player)) return;
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الفرن غير متوفر';
+    return system.showFurnaceRecipes(player).message;
   }
 
-  async _processFurnace(player, itemName, quantity, expectedType) {
-    if (player.getItemQuantity('furnace') === 0) {
-      return { error: '❌ تحتاج إلى فرن أولاً! استخدم "اصنع فرن" لبنائه.' };
-    }
-    const itemId = this._resolveItemId(itemName);
-    const recipe = this.RECIPES[itemId];
-    if (!recipe) return { error: `❌ لا توجد وصفة لـ ${itemName}` };
-    const itemInfo = this.ITEMS[itemId] || {};
-    if (itemInfo.type !== expectedType) {
-      return { error: `❌ ${itemInfo.name} ليس ${expectedType === 'food' ? 'طعامًا' : 'خامًا/سبيكة'}` };
-    }
-    if (!this.isFurnaceRecipe(itemId)) return { error: `❌ هذه الوصفة لا تُنفذ في الفرن` };
-    return await this.craftItem(player, itemId, quantity);
+  async handleFullFurnace(player) {
+    if (!await this.checkPlayerApproval(player)) return;
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الفرن غير متوفر';
+    return system.showFurnaceRecipes(player, true).message;
   }
 
-  _resolveItemId(input) {
-    const lower = input.trim().toLowerCase();
-    if (this.ITEMS[lower]) return lower;
-    for (const id in this.ITEMS) {
-      if (this.ITEMS[id].name.toLowerCase() === lower) return id;
+  async handleCook(player, args) {
+    if (!await this.checkPlayerApproval(player)) return;
+    if (args.length === 0) return '❌ حدد الطعام: طهو لحم 2';
+    let quantity = 1;
+    let nameParts = [...args];
+    const lastArg = args[args.length - 1];
+    if (!isNaN(lastArg)) {
+      quantity = parseInt(lastArg);
+      nameParts = args.slice(0, -1);
+      if (quantity < 1 || quantity > 50) return '❌ الكمية بين 1 و 50';
     }
-    for (const id in this.ITEMS) {
-      if (this.ITEMS[id].name.toLowerCase().includes(lower)) return id;
-    }
-    return lower;
+    const itemName = nameParts.join(' ');
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الفرن غير متوفر';
+    const result = await system.cook(player, itemName, quantity);
+    return result.error || result.message;
   }
-      }
+
+  async handleSmelt(player, args) {
+    if (!await this.checkPlayerApproval(player)) return;
+    if (args.length === 0) return '❌ حدد الخام: صهر خام_حديد 3';
+    let quantity = 1;
+    let nameParts = [...args];
+    const lastArg = args[args.length - 1];
+    if (!isNaN(lastArg)) {
+      quantity = parseInt(lastArg);
+      nameParts = args.slice(0, -1);
+      if (quantity < 1 || quantity > 50) return '❌ الكمية بين 1 و 50';
+    }
+    const itemName = nameParts.join(' ');
+    const system = await this.getSystem('crafting');
+    if (!system) return '❌ نظام الفرن غير متوفر';
+    const result = await system.smelt(player, itemName, quantity);
+    return result.error || result.message;
+  }
+
+  async handleEquip(player, args) {
+    return '❌ نظام التجهيز قيد التطوير';
+  }
+
+  async handleUnequip(player, args) {
+    return '❌ نظام نزع المعدات قيد التطوير';
+  }
+}
