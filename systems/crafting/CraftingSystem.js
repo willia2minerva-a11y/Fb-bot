@@ -42,31 +42,55 @@ export class CraftingSystem {
 
   _formatRecipes(recipesList, player, title) {
     let text = `\n${title} (${recipesList.length})\n`;
-    recipesList.forEach(recipe => {
-      const headerLine = `${recipe.name} (م ${recipe.requiredLevel || 1})`;
-      const lines = [headerLine];
 
+    recipesList.forEach(recipe => {
+      // سطر المستوى
+      const levelLine = `◀️ المستوى : ${recipe.requiredLevel || 1}`;
+
+      // أسطر المواد
+      const materialLines = [];
       for (const matId in recipe.materials) {
         const needed = recipe.materials[matId];
         const owned = player.getItemQuantity(matId);
         const matName = this.ITEMS[matId]?.name || matId;
         const icon = owned >= needed ? '✅' : '❌';
-        lines.push(`${icon} ${matName}: ${owned}/${needed}`);
+        materialLines.push(`${icon} ${matName}: ${owned}/${needed}`);
       }
 
-      const maxLineLength = Math.max(...lines.map(l => l.length));
-      const boxWidth = maxLineLength + 4;
+      // كل أسطر المحتوى داخل البطاقة (بدون الحدود)
+      const innerLines = [levelLine, ...materialLines];
 
-      const topBorder = '┌' + '─'.repeat(boxWidth) + '┐';
-      const bottomBorder = '└' + '─'.repeat(boxWidth) + '┘';
+      // حساب أطول سطر داخلي
+      const innerMaxLength = Math.max(...innerLines.map(l => l.length));
 
+      // اسم العنصر الذي سيظهر في الحد العلوي
+      const titleName = recipe.name;
+      // نضيف مسافات حول الاسم في السطر العلوي
+      const titleText = ` ${titleName} `;
+      const titleLength = titleText.length;
+
+      // عرض البطاقة: نأخذ الأكبر بين أطول سطر داخلي + هامش، وطول العنوان + هامش
+      const boxContentWidth = Math.max(innerMaxLength + 4, titleLength + 6);
+
+      // إنشاء الحد العلوي: ┐ + شرطات + اسم + شرطات + ┌
+      // نريد توزيع الشرطات على الجانبين بالتساوي تقريباً
+      const totalDashes = boxContentWidth - titleLength;
+      const leftDashes = Math.floor(totalDashes / 2);
+      const rightDashes = totalDashes - leftDashes;
+      const topBorder = '┐' + '─'.repeat(leftDashes) + titleText + '─'.repeat(rightDashes) + '┌';
+
+      // الحد السفلي: ┘ + شرطات + └
+      const bottomBorder = '┘' + '─'.repeat(boxContentWidth) + '└';
+
+      // بناء البطاقة
       text += topBorder + '\n';
-      lines.forEach(line => {
-        const padding = boxWidth - line.length - 2;
+      innerLines.forEach(line => {
+        const padding = boxContentWidth - line.length - 2; // 2 لمسافات الأطراف
         text += '│ ' + line + ' '.repeat(Math.max(0, padding)) + ' │\n';
       });
       text += bottomBorder + '\n\n';
     });
+
     return text;
   }
 
@@ -255,4 +279,4 @@ export class CraftingSystem {
     }
     return lower;
   }
-        }
+}
