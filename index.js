@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import CommandHandler from './core/CommandHandler.js';
 import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js'; 
+import { migrateAllData } from './core/migrateData.js'; // ✅ تمت الإضافة
 
 // تحميل متغيرات البيئة
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -238,6 +239,11 @@ async function main() {
   
   try {
     await connectDatabase();
+    
+    // ✅ ترحيل البيانات تلقائيًا من ملفات data إلى MongoDB
+    await migrateAllData();
+    console.log('✅ تم تجهيز البيانات');
+
     startCleanupInterval();
     
     commandHandler = new CommandHandler(); 
