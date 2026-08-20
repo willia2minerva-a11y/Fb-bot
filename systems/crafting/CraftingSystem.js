@@ -1,17 +1,27 @@
 // systems/crafting/CraftingSystem.js
 import { recipes } from '../../data/recipes.js';
 import { items } from '../../data/items.js';
+import { resources } from '../../data/resources.js';
 
 export class CraftingSystem {
   constructor() {
     this.RECIPES = recipes;
     this.ITEMS = items;
+    this.RESOURCES = resources; // لإضافة ترجمة الموارد
     console.log(`🔨 نظام الصناعة تم تهيئته. (وصفات: ${Object.keys(this.RECIPES).length})`);
   }
 
   // ===================================
-  // Helpers
+  // Helpers - الترجمة
   // ===================================
+  _translateItemName(itemId) {
+    // 1. نبحث في الموارد (أسماء عربية)
+    if (this.RESOURCES[itemId]?.name) return this.RESOURCES[itemId].name;
+    // 2. نبحث في العناصر (قد تحتوي أسماء عربية)
+    if (this.ITEMS[itemId]?.name) return this.ITEMS[itemId].name;
+    // 3. نرجع المعرف نفسه
+    return itemId;
+  }
 
   _shouldShowRecipe(player, recipe) {
     for (const materialId in recipe.materials) {
@@ -24,8 +34,8 @@ export class CraftingSystem {
     const list = [];
     for (const id in this.RECIPES) {
       const recipe = this.RECIPES[id];
-      const itemInfo = this.ITEMS[recipe.id] || {};
-      const isFurnace = recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food';
+      // التصنيف يعتمد على recipe.type وليس على نوع العنصر
+      const isFurnace = recipe.type === 'bar' || recipe.type === 'food' || recipe.requiredTool === 'furnace';
       if (typeFilter === 'FURNACE' && isFurnace) list.push(recipe);
       else if (typeFilter === 'NORMAL' && !isFurnace) list.push(recipe);
       else if (typeFilter === 'ALL') list.push(recipe);
@@ -37,13 +47,14 @@ export class CraftingSystem {
     let text = `\n${title} (${recipesList.length})\n`;
 
     recipesList.forEach(recipe => {
-      text += `\n◆ ${recipe.name}\n`;
+      const itemName = this._translateItemName(recipe.id);
+      text += `\n◆ ${itemName}\n`;
       text += `┤─ ◀️ المستوى : ${recipe.requiredLevel || 1}\n`;
 
       const materialEntries = Object.entries(recipe.materials);
       materialEntries.forEach(([matId, needed], index) => {
         const owned = player.getItemQuantity(matId);
-        const matName = this.ITEMS[matId]?.name || matId;
+        const matName = this._translateItemName(matId);
         const icon = owned >= needed ? '✅' : '❌';
         const isLast = index === materialEntries.length - 1;
         const prefix = isLast ? '┘─' : '┤─';
@@ -56,8 +67,7 @@ export class CraftingSystem {
 
   isFurnaceRecipe(itemId) {
     const recipe = this.RECIPES[itemId];
-    const itemInfo = this.ITEMS[itemId] || {};
-    return recipe && (recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food');
+    return recipe && (recipe.type === 'bar' || recipe.type === 'food' || recipe.requiredTool === 'furnace');
   }
 
   // ===================================
@@ -67,7 +77,7 @@ export class CraftingSystem {
   async craftItem(player, itemId, quantity = 1) {
     const recipe = this.RECIPES[itemId];
     if (!recipe) {
-      const name = this.ITEMS[itemId]?.name || itemId;
+      const name = this._translateItemName(itemId);
       return { error: `❌ لا توجد وصفة لـ ${name}` };
     }
 
@@ -76,7 +86,7 @@ export class CraftingSystem {
     }
 
     if (player.level < (recipe.requiredLevel || 1)) {
-      return { error: `❌ تحتاج المستوى ${recipe.requiredLevel || 1} لصنع ${recipe.name}` };
+      return { error: `❌ تحتاج المستوى ${recipe.requiredLevel || 1} لصنع ${this._translateItemName(recipe.id)}` };
     }
 
     const staminaCostPerItem = 10;
@@ -91,7 +101,7 @@ export class CraftingSystem {
       const needed = recipe.materials[matId] * quantity;
       const owned = player.getItemQuantity(matId);
       if (owned < needed) {
-        const matName = this.ITEMS[matId]?.name || matId;
+        const matName = this._translateItemName(matId);
         missing.push(`❌ ${matName}: ${owned}/${needed}`);
       }
     }
@@ -104,7 +114,7 @@ export class CraftingSystem {
     }
     player.useStamina(totalStaminaCost);
 
-    const itemInfo = this.ITEMS[itemId] || { id: itemId, name: recipe.name, type: 'other' };
+    const itemInfo = this.ITEMS[itemId] || { id: itemId, name: this._translateItemName(itemId), type: 'other' };
     player.addItem(itemInfo.id, itemInfo.name, itemInfo.type, quantity);
 
     if (player.stats) {
@@ -140,7 +150,7 @@ export class CraftingSystem {
       if (recipe) {
         const parts = [];
         for (const [id, q] of Object.entries(recipe.materials)) {
-          parts.push(`${q} ${this.ITEMS[id]?.name || id}`);
+          parts.push(`${q} ${this._translateItemName(id)}`);
         }
         message += parts.join(' و ');
       }
@@ -148,8 +158,8 @@ export class CraftingSystem {
       return { message };
     }
 
-    const smelting = filtered.filter(r => this.ITEMS[r.id]?.type === 'bar');
-    const cooking = filtered.filter(r => this.ITEMS[r.id]?.type === 'food');
+    const smelting = filtered.filter(r => r.type === 'bar');
+    const cooking = filtered.filter(r => r.type === 'food');
 
     if (smelting.length) message += this._formatRecipes(smelting, player, '🪙 السبائك (صهر)');
     if (cooking.length) message += this._formatRecipes(cooking, player, '🍲 الطبخ');
@@ -172,7 +182,7 @@ export class CraftingSystem {
 
     const categorized = {};
     filtered.forEach(r => {
-      const type = this.ITEMS[r.id]?.type || 'other';
+      const type = r.type || this.ITEMS[r.id]?.type || 'other';
       if (!categorized[type]) categorized[type] = [];
       categorized[type].push(r);
     });
@@ -220,9 +230,8 @@ export class CraftingSystem {
     const itemId = this._resolveItemId(itemName);
     const recipe = this.RECIPES[itemId];
     if (!recipe) return { error: `❌ لا توجد وصفة لـ ${itemName}` };
-    const itemInfo = this.ITEMS[itemId] || {};
-    if (itemInfo.type !== expectedType) {
-      return { error: `❌ ${itemInfo.name} ليس ${expectedType === 'food' ? 'طعامًا' : 'خامًا/سبيكة'}` };
+    if (recipe.type !== expectedType) {
+      return { error: `❌ ${this._translateItemName(itemId)} ليس ${expectedType === 'food' ? 'طعامًا' : 'خامًا/سبيكة'}` };
     }
     if (!this.isFurnaceRecipe(itemId)) return { error: `❌ هذه الوصفة لا تُنفذ في الفرن` };
     return await this.craftItem(player, itemId, quantity);
@@ -230,13 +239,23 @@ export class CraftingSystem {
 
   _resolveItemId(input) {
     const lower = input.trim().toLowerCase();
+    // محاولة المعرف المباشر
     if (this.ITEMS[lower]) return lower;
+    if (this.RESOURCES[lower]) return lower;
+    // محاولة مطابقة الاسم العربي
     for (const id in this.ITEMS) {
-      if (this.ITEMS[id].name.toLowerCase() === lower) return id;
+      if (this.ITEMS[id].name?.toLowerCase() === lower) return id;
     }
+    for (const id in this.RESOURCES) {
+      if (this.RESOURCES[id].name?.toLowerCase() === lower) return id;
+    }
+    // محاولة مطابقة جزئية
     for (const id in this.ITEMS) {
-      if (this.ITEMS[id].name.toLowerCase().includes(lower)) return id;
+      if (this.ITEMS[id].name?.toLowerCase().includes(lower)) return id;
+    }
+    for (const id in this.RESOURCES) {
+      if (this.RESOURCES[id].name?.toLowerCase().includes(lower)) return id;
     }
     return lower;
   }
-  }
+         }
