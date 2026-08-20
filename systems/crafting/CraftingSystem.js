@@ -1,3 +1,4 @@
+// systems/crafting/CraftingSystem.js
 import { recipes } from '../../data/recipes.js';
 import { items } from '../../data/items.js';
 
@@ -11,7 +12,7 @@ export class CraftingSystem {
   // ===================================
   // Helpers
   // ===================================
-  
+
   _shouldShowRecipe(player, recipe) {
     for (const materialId in recipe.materials) {
       if (player.getItemQuantity(materialId) > 0) {
@@ -27,7 +28,7 @@ export class CraftingSystem {
       const recipe = this.RECIPES[id];
       const itemInfo = this.ITEMS[recipe.id] || {};
       const isFurnace = recipe.requiredTool === 'furnace' || itemInfo.type === 'bar' || itemInfo.type === 'food';
-      
+
       if (typeFilter === 'FURNACE' && isFurnace) {
         list.push(recipe);
       } else if (typeFilter === 'NORMAL' && !isFurnace) {
@@ -42,10 +43,9 @@ export class CraftingSystem {
   _formatRecipes(recipesList, player, title) {
     let text = `\n${title} (${recipesList.length})\n`;
     recipesList.forEach(recipe => {
-      // بناء أسطر البطاقة
       const headerLine = `${recipe.name} (م ${recipe.requiredLevel || 1})`;
       const lines = [headerLine];
-      
+
       for (const matId in recipe.materials) {
         const needed = recipe.materials[matId];
         const owned = player.getItemQuantity(matId);
@@ -53,18 +53,16 @@ export class CraftingSystem {
         const icon = owned >= needed ? '✅' : '❌';
         lines.push(`${icon} ${matName}: ${owned}/${needed}`);
       }
-      
-      // حساب أطول سطر
+
       const maxLineLength = Math.max(...lines.map(l => l.length));
-      const boxWidth = maxLineLength + 4; // مساحة لحدود │
-      
-      // رسم الإطار
+      const boxWidth = maxLineLength + 4;
+
       const topBorder = '┌' + '─'.repeat(boxWidth) + '┐';
       const bottomBorder = '└' + '─'.repeat(boxWidth) + '┘';
-      
+
       text += topBorder + '\n';
       lines.forEach(line => {
-        const padding = boxWidth - line.length - 2; // خصم حرفي │
+        const padding = boxWidth - line.length - 2;
         text += '│ ' + line + ' '.repeat(Math.max(0, padding)) + ' │\n';
       });
       text += bottomBorder + '\n\n';
@@ -81,13 +79,14 @@ export class CraftingSystem {
   // ===================================
   // Main Crafting
   // ===================================
+
   async craftItem(player, itemId, quantity = 1) {
     const recipe = this.RECIPES[itemId];
     if (!recipe) {
       const name = this.ITEMS[itemId]?.name || itemId;
       return { error: `❌ لا توجد وصفة لـ ${name}` };
     }
-    
+
     if (quantity < 1 || quantity > 100) {
       return { error: '❌ الكمية يجب أن تكون بين 1 و 100' };
     }
@@ -141,12 +140,13 @@ export class CraftingSystem {
   // ===================================
   // Furnace & Cooking
   // ===================================
+
   showFurnaceRecipes(player, showFullList = false) {
     const allFurnace = this._getRecipesByType('FURNACE');
     const filtered = showFullList ? allFurnace : allFurnace.filter(r => this._shouldShowRecipe(player, r));
-    
+
     let message = `🔥 وصفات الفرن\n`;
-    
+
     const hasFurnace = player.getItemQuantity('furnace') > 0;
     if (!hasFurnace) {
       const recipe = this.RECIPES['furnace'];
@@ -182,7 +182,7 @@ export class CraftingSystem {
   showAvailableRecipes(player, showFullList = false) {
     const allNormal = this._getRecipesByType('NORMAL');
     const filtered = showFullList ? allNormal : allNormal.filter(r => this._shouldShowRecipe(player, r));
-    
+
     let message = `🔨 الصناعة\n`;
     message += `📝 الوصفات المتاحة لك (${filtered.length} / ${allNormal.length})\n`;
 
@@ -255,4 +255,4 @@ export class CraftingSystem {
     }
     return lower;
   }
-                                                                            }
+        }
