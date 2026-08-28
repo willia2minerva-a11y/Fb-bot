@@ -1,6 +1,7 @@
 // systems/admin/AdminSystem.js
 import Player from '../../core/Player.js';
-import { items } from '../../data/items.js'; 
+import { items } from '../../data/items.js';
+import { resources } from '../../data/resources.js';
 import { AutoResponseSystem } from '../autoResponse/AutoResponseSystem.js';
 
 export class AdminSystem {
@@ -10,14 +11,27 @@ export class AdminSystem {
         console.log('👑 نظام المدير تم تهيئته');
     }
 
+    /**
+     * ✅ فحص إذا كان المستخدم مديراً (يدعم فيسبوك وتلغرام)
+     * @param {string} userId - معرف المستخدم
+     * @returns {boolean}
+     */
     isAdmin(userId) {
-        const ADMIN_PSID = process.env.ADMIN_PSID; 
-        const isAdmin = userId === ADMIN_PSID;
-        
+        const ADMIN_PSID = process.env.ADMIN_PSID;
+        const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID;
+
+        // ✅ قائمة معرفات المديرين (فيسبوك وتلغرام)
+        const adminIds = [
+            ADMIN_PSID,
+            ADMIN_TELEGRAM_ID ? `tg_${ADMIN_TELEGRAM_ID}` : null
+        ].filter(Boolean);
+
+        const isAdmin = adminIds.includes(userId);
+
         if (isAdmin) {
             console.log(`🎯 تم التعرف على المدير: ${userId}`);
         }
-        
+
         return isAdmin;
     }
 
@@ -28,11 +42,11 @@ export class AdminSystem {
     async setupAdminPlayer(userId, userName) {
         try {
             let player = await Player.findOne({ userId });
-            
+
             if (!player) {
                 player = await Player.createNew(userId, userName);
             }
-            
+
             if (!player.playerId) {
                 const lastId = await Player.getLastNumericId();
                 player.playerId = (lastId + 1).toString();
@@ -45,7 +59,11 @@ export class AdminSystem {
             player.gold = 9999;
             player.health = 1000;
             player.maxHealth = 1000;
-            
+            player.mana = 500;
+            player.maxMana = 500;
+            player.stamina = 100;
+            player.maxStamina = 100;
+
             await player.save();
 
             return player;
@@ -72,104 +90,90 @@ export class AdminSystem {
             'طلبات_سحب': 'عرض طلبات السحب',
             'معالجة_سحب': 'معالجة طلب سحب',
             'اضافة_غولد': 'إضافة غولد للاعب',
-            'مدير': 'مدير'
+            'مدير': 'مدير',
+            'عرض_اسلحة': 'عرض الأسلحة',
+            'عرض_وحوش': 'عرض الوحوش',
+            'عرض_مواقع': 'عرض المواقع',
+            'عرض_موارد': 'عرض الموارد'
         };
     }
 
     getAdminHelp() {
-        return `
-👑 **أوامر المدير - دليل الاستخدام**
+        return `👑 أوامر المدير
 
-🛠️ **الإدارة والتحكم**
-• تغيير_اسم [ID] [الاسم]: يغير اسم اللاعب ويحرر الاسم القديم.
-• اعادة_بيانات [ID]: يمسح بيانات اللاعب ليبدأ التسجيل من جديد (يحرر الاسم).
-• حظر_لاعب [ID] [صحيح/خطأ]: لحظر/رفع الحظر.
-• تغيير_جنس [ID] [ذكر/أنثى]: يغير جنس اللاعب.
-• موافقة_لاعب [ID]: عرض القائمة أو الموافقة على ID محدد.
+🛠️ الإدارة والتحكم
+• تغيير_اسم [ID] [الاسم]: تغيير اسم اللاعب
+• اعادة_بيانات [ID]: إعادة تعيين بيانات اللاعب
+• حظر_لاعب [ID] [صحيح/خطأ]: حظر أو رفع الحظر
+• تغيير_جنس [ID] [ذكر/أنثى]: تغيير جنس اللاعب
+• موافقة_لاعب [ID]: الموافقة على لاعب
 
-💰 **النظام الاقتصادي (الجديد)**
+💰 النظام الاقتصادي
 • طلبات_سحب: عرض طلبات السحب المعلقة
-• معالجة_سحب [ID] [قبول/رفض]: معالجة طلب سحب لاعب
-• اضافة_غولد [ID] [المبلغ]: إضافة غولد للاعب (للإيداع)
+• معالجة_سحب [ID] [قبول/رفض]: معالجة طلب سحب
+• اضافة_غولد [ID] [المبلغ]: إضافة غولد
 
-🤖 **إدارة الردود التلقائية**
-• اضف_رد [الكلمة المفتاحية] || [الرد]: إضافة رد تلقائي
-• ازل_رد [الكلمة المفتاحية]: إزالة رد تلقائي
-• عرض_الردود: عرض جميع الردود التلقائية
+🤖 الردود التلقائية
+• اضف_رد [الكلمة] || [الرد]: إضافة رد
+• ازل_رد [الكلمة]: إزالة رد
+• عرض_الردود: عرض جميع الردود
 
-🎁 **أوامر المنح (المنح):**
-• اعطاء_ذهب [ID] [الكمية]: يمنح ذهباً.
-• اعطاء_مورد [ID] [اسم_العنصر] [الكمية]: يمنح عنصر أو سلاح.
-• زيادة_صحة [ID] [الكمية]: يزيد الحد الأقصى للصحة.
-• زيادة_مانا [ID] [الكمية]: يزيد الحد الأقصى للمانا.
-`;
+🎁 المنح
+• اعطاء_ذهب [ID] [الكمية]: منح ذهب
+• اعطاء_مورد [ID] [العنصر] [الكمية]: منح عنصر
+• زيادة_صحة [ID] [الكمية]: زيادة الصحة
+• زيادة_مانا [ID] [الكمية]: زيادة المانا
+
+📋 العرض
+• عرض_اسلحة: عرض جميع الأسلحة
+• عرض_وحوش: عرض جميع الوحوش
+• عرض_مواقع: عرض جميع المواقع
+• عرض_موارد: عرض جميع الموارد`;
     }
 
     async handleAdminCommand(command, args, senderId, player, itemMap) {
         const findTargetPlayer = async (id) => {
-    if (!id) return null;
-    
-    console.log(`🔍 البحث عن لاعب بالمعرف: "${id}"`);
-    
-    // تنظيف المعرف وإزالة الرموز غير المرغوبة
-    const cleanId = id.trim().toUpperCase();
-    
-    // 1. البحث بـ userId (المعرف الأساسي) - غير حساس لحالة الأحرف
-    let targetPlayer = await Player.findOne({ 
-        userId: { $regex: new RegExp('^' + id + '$', 'i') } 
-    });
-    if (targetPlayer) {
-        console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name} (${targetPlayer.userId})`);
-        return targetPlayer;
-    }
-    
-    // 2. البحث بـ playerId - غير حساس لحالة الأحرف ومع إضافة P تلقائياً إذا لزم الأمر
-    let playerIdToSearch = cleanId;
-    if (!playerIdToSearch.startsWith('P') && /^\d+$/.test(playerIdToSearch)) {
-        playerIdToSearch = 'P' + playerIdToSearch;
-    }
-    
-    targetPlayer = await Player.findOne({ 
-        playerId: { $regex: new RegExp('^' + playerIdToSearch + '$', 'i') } 
-    });
-    if (targetPlayer) {
-        console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name} (${targetPlayer.playerId})`);
-        return targetPlayer;
-    }
-    
-    // 3. البحث بـ playerId بدون P
-    if (cleanId.startsWith('P')) {
-        const withoutP = cleanId.substring(1);
-        targetPlayer = await Player.findOne({ 
-            playerId: { $regex: new RegExp('^' + withoutP + '$', 'i') } 
-        });
-        if (targetPlayer) {
-            console.log(`✅ تم العثور بالـ playerId (بدون P): ${targetPlayer.name} (${targetPlayer.playerId})`);
-            return targetPlayer;
-        }
-    }
-    
-    // 4. البحث في الاسم (مطابقة تامة أولاً)
-    targetPlayer = await Player.findOne({ 
-        name: { $regex: new RegExp('^' + id + '$', 'i') } 
-    });
-    if (targetPlayer) {
-        console.log(`✅ تم العثور بالاسم التام: ${targetPlayer.name}`);
-        return targetPlayer;
-    }
-    
-    // 5. البحث الجزئي في الاسم كحل أخير
-    targetPlayer = await Player.findOne({ 
-        name: { $regex: new RegExp(id, 'i') } 
-    });
-    if (targetPlayer) {
-        console.log(`✅ تم العثور بالاسم الجزئي: ${targetPlayer.name}`);
-        return targetPlayer;
-    }
-    
-    console.log(`❌ لم يتم العثور على اللاعب: "${id}"`);
-    return null;
-};
+            if (!id) return null;
+
+            console.log(`🔍 البحث عن لاعب بالمعرف: "${id}"`);
+
+            const cleanId = id.trim().toUpperCase();
+
+            // 1. البحث بـ userId
+            let targetPlayer = await Player.findOne({
+                userId: { $regex: new RegExp('^' + id + '$', 'i') }
+            });
+            if (targetPlayer) {
+                console.log(`✅ تم العثور بالـ userId: ${targetPlayer.name}`);
+                return targetPlayer;
+            }
+
+            // 2. البحث بـ playerId
+            let playerIdToSearch = cleanId;
+            if (!playerIdToSearch.startsWith('P') && /^\d+$/.test(playerIdToSearch)) {
+                playerIdToSearch = 'P' + playerIdToSearch;
+            }
+
+            targetPlayer = await Player.findOne({
+                playerId: { $regex: new RegExp('^' + playerIdToSearch + '$', 'i') }
+            });
+            if (targetPlayer) {
+                console.log(`✅ تم العثور بالـ playerId: ${targetPlayer.name}`);
+                return targetPlayer;
+            }
+
+            // 3. البحث بالاسم
+            targetPlayer = await Player.findOne({
+                name: { $regex: new RegExp(id, 'i') }
+            });
+            if (targetPlayer) {
+                console.log(`✅ تم العثور بالاسم: ${targetPlayer.name}`);
+                return targetPlayer;
+            }
+
+            console.log(`❌ لم يتم العثور على اللاعب: "${id}"`);
+            return null;
+        };
 
         switch (command) {
             case 'مدير': return this.getAdminHelp();
@@ -179,7 +183,7 @@ export class AdminSystem {
             case 'تغيير_جنس': return await this.handleSetPlayerGender(args, findTargetPlayer);
             case 'حظر_لاعب': return await this.handleBanPlayer(args, findTargetPlayer);
             case 'اعطاء_ذهب': return await this.handleGiveGold(args, findTargetPlayer);
-            case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap); 
+            case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap);
             case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
             case 'زيادة_مانا': return await this.handleIncreaseStat(args, 'maxMana', findTargetPlayer);
             case 'طلبات_سحب': return await this.handlePendingWithdrawals(args, senderId);
@@ -188,14 +192,109 @@ export class AdminSystem {
             case 'اضف_رد': return await this.handleAddAutoResponse(args, senderId);
             case 'ازل_رد': return await this.handleRemoveAutoResponse(args, senderId);
             case 'عرض_الردود': return await this.handleShowAutoResponses(args, senderId);
+            case 'عرض_اسلحة': return await this.handleShowItemsByType(args, 'weapon');
+            case 'عرض_وحوش': return await this.handleShowMonsters(args);
+            case 'عرض_مواقع': return await this.handleShowLocations(args);
+            case 'عرض_موارد': return await this.handleShowResources(args);
             default: return '❌ أمر مدير غير معروف';
         }
     }
-    
+
     // ===================================
-    // 1. أوامر الإدارة الأساسية
+    // أوامر العرض الجديدة
     // ===================================
-    
+
+    async handleShowItemsByType(args, type) {
+        try {
+            const itemsList = Object.entries(items).filter(([id, item]) => item.type === type);
+            if (itemsList.length === 0) return `❌ لا توجد عناصر من نوع ${type}`;
+
+            let message = `📋 عناصر من نوع ${type} (${itemsList.length}):\n\n`;
+            itemsList.forEach(([id, item], index) => {
+                message += `• ${item.name} (${id})\n`;
+                message += `  المستوى: ${item.level || 1}\n`;
+                if (item.attack) message += `  الهجوم: ${item.attack}\n`;
+                if (item.defense) message += `  الدفاع: ${item.defense}\n`;
+                if (item.rarity) message += `  الندرة: ${item.rarity}\n`;
+                message += `\n`;
+            });
+
+            return message;
+        } catch (error) {
+            console.error('❌ خطأ في عرض العناصر:', error);
+            return '❌ حدث خطأ في عرض العناصر.';
+        }
+    }
+
+    async handleShowMonsters(args) {
+        try {
+            const { monsters } = await import('../../data/monsters.js');
+            const monstersList = Object.entries(monsters);
+            if (monstersList.length === 0) return '❌ لا توجد وحوش';
+
+            let message = `👹 جميع الوحوش (${monstersList.length}):\n\n`;
+            monstersList.forEach(([id, monster], index) => {
+                message += `• ${monster.name} (${id})\n`;
+                message += `  المستوى: ${monster.level || 1}\n`;
+                message += `  الصحة: ${monster.health || monster.maxHealth || 0}\n`;
+                message += `  الضرر: ${monster.damage || 0}\n`;
+                if (monster.isBoss) message += `  👑 زعيم\n`;
+                message += `\n`;
+            });
+
+            return message;
+        } catch (error) {
+            console.error('❌ خطأ في عرض الوحوش:', error);
+            return '❌ حدث خطأ في عرض الوحوش.';
+        }
+    }
+
+    async handleShowLocations(args) {
+        try {
+            const { locations } = await import('../../data/locations.js');
+            const locationsList = Object.entries(locations);
+            if (locationsList.length === 0) return '❌ لا توجد مواقع';
+
+            let message = `📍 جميع المواقع (${locationsList.length}):\n\n`;
+            locationsList.forEach(([id, location], index) => {
+                message += `• ${location.name || id} (${id})\n`;
+                if (location.monsters) message += `  الوحوش: ${location.monsters.length}\n`;
+                if (location.resources) message += `  الموارد: ${location.resources.length}\n`;
+                message += `\n`;
+            });
+
+            return message;
+        } catch (error) {
+            console.error('❌ خطأ في عرض المواقع:', error);
+            return '❌ حدث خطأ في عرض المواقع.';
+        }
+    }
+
+    async handleShowResources(args) {
+        try {
+            const { resources } = await import('../../data/resources.js');
+            const resourcesList = Object.entries(resources);
+            if (resourcesList.length === 0) return '❌ لا توجد موارد';
+
+            let message = `🌿 جميع الموارد (${resourcesList.length}):\n\n`;
+            resourcesList.forEach(([id, resource], index) => {
+                message += `• ${resource.name} (${id})\n`;
+                message += `  الندرة: ${resource.rarity || 'عادي'}\n`;
+                if (resource.locations) message += `  المواقع: ${resource.locations.length}\n`;
+                message += `\n`;
+            });
+
+            return message;
+        } catch (error) {
+            console.error('❌ خطأ في عرض الموارد:', error);
+            return '❌ حدث خطأ في عرض الموارد.';
+        }
+    }
+
+    // ===================================
+    // أوامر الإدارة الأساسية
+    // ===================================
+
     async handleResetPlayer(args, findTargetPlayer) {
         const targetId = args[0];
         if (!targetId) {
@@ -206,12 +305,12 @@ export class AdminSystem {
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
-        
+
         const oldName = targetPlayer.name;
         await targetPlayer.deleteOne();
         await Player.createNew(targetPlayer.userId, targetPlayer.name);
 
-        return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب **${oldName}** بنجاح.\n(الاسم **${oldName}** أصبح متاحاً الآن للاستخدام من قبل أي شخص آخر).\nسيحتاج لبدء التسجيل من جديد.`;
+        return `🗑️ تم مسح وإعادة تعيين بيانات اللاعب ${oldName} بنجاح.`;
     }
 
     async handleSetPlayerName(args, findTargetPlayer) {
@@ -221,44 +320,42 @@ export class AdminSystem {
         if (!targetId || !newName) {
             return '❌ الاستخدام: تغيير_اسم [UserID/PlayerID] [الاسم الجديد]';
         }
-        
+
         const targetPlayer = await findTargetPlayer(targetId);
         if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب بالمعرّف ${targetId}.`;
+            return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
-        
+
         const existingPlayer = await Player.findOne({ name: newName, userId: { $ne: targetPlayer.userId } });
         if (existingPlayer) {
-            return `❌ الاسم **${newName}** مستخدم بالفعل من قبل لاعب آخر.`;
+            return `❌ الاسم ${newName} مستخدم بالفعل.`;
         }
 
         const oldName = targetPlayer.name;
         targetPlayer.name = newName;
         await targetPlayer.save();
-        
-        return `✅ تم تحديث اسم اللاعب **${oldName}** بنجاح إلى: **${newName}**.\n(الاسم **${oldName}** أصبح متاحًا الآن).`;
+
+        return `✅ تم تغيير اسم اللاعب من ${oldName} إلى ${newName}.`;
     }
 
     async handleSetPlayerGender(args, findTargetPlayer) {
         const targetId = args[0];
         const newGenderRaw = args[1] ? args[1].toLowerCase() : null;
 
-        if (!targetId || (newGenderRaw !== 'ذكر' && newGenderRaw !== 'أنثى' && newGenderRaw !== 'male' && newGenderRaw !== 'female')) {
+        if (!targetId || !['ذكر', 'أنثى', 'male', 'female'].includes(newGenderRaw)) {
             return '❌ الاستخدام: تغيير_جنس [UserID/PlayerID] [ذكر/أنثى]';
         }
-        
+
         const targetPlayer = await findTargetPlayer(targetId);
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
 
         const genderCode = (newGenderRaw === 'ذكر' || newGenderRaw === 'male') ? 'male' : 'female';
-        const genderName = (newGenderRaw === 'ذكر' || newGenderRaw === 'male') ? 'ذكر 👦' : 'أنثى 👧';
-        
         targetPlayer.gender = genderCode;
         await targetPlayer.save();
 
-        return `🚻 تم تغيير جنس اللاعب **${targetPlayer.name}** إلى **${genderName}** بنجاح.`;
+        return `✅ تم تغيير جنس اللاعب ${targetPlayer.name} إلى ${genderCode === 'male' ? 'ذكر' : 'أنثى'}.`;
     }
 
     async handleBanPlayer(args, findTargetPlayer) {
@@ -278,9 +375,9 @@ export class AdminSystem {
         targetPlayer.banned = isBanning;
         await targetPlayer.save();
 
-        return `🚫 تم **${isBanning ? 'حظر' : 'رفع الحظر عن'}** اللاعب **${targetPlayer.name}** بنجاح.`;
+        return `✅ تم ${isBanning ? 'حظر' : 'رفع الحظر عن'} اللاعب ${targetPlayer.name}.`;
     }
-    
+
     async handleApprovePlayer(args, senderId) {
         const RegistrationSystem = (await import('../registration/RegistrationSystem.js')).RegistrationSystem;
         const registrationSystem = new RegistrationSystem();
@@ -291,12 +388,12 @@ export class AdminSystem {
                 return '✅ لا يوجد لاعبين بانتظار الموافقة.';
             }
 
-            let message = '⏳ **اللاعبين المنتظرين للموافقة:**\n\n';
+            let message = '⏳ اللاعبين المنتظرين للموافقة:\n\n';
             pendingPlayers.forEach((p, index) => {
-                message += `${index + 1}. ${p.name} - \`${p.userId}\` - ${new Date(p.createdAt).toLocaleDateString('ar-SA')}\n`;
+                message += `${index + 1}. ${p.name} - ${p.userId}\n`;
             });
-            
-            message += '\nللموافقة، اكتب: موافقة_لاعب [المعرف]';
+
+            message += '\nللموافقة: موافقة_لاعب [المعرف]';
             return message;
         }
 
@@ -304,32 +401,31 @@ export class AdminSystem {
         return await registrationSystem.approvePlayer(targetUserId, senderId);
     }
 
-    async handleGiveItem(args, findTargetPlayer, itemMap) { 
+    async handleGiveItem(args, findTargetPlayer, itemMap) {
         if (args.length < 3) {
-            return `❌ صيغة خاطئة. الاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]`;
+            return '❌ الاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]';
         }
-        
+
         const targetId = args[0];
         const quantity = parseInt(args[args.length - 1], 10);
-        const rawItemNameArray = args.slice(1, args.length - 1);
-        const rawItemName = rawItemNameArray.join(' ').toLowerCase();
+        const rawItemName = args.slice(1, args.length - 1).join(' ').toLowerCase();
 
         const itemId = itemMap[rawItemName] || rawItemName;
         const itemInfo = items[itemId];
 
         if (!itemInfo || isNaN(quantity) || quantity <= 0) {
-            return `❌ صيغة خاطئة أو العنصر غير موجود.\nالاستخدام: اعطاء_مورد [ID] [اسم_العنصر] [الكمية]\n(تحقق: هل العنصر **${rawItemName}** موجود؟ هل الكمية رقم؟)`;
+            return `❌ العنصر غير موجود أو الكمية غير صالحة.`;
         }
 
         const targetPlayer = await findTargetPlayer(targetId);
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
-        
+
         targetPlayer.addItem(itemInfo.id, itemInfo.name, itemInfo.type, quantity);
         await targetPlayer.save();
 
-        return `🎒 تم إضافة ${quantity} × **${itemInfo.name}** للاعب **${targetPlayer.name}** بنجاح.`;
+        return `✅ تم إضافة ${quantity} × ${itemInfo.name} للاعب ${targetPlayer.name}.`;
     }
 
     async handleIncreaseStat(args, statToChange, findTargetPlayer) {
@@ -339,49 +435,46 @@ export class AdminSystem {
         if (!targetId || isNaN(amount) || amount <= 0) {
             return `❌ الاستخدام: زيادة_${statToChange === 'maxHealth' ? 'صحة' : 'مانا'} [ID] [الكمية]`;
         }
-        
+
         const targetPlayer = await findTargetPlayer(targetId);
         if (!targetPlayer) {
             return `❌ لم يتم العثور على اللاعب ${targetId}.`;
         }
 
-        let statNameAr;
         if (statToChange === 'maxHealth') {
             targetPlayer.maxHealth += amount;
-            targetPlayer.health += amount; 
-            statNameAr = 'الصحة القصوى ❤️';
+            targetPlayer.health += amount;
         } else if (statToChange === 'maxMana') {
             targetPlayer.maxMana += amount;
-            targetPlayer.mana += amount; 
-            statNameAr = 'المانا القصوى ⚡';
+            targetPlayer.mana += amount;
         }
-        
+
         await targetPlayer.save();
 
-        return `📈 تم زيادة **${statNameAr}** للاعب **${targetPlayer.name}** بمقدار ${amount}.`;
+        return `✅ تم زيادة ${statToChange === 'maxHealth' ? 'الصحة' : 'المانا'} للاعب ${targetPlayer.name} بمقدار ${amount}.`;
     }
-    
+
     async handleGiveGold(args, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
 
         if (!targetId || isNaN(amount) || amount <= 0) {
-            return '❌ الاستخدام: اعطاء_ذهب [UserID/PlayerID/الاسم] [الكمية]';
+            return '❌ الاستخدام: اعطاء_ذهب [UserID/PlayerID] [الكمية]';
         }
 
         const targetPlayer = await findTargetPlayer(targetId);
         if (!targetPlayer) {
-            return `❌ لم يتم العثور على اللاعب "${targetId}".\n💡 جرب:\n• معرف المستخدم (UserID)\n• المعرف التسلسلي (PlayerID مثل P476346)\n• اسم اللاعب`;
+            return `❌ لم يتم العثور على اللاعب "${targetId}".`;
         }
-        
+
         targetPlayer.addGold(amount);
         await targetPlayer.save();
 
-        return `💰 تم إعطاء اللاعب **${targetPlayer.name}** عدد **${amount}** غولد بنجاح.\n🆔 المعرف: ${targetPlayer.userId}\n🎯 التسلسلي: ${targetPlayer.playerId}\n💎 الرصيد الجديد: ${targetPlayer.gold}`;
+        return `✅ تم إعطاء اللاعب ${targetPlayer.name} مبلغ ${amount} غولد.`;
     }
 
     // ===================================
-    // 🆕 2. النظام الاقتصادي
+    // النظام الاقتصادي
     // ===================================
 
     async handlePendingWithdrawals(args, senderId) {
@@ -390,34 +483,30 @@ export class AdminSystem {
         }
 
         try {
-            // البحث عن اللاعبين الذين لديهم طلبات سحب معلقة
-            const allPlayers = await Player.find({ 
+            const allPlayers = await Player.find({
                 registrationStatus: 'completed',
-                banned: false 
+                banned: false
             });
 
-            const pendingPlayers = allPlayers.filter(player => 
-                player.pendingWithdrawal && 
-                player.pendingWithdrawal.status === 'pending'
+            const pendingPlayers = allPlayers.filter(player =>
+                player.pendingWithdrawal && player.pendingWithdrawal.status === 'pending'
             );
 
             if (pendingPlayers.length === 0) {
                 return '📭 لا توجد طلبات سحب معلقة.';
             }
 
-            let message = `📋 **طلبات السحب المعلقة (${pendingPlayers.length}):**\n\n`;
-            
+            let message = `📋 طلبات السحب المعلقة (${pendingPlayers.length}):\n\n`;
+
             pendingPlayers.forEach((p, index) => {
-                message += `${index + 1}. 👤 ${p.name} (${p.userId})\n`;
-                message += `   💰 ${p.pendingWithdrawal.amount} غولد\n`;
-                message += `   ⏰ ${p.pendingWithdrawal.requestedAt ? p.pendingWithdrawal.requestedAt.toLocaleString('ar-SA') : 'غير محدد'}\n`;
-                message += `   🎯 معالجة: \`معالجة_سحب ${p.userId} قبول/رفض\`\n\n`;
+                message += `${index + 1}. ${p.name} (${p.userId})\n`;
+                message += `   💰 ${p.pendingWithdrawal.amount} غولد\n\n`;
             });
 
             return message;
         } catch (error) {
             console.error('Error fetching pending withdrawals:', error);
-            return '❌ حدث خطأ أثناء جلب طلبات السحب. تفاصيل الخطأ: ' + error.message;
+            return '❌ حدث خطأ أثناء جلب طلبات السحب.';
         }
     }
 
@@ -434,7 +523,6 @@ export class AdminSystem {
         const action = args[1].toLowerCase();
 
         try {
-            // البحث عن اللاعب باستخدام الدالة المحسنة
             let targetPlayer = await Player.findOne({ userId: targetPlayerId });
             if (!targetPlayer) {
                 targetPlayer = await Player.findOne({ playerId: targetPlayerId });
@@ -442,9 +530,9 @@ export class AdminSystem {
             if (!targetPlayer) {
                 targetPlayer = await Player.findOne({ name: new RegExp(targetPlayerId, 'i') });
             }
-                
+
             if (!targetPlayer) {
-                return `❌ لم يتم العثور على اللاعب "${targetPlayerId}"\n💡 جرب:\n• معرف المستخدم\n• المعرف التسلسلي\n• اسم اللاعب`;
+                return `❌ لم يتم العثور على اللاعب "${targetPlayerId}"`;
             }
 
             if (!targetPlayer.pendingWithdrawal || targetPlayer.pendingWithdrawal.status !== 'pending') {
@@ -455,33 +543,13 @@ export class AdminSystem {
 
             if (action === 'قبول' || action === 'موافقة') {
                 targetPlayer.pendingWithdrawal.status = 'completed';
-                
-                const transaction = targetPlayer.transactions.find(t => 
-                    t.type === 'withdrawal' && t.status === 'pending'
-                );
-                if (transaction) {
-                    transaction.status = 'completed';
-                    transaction.description = `سحب مكتمل - ${withdrawalAmount} غولد`;
-                }
-
                 await targetPlayer.save();
-
-                return `✅ تمت معالجة طلب السحب بنجاح!\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n🆔 المعرف: ${targetPlayer.userId}`;
-            } else if (action === 'رفض' || action === 'رفض') {
+                return `✅ تمت معالجة طلب السحب بنجاح!\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد`;
+            } else if (action === 'رفض') {
                 targetPlayer.gold += withdrawalAmount;
                 targetPlayer.pendingWithdrawal.status = 'rejected';
-                
-                const transaction = targetPlayer.transactions.find(t => 
-                    t.type === 'withdrawal' && t.status === 'pending'
-                );
-                if (transaction) {
-                    transaction.status = 'rejected';
-                    transaction.description = `سحب مرفوض - ${withdrawalAmount} غولد`;
-                }
-
                 await targetPlayer.save();
-
-                return `❌ تم رفض طلب السحب.\n👤 اللاعب: ${targetPlayer.name}\n💰 المبلغ: ${withdrawalAmount} غولد\n💎 تم إعادة المبلغ للرصيد.`;
+                return `❌ تم رفض طلب السحب.\n👤 اللاعب: ${targetPlayer.name}\n💰 تم إعادة ${withdrawalAmount} غولد.`;
             } else {
                 return '❌ إجراء غير معروف. استخدم: قبول أو رفض';
             }
@@ -497,7 +565,7 @@ export class AdminSystem {
         }
 
         if (args.length < 2) {
-            return '❌ usage: اضافة_غولد [player_id] [amount]';
+            return '❌ الاستخدام: اضافة_غولد [player_id] [amount]';
         }
 
         const targetPlayerId = args[0];
@@ -508,7 +576,6 @@ export class AdminSystem {
         }
 
         try {
-            // البحث عن اللاعب باستخدام الدالة المحسنة
             let targetPlayer = await Player.findOne({ userId: targetPlayerId });
             if (!targetPlayer) {
                 targetPlayer = await Player.findOne({ playerId: targetPlayerId });
@@ -522,18 +589,17 @@ export class AdminSystem {
             }
 
             targetPlayer.gold += amount;
-            
             targetPlayer.transactions.push({
                 id: this.generateUniqueId(),
                 type: 'deposit',
                 amount: amount,
                 status: 'completed',
-                description: `إيداع من المدير`
+                description: 'إيداع من المدير'
             });
 
             await targetPlayer.save();
 
-            return `✅ تمت إضافة ${amount} غولد للاعب ${targetPlayer.name} بنجاح!\n💰 الرصيد الجديد: ${targetPlayer.gold} غولد`;
+            return `✅ تمت إضافة ${amount} غولد للاعب ${targetPlayer.name}.`;
         } catch (error) {
             console.error('Error adding gold:', error);
             return '❌ حدث خطأ أثناء إضافة الغولد.';
@@ -541,7 +607,7 @@ export class AdminSystem {
     }
 
     // ===================================
-    // 🆕 3. الردود التلقائية
+    // الردود التلقائية
     // ===================================
 
     async handleAddAutoResponse(args, senderId) {
@@ -553,7 +619,7 @@ export class AdminSystem {
         const parts = input.split('||');
 
         if (parts.length < 2) {
-            return '❌ الاستخدام: اضف_رد [الكلمة المفتاحية] || [الرد]\nمثال: اضف_رد مرحبا || أهلاً وسهلاً بك!';
+            return '❌ الاستخدام: اضف_رد [الكلمة] || [الرد]';
         }
 
         const keyword = parts[0].trim().toLowerCase();
@@ -565,7 +631,7 @@ export class AdminSystem {
 
         this.autoResponseSystem.addResponse(keyword, response);
 
-        return `✅ تم إضافة رد تلقائي بنجاح!\n\n🔑 الكلمة المفتاحية: ${keyword}\n💬 الرد: ${response}\n\n💡 الآن عندما يكتب أي لاعب "${keyword}" سيرد البوت تلقائياً.`;
+        return `✅ تم إضافة رد تلقائي للكلمة "${keyword}".`;
     }
 
     async handleRemoveAutoResponse(args, senderId) {
@@ -576,16 +642,16 @@ export class AdminSystem {
         const keyword = args.join(' ').toLowerCase().trim();
 
         if (!keyword) {
-            return '❌ الاستخدام: ازل_رد [الكلمة المفتاحية]';
+            return '❌ الاستخدام: ازل_رد [الكلمة]';
         }
 
         const removed = this.autoResponseSystem.removeResponse(keyword);
-        
+
         if (!removed) {
-            return `❌ لا يوجد رد تلقائي للكلمة المفتاحية "${keyword}".`;
+            return `❌ لا يوجد رد تلقائي للكلمة "${keyword}".`;
         }
 
-        return `✅ تم حذف الرد التلقائي للكلمة "${keyword}" بنجاح.`;
+        return `✅ تم حذف الرد التلقائي للكلمة "${keyword}".`;
     }
 
     async handleShowAutoResponses(args, senderId) {
@@ -595,34 +661,16 @@ export class AdminSystem {
 
         const allResponses = this.autoResponseSystem.getAllResponses();
         const totalResponses = Object.keys(allResponses).length;
-        
+
         if (totalResponses === 0) {
-            return '📝 لا توجد ردود تلقائية مضافة حالياً.';
+            return '📝 لا توجد ردود تلقائية.';
         }
 
-        const page = parseInt(args[0]) || 1;
-        const perPage = 8;
-        const totalPages = Math.ceil(totalResponses / perPage);
+        let message = `🤖 الردود التلقائية (${totalResponses}):\n\n`;
 
-        if (page < 1 || page > totalPages) {
-            return `❌ الصفحة ${page} غير موجودة. إجمالي الصفحات: ${totalPages}`;
+        for (const [keyword, response] of Object.entries(allResponses)) {
+            message += `• ${keyword}: ${response}\n`;
         }
-
-        let message = `🤖 الردود التلقائية (${totalResponses}) - الصفحة ${page} من ${totalPages}:\n\n`;
-
-        const startIndex = (page - 1) * perPage;
-        const endIndex = startIndex + perPage;
-
-        const responsesArray = Object.entries(allResponses);
-        
-        for (let i = startIndex; i < endIndex && i < responsesArray.length; i++) {
-            const [keyword, response] = responsesArray[i];
-            const shortResponse = response.length > 60 ? response.substring(0, 60) + '...' : response;
-            message += `${i + 1}. ${keyword}\n   ${shortResponse}\n\n`;
-        }
-
-        message += `📄 للتنقل: عرض_الردود [رقم الصفحة]\n`;
-        message += `💡 الأوامر: اضف_رد | ازل_رد`;
 
         return message;
     }
@@ -630,4 +678,4 @@ export class AdminSystem {
     findAutoResponse(message) {
         return this.autoResponseSystem.findAutoResponse(message);
     }
-                }
+        }
