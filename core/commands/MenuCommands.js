@@ -25,176 +25,136 @@ export class MenuCommands extends BaseCommand {
         };
     }
 
-    // 🆕 نظام القوائم المنظمة - محدودة للاعبين غير المكتملين
-    async handleMainMenu(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
+    async handleMainMenu(player) {
+        if (!player.isApproved()) return this.getLimitedMenu();
         return this.getMenu('main');
     }
 
-    async handleMenu1(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('basic');
+    async handleMenu1(player) { return player.isApproved() ? this.getMenu('basic') : this.getLimitedMenu(); }
+    async handleMenu2(player) { return player.isApproved() ? this.getMenu('exploration') : this.getLimitedMenu(); }
+    async handleMenu3(player) { return player.isApproved() ? this.getMenu('combat') : this.getLimitedMenu(); }
+    async handleMenu4(player) { return player.isApproved() ? this.getMenu('crafting') : this.getLimitedMenu(); }
+    async handleMenu5(player) { return player.isApproved() ? this.getMenu('info') : this.getLimitedMenu(); }
+    async handleMenu6(player) { return player.isApproved() ? this.getMenu('economy') : this.getLimitedMenu(); }
+    async handleMenu7(player) { return player.isApproved() ? this.getMenu('gates') : this.getLimitedMenu(); }
+
+    async handleHelp(player) {
+        return player.isApproved() ? this.getMenu('main') : this.getLimitedHelpMenu();
     }
 
-    async handleMenu2(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('exploration');
+    getLimitedMenu() {
+        return `🎮 القائمة المحدودة
+
+📋 الأوامر المتاحة:
+• بدء - متابعة التسجيل
+• حالتي - عرض حالتك
+• معرفي - عرض معرفك
+• مساعدة - عرض الأوامر
+
+📝 لتصبح لاعباً كاملاً:
+1. الحصول على موافقة المدير
+2. اختيار الجنس
+3. اختيار الاسم`;
     }
 
-    async handleMenu3(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('combat');
+    getLimitedHelpMenu() {
+        return this.getLimitedMenu();
     }
 
-    async handleMenu4(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('crafting');
-    }
-
-    async handleMenu5(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('info');
-    }
-
-    async handleHelp(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedHelpMenu();
-        }
-        return this.handleMainMenu(player, args, senderId);
-    }
-
-    async handleMenu6(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('economy');
-    }
-
-    async handleMenu7(player, args, senderId) {
-        if (!player.isApproved()) {
-            return this.getLimitedMenu();
-        }
-        return this.getMenu('gates');
-    }
-
-    // 🆕 نظام القوائم المنظمة الكاملة
-    getMenu(menuType) {
+    getMenu(type) {
         const menus = {
-            main: `╔════════════ 🎮 قائمة الأوامر الرئيسية ════════════╗
-║
-║ 1️⃣ /الأساسية - أوامر البدء والتسجيل
-║ 2️⃣ /الاستكشاف - أوامر التنقل والجمع  
-║ 3️⃣ /القتال - أوامر المعارك والمغامرات
-║ 4️⃣ /الصناعة - أوامر الصنع والتجهيز
-║ 5️⃣ /المعلومات - أوامر الحالة والبروفايل
-║ 6️⃣ /الاقتصاد - أوامر السحب والتحويل والايداع
-║ 7️⃣ /البوابات - أوامر بوابات سولو والمغامرات
-║
-║ 📝 اختر رقم القائمة ( 1 , 2 , 3 , 4 , 5 , 6 , 7 )
-║
-╚══════════════════════════════════════════════════╝`,
+            main: `🎮 قائمة الأوامر
 
-            basic: `╔════════════ 🎯 الأوامر الأساسية ════════════╗
-║
-║ • بدء - بدء اللعبة أو متابعة التسجيل
-║ • معرفي - عرض معرفك للمدير
-║ • ذكر/أنثى - اختيار الجنس
-║ • اسمي [الاسم] - اختيار اسم إنجليزي
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية
-║
-╚══════════════════════════════════════════════╝`,
+📋 الأساسية
+• بدء | حالتي | معرفي | مساعدة
 
-            exploration: `╔════════════ 🗺️ أوامر الاستكشاف ════════════╗
-║
-║ • خريطة/الموقع - عرض الخريطة الحالية
-║ • بوابات - عرض البوابات القريبة
-║ • ادخل [اسم البوابة] - دخول البوابة
-║ • انتقل [مكان] - السفر إلى موقع
-║ • تجميع/اجمع - جمع الموارد
-║ • تجميع [اسم المورد] - جمع مورد محدد
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية  
-║
-╚══════════════════════════════════════════════╝`,
+🗺️ الاستكشاف
+• خريطة | انتقل | تجميع
 
-            combat: `╔════════════ ⚔️ أوامر القتال ════════════╗
-║
-║ • مغامرة/قتال - بدء معركة عشوائية
-║ • هجوم/اضرب - الهجوم في المعركة
-║ • هروب/اهرب - الهروب من المعركة
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية
-║
-╚══════════════════════════════════════════════╝`,
+⚔️ القتال
+• قتال | هجوم | هروب
 
-            crafting: `╔════════════ 🛠️ أوامر الصناعة ════════════╗
-║
-║ • وصفات/صناعة - عرض الوصفات المتاحة
-║ • اصنع [اسم العنصر] - صنع عنصر
-║ • جهز [اسم العنصر] - تجهيز سلاح/درع
-║ • انزع [اسم الخانة] - نزع عنصر مجهز
-║ • معداتي - عرض المعدات المجهزة
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية
-║
-╚══════════════════════════════════════════════╝`,
+🔨 الصناعة
+• صناعة | اصنع | فرن | صهر | طهو
 
-            info: `╔════════════ 📊 أوامر المعلومات ════════════╗
-║
-║ • حالتي/حالة - عرض الحالة الكاملة
-║ • بروفايلي/بطاقة - عرض البروفايل
-║ • حقيبتي/مخزن - عرض المحتويات
-║ • توب/افضل - قائمة أفضل اللاعبين
-║ • لاعبيين - عرض اللاعبين النشطين
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية
-║
-╚══════════════════════════════════════════════╝`,
-            
-            economy: `╔════════════ 💰 أوامر الاقتصاد ════════════╗
-║
-║ • رصيدي - عرض رصيد الغولد
-║ • سحب [مبلغ] - سحب غولد (الحد 100)
-║ • ايداع - إرشادات الإيداع
-║ • تحويل [@player] [مبلغ] - تحويل غولد
-║ • معاملاتي - سجل المعاملات
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية  
-║
-╚══════════════════════════════════════════════╝`,
+📊 المعلومات
+• حالتي | بروفايل | حقيبة
 
-            gates: `╔════════════ 🚪 أوامر البوابات ════════════╗
-║
-║ • بوابات - عرض البوابات المتاحة
-║ • بوابتي - معلومات البوابة الحالية
-║ • ادخل [اسم البوابة] - دخول بوابة
-║ • استكشف/استكشاف - استكشاف داخل البوابة
-║ • اختر [رقم] - اختيار مسار في القصة
-║ • مغادرة/غادر - مغادرة البوابة
-║
-║ 🎯 أمثلة:
-║ • "بوابات" - رؤية البوابات المتاحة
-║ • "ادخل بوابة سولو" - دخول بوابة
-║ • "استكشف" - بدء الاستكشاف
-║ • "اختر 1" - اختيار المسار الأول
-║
-║ ◀️ /رئيسية - العودة للقائمة الرئيسية
-║
-╚══════════════════════════════════════════════╝`
+💰 الاقتصاد
+• سحب | تحويل | رصيد
+
+🚪 البوابات
+• بوابات | ادخل | استكشف | مغادرة
+
+💡 اكتب اسم الأمر مباشرة`,
+
+            basic: `🎯 الأساسية
+
+• بدء - بدء اللعبة أو متابعة التسجيل
+• معرفي - عرض معرفك للمدير
+• ذكر / أنثى - اختيار الجنس
+• اسمي [الاسم] - اختيار اسم إنجليزي
+
+💡 رئيسية - العودة للقائمة`,
+
+            exploration: `🗺️ الاستكشاف
+
+• خريطة - عرض الخريطة
+• بوابات - عرض البوابات القريبة
+• ادخل [اسم البوابة] - دخول بوابة
+• انتقل [مكان] - السفر
+• تجميع - جمع الموارد
+• اجمع [اسم المورد] - جمع مورد محدد
+
+💡 رئيسية - العودة`,
+
+            combat: `⚔️ القتال
+
+• قتال - بدء معركة
+• هجوم - الهجوم في المعركة
+• هروب - الهروب من المعركة
+
+💡 رئيسية - العودة`,
+
+            crafting: `🔨 الصناعة
+
+• صناعة - عرض الوصفات
+• اصنع [اسم] - صنع عنصر
+• فرن - وصفات الفرن
+• صهر [خام] - صهر خام
+• طهو [طعام] - طهو طعام
+
+💡 رئيسية - العودة`,
+
+            info: `📊 المعلومات
+
+• حالتي - الحالة الكاملة
+• بروفايل - البروفايل
+• حقيبة - عرض المخزون
+• توب - أفضل اللاعبين
+
+💡 رئيسية - العودة`,
+
+            economy: `💰 الاقتصاد
+
+• رصيد - عرض رصيدك
+• سحب [مبلغ] - سحب غولد
+• تحويل [لاعب] [مبلغ] - تحويل
+• معاملاتي - سجل المعاملات
+
+💡 رئيسية - العودة`,
+
+            gates: `🚪 البوابات
+
+• بوابات - عرض البوابات
+• بوابتي - معلومات البوابة الحالية
+• ادخل [اسم] - دخول بوابة
+• استكشف - استكشاف
+• اختر [رقم] - اختيار مسار
+• مغادرة - مغادرة البوابة
+
+💡 رئيسية - العودة`
         };
-        return menus[menuType] || menus.main;
+        return menus[type] || menus.main;
     }
 }
