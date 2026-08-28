@@ -18,17 +18,21 @@ export default class CommandHandler {
         console.log('🔄 تهيئة CommandHandler...');
 
         try {
+            // الأنظمة المساعدة
             this.adminSystem = new AdminSystem();
             this.cardGenerator = new ProfileCardGenerator();
-            this.systems = {};
-            this.ARABIC_ITEM_MAP = ArabicItemMap.create();
+            this.systems = {}; // تخزين الأنظمة المحملة
+            this.ARABIC_ITEM_MAP = ArabicItemMap.create(); // خريطة الترجمة
 
+            // روابط المدير
             this.adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
             this.adminDisplayName = process.env.ADMIN_DISPLAY_NAME || 'المدير';
 
+            // تهيئة فئات الأوامر وتجميعها
             this.initCommandClasses();
             this.commands = this.collectAllCommands();
 
+            // الأوامر المسموحة قبل اكتمال التسجيل
             this.allowedBeforeApproval = [
                 'بدء', 'معرفي', 'مساعدة', 'اوامر', 'حالتي', 'حالة',
                 'ذكر', 'انثى', 'أنثى', 'اسمي'
@@ -42,6 +46,7 @@ export default class CommandHandler {
         }
     }
 
+    // تهيئة جميع فئات الأوامر
     initCommandClasses() {
         try {
             this.registrationCommands = new RegistrationCommands(this);
@@ -59,6 +64,7 @@ export default class CommandHandler {
         }
     }
 
+    // تجميع جميع الأوامر من الفئات المختلفة
     collectAllCommands() {
         const allCommands = {};
 
@@ -90,6 +96,7 @@ export default class CommandHandler {
         }
     }
 
+    // تحميل نظام معين (مثل: crafting, battle, gathering)
     async getSystem(systemName) {
         try {
             if (!this.systems[systemName]) {
@@ -109,6 +116,7 @@ export default class CommandHandler {
         }
     }
 
+    // رسالة التسجيل حسب حالة اللاعب
     getRegistrationMessage(player) {
         const status = player.registrationStatus;
         const adminLink = this.adminProfileUrl;
@@ -145,6 +153,7 @@ ${adminLink}
         return this.getLimitedHelpMenu();
     }
 
+    // قائمة المساعدة المحدودة
     getLimitedHelpMenu() {
         return `🎮 الأوامر المتاحة حالياً
 
@@ -159,29 +168,21 @@ ${adminLink}
 3. اختيار اسم إنجليزي`;
     }
 
+    // قائمة محدودة (نفس السابقة)
     getLimitedMenu() {
-        return `🎮 القائمة الرئيسية المحدودة
-
-📋 الأوامر المتاحة لك حالياً:
-• بدء - بدء/متابعة التسجيل
-• حالتي - عرض حالتك الحالية
-• معرفي - عرض المعرف للمدير
-• مساعدة - عرض الأوامر المتاحة
-
-📝 لتصبح لاعباً كاملاً، يجب:
-1. الحصول على موافقة المدير
-2. اختيار الجنس (ذكر/أنثى)
-3. اختيار اسم إنجليزي`;
+        return this.getLimitedHelpMenu();
     }
 
+    // معالجة الرسالة الرئيسية
     async process(sender, message) {
-        const { id, name } = sender;
+        const { id, name, platform } = sender; // ✅ نستخرج platform
         const processedMessage = message.trim().toLowerCase();
 
         let commandParts = processedMessage.split(/\s+/);
         let command = commandParts[0];
         let args = commandParts.slice(1);
 
+        // معالجة الأوامر المركبة (مثل "صناعة كاملة")
         const fullCommand = command + (args[0] ? ` ${args[0]}` : '');
         if (this.isCompoundCommand(fullCommand)) {
             const result = this.handleCompoundCommand(fullCommand, commandParts);
@@ -191,35 +192,44 @@ ${adminLink}
 
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
+        // ✅ فحص المدير أولاً
         const userIsAdmin = this.adminSystem.isAdmin(id);
         if (userIsAdmin) {
             const adminResult = await this.handleAdminCommand(command, args, id);
             if (adminResult) return adminResult;
         }
 
+        // الردود التلقائية
         const autoResponse = await this.handleAutoResponse(message);
         if (autoResponse) return autoResponse;
 
         try {
+            // ✅ دعم المنصتين: نستخدم platform لتحديد المنصة
+            const playerPlatform = platform || 'facebook';
+
             let player = await Player.findOne({ userId: id });
             if (!player) {
-                player = await Player.createNew(id, name);
-                console.log(`🎮 تم إنشاء لاعب جديد: ${player.name}`);
+                player = await Player.createNew(id, name, playerPlatform);
+                console.log(`🎮 تم إنشاء لاعب جديد: ${player.name} (${playerPlatform})`);
             }
 
+            // تفعيل المدير تلقائياً
             if (userIsAdmin && player.registrationStatus !== 'completed') {
                 player = await this.adminSystem.setupAdminPlayer(id, name);
                 console.log(`🎯 تم تفعيل المدير: ${player.name}`);
             }
 
+            // فحص الحظر
             if (player.banned) {
                 return '❌ تم حظرك من اللعبة.';
             }
 
+            // ✅ التحقق من حالة التسجيل
             if (!player.isApproved() && !this.allowedBeforeApproval.includes(command)) {
                 return this.getRegistrationMessage(player);
             }
 
+            // تنفيذ الأمر إذا كان موجوداً
             if (this.commands[command]) {
                 const handler = this.commands[command];
                 const result = await handler.call(this, player, args, id);
@@ -239,6 +249,7 @@ ${adminLink}
         }
     }
 
+    // فحص الأوامر المركبة
     isCompoundCommand(fullCommand) {
         const compoundCommands = [
             'موافقة لاعب', 'اعطاء مورد', 'اعطاء ذهب', 'تغيير اسم',
@@ -249,6 +260,7 @@ ${adminLink}
         return compoundCommands.includes(fullCommand);
     }
 
+    // تحويل الأوامر المركبة إلى مفاتيح
     handleCompoundCommand(fullCommand, commandParts) {
         const commandMap = {
             'موافقة لاعب': 'موافقة_لاعب',
@@ -271,6 +283,7 @@ ${adminLink}
         };
     }
 
+    // معالجة أوامر المدير
     async handleAdminCommand(command, args, userId) {
         const adminCommands = this.adminSystem.getAdminCommands();
         if (adminCommands[command]) {
@@ -290,6 +303,7 @@ ${adminLink}
         return null;
     }
 
+    // الردود التلقائية
     async handleAutoResponse(message) {
         try {
             const autoResponseSys = await this.getSystem('autoResponse');
@@ -306,6 +320,7 @@ ${adminLink}
         return null;
     }
 
+    // أمر غير معروف
     async handleUnknown(command, player) {
         const gateHints = {
             'دخل': '💡 هل تقصد "ادخل [اسم البوابة]"؟',
@@ -323,4 +338,4 @@ ${adminLink}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-    }
+        }
