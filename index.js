@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
+import './telegramBot.js';
 import express from 'express';
 import axios from 'axios';
 import FormData from 'form-data';
