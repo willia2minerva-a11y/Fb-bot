@@ -88,11 +88,14 @@ ${player.userId}
     }
 
     async handleGetId(player) {
-        return `🆔 معرفك هو:
+        if (player.registrationStatus === 'completed') {
+            return `🆔 معرفك: ${player.userId}`;
+        }
 
-${player.userId}
+        return `🆔 معرفك: ${player.userId}
 
-📨 أرسل هذا المعرف للأدمن للتفعيل
+📨 أرسل هذا المعرف للأدمن للتفعيل:
+${this.commandHandler?.adminProfileUrl || 'https://www.facebook.com/'}
 
 💡 خطوات التفعيل:
 1. انسخ المعرف
