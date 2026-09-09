@@ -2,7 +2,6 @@
 import mongoose from 'mongoose';
 import { items } from '../data/items.js';
 
-// 🆕 تصدير بيانات العناصر لاستخدامها في دوال playerSchema.pre('save')
 global.itemsData = items;
 
 const inventoryItemSchema = new mongoose.Schema({
@@ -14,7 +13,7 @@ const inventoryItemSchema = new mongoose.Schema({
 
 const playerSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
-    platform: { type: String, default: 'facebook' }, // ✅ 'facebook' أو 'telegram'
+    platform: { type: String, default: 'facebook' },
     name: { type: String, required: true },
     registrationStatus: { type: String, enum: ['pending', 'approved', 'completed'], default: 'pending' },
     gender: { type: String, enum: ['male', 'female'], default: null },
@@ -45,7 +44,6 @@ const playerSchema = new mongoose.Schema({
     stamina: { type: Number, default: 100, min: 0 },
     maxStamina: { type: Number, default: 100, min: 1 },
     lastStaminaAction: { type: Date, default: Date.now },
-    // 🆕 خصائص الاستعادة التدريجية
     lastHealthRegen: { type: Date, default: Date.now },
     lastManaRegen: { type: Date, default: Date.now },
     healthRegenRate: { type: Number, default: 0.5 },
@@ -80,12 +78,17 @@ const playerSchema = new mongoose.Schema({
         battle: { type: Date, default: null },
         craft: { type: Date, default: null }
     },
+    // ✅ حقول المهام والإنجازات
+    dailyTaskDate: { type: String, default: '' },
+    dailyTaskProgress: { type: Map, of: Number, default: {} },
+    completedDailyTasks: { type: [String], default: [] },
+    unlockedAchievements: { type: [String], default: [] },
     banned: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// 🆕 دالة ثابتة محسنة للبحث عن اللاعب بأي معرف
+// ✅ دالة ثابتة للبحث عن اللاعب
 playerSchema.statics.findPlayerByIdentifier = async function(identifier) {
     if (!identifier) return null;
 
@@ -97,10 +100,7 @@ playerSchema.statics.findPlayerByIdentifier = async function(identifier) {
     let player = await this.findOne({ userId: identifier });
     if (player) return player;
 
-    player = await this.findOne({
-        name: { $regex: new RegExp(identifier, 'i') }
-    });
-
+    player = await this.findOne({ name: { $regex: new RegExp(identifier, 'i') } });
     return player;
 };
 
@@ -148,7 +148,6 @@ playerSchema.methods.getRegenerationStatus = function() {
 
     const healthMinutes = Math.floor(healthTimeUntilNext / 60000);
     const healthSeconds = Math.floor((healthTimeUntilNext % 60000) / 1000);
-
     const manaMinutes = Math.floor(manaTimeUntilNext / 60000);
     const manaSeconds = Math.floor((manaTimeUntilNext % 60000) / 1000);
 
@@ -176,20 +175,15 @@ playerSchema.methods.getEnhancedStatus = function() {
 playerSchema.methods.getActualStamina = function() {
     const recoveryRate = 5;
     const maxStam = this.maxStamina || 100;
-
     const lastActionTime = this.lastStaminaAction ? this.lastStaminaAction.getTime() : Date.now();
     const now = Date.now();
-
     const minutesPassed = (now - lastActionTime) / (1000 * 60);
     const recoveredStamina = Math.floor(minutesPassed * recoveryRate);
-
     let actualStamina = Math.min(this.stamina + recoveredStamina, maxStam);
-
     this.stamina = actualStamina;
     if (recoveredStamina > 0) {
         this.lastStaminaAction = new Date(now);
     }
-
     return actualStamina;
 };
 
@@ -269,9 +263,7 @@ playerSchema.methods.getCurrentLocation = function() {
 };
 
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
-    if (!this.inventory) {
-        this.inventory = [];
-    }
+    if (!this.inventory) this.inventory = [];
 
     const itemName = name || id;
     const itemType = type || 'unknown';
@@ -281,12 +273,7 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     if (existingItem) {
         existingItem.quantity += quantity;
     } else {
-        this.inventory.push({
-            id,
-            name: itemName,
-            type: itemType,
-            quantity
-        });
+        this.inventory.push({ id, name: itemName, type: itemType, quantity });
     }
 
     if (itemType === 'resource') {
@@ -358,17 +345,13 @@ playerSchema.methods.levelUp = function() {
 playerSchema.methods.heal = function(amount) {
     this.regenerate();
     this.health = (this.health || 0) + amount;
-    if (this.health > this.maxHealth) {
-        this.health = this.maxHealth;
-    }
+    if (this.health > this.maxHealth) this.health = this.maxHealth;
 };
 
 playerSchema.methods.takeDamage = function(amount) {
     this.regenerate();
     this.health = (this.health || 0) - amount;
-    if (this.health < 0) {
-        this.health = 0;
-    }
+    if (this.health < 0) this.health = 0;
     return this.health > 0;
 };
 
@@ -403,9 +386,7 @@ playerSchema.methods.getCooldown = function(action) {
     if (!this.cooldowns) return null;
 
     const cooldown = this.cooldowns[action];
-    if (!cooldown || new Date() > cooldown) {
-        return null;
-    }
+    if (!cooldown || new Date() > cooldown) return null;
     return Math.ceil((cooldown - new Date()) / 1000 / 60);
 };
 
@@ -497,12 +478,9 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
         return { error: `❌ العنصر ${itemsData[itemId]?.name || itemId} مجهز بالفعل في خانة ${slot}.` };
     }
 
-    if (oldItemId) {
-        this.equipment[slot] = null;
-    }
+    if (oldItemId) this.equipment[slot] = null;
 
     this.equipment[slot] = itemId;
-
     this.recalculateMaxStats(this.getEquippedItemStats(itemsData));
 
     return {
@@ -524,7 +502,6 @@ playerSchema.methods.unequipItem = function(slot, itemsData) {
     }
 
     this.equipment[slot] = null;
-
     this.recalculateMaxStats(this.getEquippedItemStats(itemsData));
 
     return {
@@ -534,20 +511,16 @@ playerSchema.methods.unequipItem = function(slot, itemsData) {
 };
 
 playerSchema.methods.getAttackDamage = function(itemsData) {
-    if (!itemsData) { return 10 + ((this.level || 1) - 1) * 2; }
-
+    if (!itemsData) return 10 + ((this.level || 1) - 1) * 2;
     const totalStats = this.getTotalStats(itemsData);
     const multiplier = (this.skills && this.skills.combat) || 1;
-
     return Math.floor(totalStats.damage * multiplier);
 };
 
 playerSchema.methods.getDefense = function(itemsData) {
-    if (!itemsData) { return 5 + ((this.level || 1) - 1) * 1; }
-
+    if (!itemsData) return 5 + ((this.level || 1) - 1) * 1;
     const totalStats = this.getTotalStats(itemsData);
     const multiplier = (this.skills && this.skills.combat) || 1;
-
     return Math.floor(totalStats.defense * multiplier);
 };
 
@@ -578,9 +551,7 @@ playerSchema.statics.getLastNumericId = async function() {
 
     if (lastPlayer && lastPlayer.playerId) {
         const lastId = parseInt(lastPlayer.playerId, 10);
-        if (!isNaN(lastId) && lastId >= 1000) {
-            return lastId;
-        }
+        if (!isNaN(lastId) && lastId >= 1000) return lastId;
     }
     return 1000;
 };
@@ -592,7 +563,7 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
 
         const player = new this({
             userId,
-            platform, // ✅ حفظ المنصة
+            platform,
             name,
             registrationStatus: 'pending',
             gender: null,
@@ -616,30 +587,11 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
             regenInterval: 300000,
             currentLocation: 'forest',
             inventory: [
-                {
-                    id: 'wood',
-                    name: 'خشب',
-                    type: 'resource',
-                    quantity: 5
-                },
-                {
-                    id: 'stone',
-                    name: 'حجر',
-                    type: 'resource',
-                    quantity: 3
-                }
+                { id: 'wood', name: 'خشب', type: 'resource', quantity: 5 },
+                { id: 'stone', name: 'حجر', type: 'resource', quantity: 3 }
             ],
-            skills: {
-                gathering: 1,
-                combat: 1,
-                crafting: 1
-            },
-            equipment: {
-                weapon: null,
-                armor: null,
-                accessory: null,
-                tool: null
-            },
+            skills: { gathering: 1, combat: 1, crafting: 1 },
+            equipment: { weapon: null, armor: null, accessory: null, tool: null },
             stats: {
                 battlesWon: 0,
                 battlesLost: 0,
@@ -648,11 +600,12 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
                 resourcesGathered: 0,
                 itemsCrafted: 0
             },
-            cooldowns: {
-                gather: null,
-                battle: null,
-                craft: null
-            }
+            cooldowns: { gather: null, battle: null, craft: null },
+            // ✅ حقول المهام
+            dailyTaskDate: '',
+            dailyTaskProgress: {},
+            completedDailyTasks: [],
+            unlockedAchievements: []
         });
 
         await player.save();
@@ -678,18 +631,14 @@ playerSchema.statics.findByUserId = async function(userId) {
 };
 
 playerSchema.statics.getTopPlayers = async function(limit = 10) {
-    return await this.find({
-        banned: false,
-        registrationStatus: 'completed'
-    })
-    .sort({ level: -1, experience: -1, gold: -1 })
-    .limit(limit);
+    return await this.find({ banned: false, registrationStatus: 'completed' })
+        .sort({ level: -1, experience: -1, gold: -1 })
+        .limit(limit);
 };
 
 playerSchema.statics.getPendingPlayers = async function() {
-    return await this.find({
-        registrationStatus: 'pending'
-    }).select('userId name createdAt playerId');
+    return await this.find({ registrationStatus: 'pending' })
+        .select('userId name createdAt playerId');
 };
 
 // ========== دوال افتراضية ==========
