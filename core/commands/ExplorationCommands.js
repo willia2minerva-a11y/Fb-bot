@@ -6,16 +6,26 @@ export class ExplorationCommands extends BaseCommand {
     getCommands() {
         return {
             'خريطة': this.handleMap.bind(this),
+            'خارطة': this.handleMap.bind(this),
             'الموقع': this.handleMap.bind(this),
+            'موقعي': this.handleMap.bind(this),
             'ماب': this.handleMap.bind(this),
             'انتقل': this.handleTravel.bind(this),
             'سافر': this.handleTravel.bind(this),
-            'نتقل': this.handleTravel.bind(this),
+            'سفر': this.handleTravel.bind(this),
+            'روح': this.handleTravel.bind(this),
+            'اذهب': this.handleTravel.bind(this),
             'ذهاب': this.handleTravel.bind(this),
             'تجميع': this.handleGather.bind(this),
             'اجمع': this.handleGather.bind(this),
-            'جمع': this.handleGather.bind(this)
+            'جمع': this.handleGather.bind(this),
+            'موارد': this.handleGather.bind(this)
         };
+    }
+
+    getLocationName(locationId) {
+        if (!locationId) return 'الغابة';
+        return locations[locationId]?.name || locationId;
     }
 
     async handleMap(player) {
@@ -27,7 +37,32 @@ export class ExplorationCommands extends BaseCommand {
             if (!worldSystem) {
                 return '❌ نظام الخريطة غير متوفر حالياً.';
             }
-            return worldSystem.showMap(player);
+
+            const result = worldSystem.showMap(player);
+            const currentLocationName = this.getLocationName(player.currentLocation);
+
+            if (typeof result === 'string') {
+                return result;
+            }
+
+            if (result?.message) {
+                return result.message;
+            }
+
+            return `🗺️ خريطة مغارة غولد
+
+📍 أنت الآن في: ${currentLocationName}
+
+🏠 المناطق:
+• الغابة - البداية
+• القرية - منطقة آمنة
+• الصحراء
+• الثلوج
+• المحيط
+• السماء
+• الجحيم
+
+💡 للسفر: انتقل [اسم المكان]`;
         } catch (error) {
             return this.handleError(error, 'عرض الخريطة');
         }
@@ -37,9 +72,15 @@ export class ExplorationCommands extends BaseCommand {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        const rawLocationName = args.join(' ');
+        const rawLocationName = args.join(' ').trim();
         if (!rawLocationName) {
-            return '❌ يرجى تحديد اسم المكان. مثال: انتقل الصحراء';
+            return `❌ اكتب اسم المكان
+
+مثال:
+انتقل الصحراء
+سافر القرية
+
+💡 للمعرفة: خريطة`;
         }
 
         const locationId = this.commandHandler?.ARABIC_ITEM_MAP?.[rawLocationName.toLowerCase()] || rawLocationName.toLowerCase();
@@ -60,18 +101,15 @@ export class ExplorationCommands extends BaseCommand {
             }
 
             await player.save();
-            return result.message;
+
+            const locationName = this.getLocationName(result.locationId || locationId);
+            return result.message || `✅ وصلت إلى ${locationName}`;
         } catch (error) {
             return this.handleError(error, 'السفر');
         }
     }
 
     async handleGather(player, args) {
-        console.log('🎯 handleGather called');
-        console.log('👤 player:', player ? 'exists' : 'null');
-        console.log('📍 player.currentLocation:', player?.currentLocation);
-        console.log('📝 args:', args);
-        
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
@@ -79,25 +117,19 @@ export class ExplorationCommands extends BaseCommand {
         if (!gatheringSystem) {
             return '❌ نظام الجمع غير متوفر حالياً.';
         }
-        
-        console.log('✅ gatheringSystem loaded');
 
         if (args.length === 0) {
-            console.log('🔍 عرض الموارد المتاحة...');
             try {
                 const result = gatheringSystem.showAvailableResources(player);
-                console.log('📋 result:', result);
                 return result.message || '❌ لا توجد موارد متاحة.';
             } catch (error) {
-                console.error('❌ خطأ في showAvailableResources:', error);
-                console.error('❌ Stack:', error.stack);
+                console.error('❌ خطأ في عرض الموارد:', error);
                 return '❌ حدث خطأ في عرض الموارد.';
             }
         }
 
-        const rawResourceName = args.join(' ');
+        const rawResourceName = args.join(' ').trim();
         const resourceId = this.commandHandler?.ARABIC_ITEM_MAP?.[rawResourceName.toLowerCase()] || rawResourceName.toLowerCase();
-        console.log('🔍 resourceId:', resourceId);
 
         const result = await gatheringSystem.gatherResources(player, resourceId);
 
@@ -107,4 +139,4 @@ export class ExplorationCommands extends BaseCommand {
 
         return result.message;
     }
-            }
+}
