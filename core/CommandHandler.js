@@ -10,6 +10,7 @@ import { CraftingCommands } from './commands/CraftingCommands.js';
 import { ExplorationCommands } from './commands/ExplorationCommands.js';
 import { InfoCommands } from './commands/InfoCommands.js';
 import { MenuCommands } from './commands/MenuCommands.js';
+import { AchievementCommands } from './commands/AchievementCommands.js';
 import { SystemLoader } from './utils/SystemLoader.js';
 import { ArabicItemMap } from './utils/ArabicItemMap.js';
 
@@ -52,6 +53,7 @@ export default class CommandHandler {
             this.explorationCommands = new ExplorationCommands(this);
             this.infoCommands = new InfoCommands(this);
             this.menuCommands = new MenuCommands(this);
+            this.achievementCommands = new AchievementCommands(this);
             console.log('✅ تم تهيئة جميع فئات الأوامر');
         } catch (error) {
             console.error('❌ خطأ في تهيئة فئات الأوامر:', error);
@@ -71,7 +73,8 @@ export default class CommandHandler {
                 this.gateCommands,
                 this.craftingCommands,
                 this.battleCommands,
-                this.economyCommands
+                this.economyCommands,
+                this.achievementCommands
             ];
 
             commandSources.forEach(source => {
@@ -313,4 +316,4 @@ ${player.userId}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-            }
+                }
