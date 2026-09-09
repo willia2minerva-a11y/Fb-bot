@@ -2,6 +2,7 @@
 import { BaseCommand } from './BaseCommand.js';
 import { locations } from '../../data/locations.js';
 import { items } from '../../data/items.js';
+import { resources } from '../../data/resources.js';
 import Player from '../Player.js';
 
 export class InfoCommands extends BaseCommand {
@@ -25,87 +26,92 @@ export class InfoCommands extends BaseCommand {
         };
     }
 
+    _translateItemName(itemId) {
+        if (!itemId || itemId === 'null' || itemId === 'undefined') return 'لا يوجد';
+        if (resources[itemId]?.name) return resources[itemId].name;
+        if (items[itemId]?.name) return items[itemId].name;
+        return itemId;
+    }
+
+    _getLocationName(locationId) {
+        if (!locationId) return 'الغابة';
+        return locations[locationId]?.name || locationId;
+    }
+
+    _getRank(level) {
+        if (level >= 90) return 'SS';
+        if (level >= 75) return 'S';
+        if (level >= 60) return 'A';
+        if (level >= 45) return 'B';
+        if (level >= 30) return 'C';
+        if (level >= 15) return 'D';
+        return 'E';
+    }
+
     async handleStatus(player) {
-        // إذا كان اللاعب لم يكمل التسجيل، استخدم الرسالة الأصلية
         if (!player.isApproved()) {
-            let statusMessage = `📊 **حالتك الحالية:**\n\n`;
-            
+            let msg = `📊 حالتك\n\n`;
+
             if (player.isPending()) {
-                statusMessage += `⏳ **حالة الحساب:** قيد الانتظار للموافقة\n`;
-                statusMessage += `🆔 **المعرف:** ${player.userId}\n`;
-                statusMessage += `💡 **الإجراء المطلوب:** أرسل المعرف للمدير\n\n`;
-            } 
-            else if (player.isApprovedButNotCompleted()) {
-                statusMessage += `✅ **حالة الحساب:** تمت الموافقة - يحتاج إكمال\n`;
-                statusMessage += `👤 **الاسم الحالي:** ${player.name}\n`;
-                
+                msg += `⏳ حالة الحساب: قيد الانتظار\n`;
+                msg += `🆔 المعرف: ${player.userId}\n`;
+                msg += `💡 أرسل المعرف للأدمن\n\n`;
+            } else if (player.isApprovedButNotCompleted()) {
+                msg += `✅ تمت الموافقة - يحتاج إكمال\n`;
+                msg += `👤 الاسم: ${player.name}\n`;
+
                 if (!player.gender) {
-                    statusMessage += `⚧️ **الجنس:** لم يتم الاختيار\n`;
-                    statusMessage += `💡 استخدم "ذكر" أو "أنثى" لاختيار الجنس\n\n`;
+                    msg += `⚧️ الجنس: لم يتم الاختيار\n`;
+                    msg += `💡 اكتب "ذكر" أو "أنثى"\n\n`;
                 } else if (player.registrationStatus === 'name_pending') {
-                    statusMessage += `⚧️ **الجنس:** ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}\n`;
-                    statusMessage += `📛 **الاسم الإنجليزي:** لم يتم الاختيار\n`;
-                    statusMessage += `💡 استخدم "اسمي [الاسم]" لاختيار اسم إنجليزي\n\n`;
+                    msg += `⚧️ الجنس: ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}\n`;
+                    msg += `📛 الاسم: لم يتم الاختيار\n`;
+                    msg += `💡 اكتب "اسمي [الاسم]"\n\n`;
                 }
             }
-            
-            statusMessage += `📋 **الأوامر المتاحة:**\n`;
-            if (!player.isApproved()) {
-                statusMessage += `• "بدء" - متابعة التسجيل\n`;
-                statusMessage += `• "معرفي" - عرض المعرف للمدير\n`;
-                statusMessage += `• "مساعدة" - عرض الأوامر المتاحة\n`;
-            } else if (!player.isApprovedButNotCompleted()) {
-                statusMessage += `• "ذكر/أنثى" - اختيار الجنس\n`;
-                statusMessage += `• "اسمي [الاسم]" - اختيار اسم\n`;
+
+            msg += `📋 الأوامر المسموحة:\n`;
+            if (player.isPending()) {
+                msg += `• بدء\n• معرفي\n• مساعدة`;
+            } else {
+                msg += `• ذكر / أنثى\n• اسمي [الاسم]`;
             }
-            
-            return statusMessage;
+
+            return msg;
         }
 
-        // إذا كان اللاعب مكتمل التسجيل، استخدم الشكل الجدولي المفصل
         try {
-            const totalStats = player.getTotalStats(global.itemsData);
             const actualStamina = player.getActualStamina ? player.getActualStamina() : player.stamina;
-            
-            // دالة مساعدة لحساب الرانك
-            const getRank = (level) => {
-                if (level >= 100) return 'SS';
-                if (level >= 80) return 'S';
-                if (level >= 60) return 'A';
-                if (level >= 40) return 'B';
-                if (level >= 20) return 'C';
-                if (level >= 10) return 'D';
-                return 'E'; // من المستوى 1 إلى 9
-            };
+            const locationName = this._getLocationName(player.currentLocation);
 
-            return `╔═════════════ 👤 ملف اللاعب: ${player.name} ════════════╗
+            return `👤 ملف اللاعب: ${player.name}
 
 📜 معلومات أساسية
-├── المعرف (ID): ${player.playerId || player.userId}
-├── المستوى: **${player.level}**
-├── 🌟 الرانك: ${getRank(player.level)}
-└── 💰 الذهب: ${player.gold}
+• المعرف: ${player.playerId || player.userId}
+• المستوى: ${player.level}
+• الرانك: ${this._getRank(player.level)}
+• الذهب: ${player.gold}
+• الموقع: ${locationName}
 
-💪 الإحصائيات الحيوية
-├── ❤️ الصحة: ${Math.floor(player.health)}/${player.maxHealth}
-├── ⚡ المانا: ${Math.floor(player.mana)}/${player.maxMana}
-└── 🏃 النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}
+💪 الإحصائيات
+• الصحة: ${Math.floor(player.health)}/${player.maxHealth}
+• المانا: ${Math.floor(player.mana)}/${player.maxMana}
+• النشاط: ${Math.floor(actualStamina)}/${player.maxStamina}
 
-⚔️ قوة القتال والمعدات
-├── 🔥 الهجوم (بالمعدات): **${player.getAttackDamage(global.itemsData)}**
-├── 🛡️ الدفاع (بالمعدات): **${player.getDefense(global.itemsData)}**
-├── ⚔️ السلاح: ${player.equipment?.weapon ? global.itemsData[player.equipment.weapon]?.name || player.equipment.weapon : 'لا يوجد'}
-├── 🛡️ الدرع: ${player.equipment?.armor ? global.itemsData[player.equipment.armor]?.name || player.equipment.armor : 'لا يوجد'}
-├── 💍 إكسسوار: ${player.equipment?.accessory ? global.itemsData[player.equipment.accessory]?.name || player.equipment.accessory : 'لا يوجد'}
-└── ⛏️ الأداة: ${player.equipment?.tool ? global.itemsData[player.equipment.tool]?.name || player.equipment.tool : 'لا يوجد'}
+⚔️ القتال والمعدات
+• الهجوم: ${player.getAttackDamage(global.itemsData)}
+• الدفاع: ${player.getDefense(global.itemsData)}
+• السلاح: ${this._translateItemName(player.equipment?.weapon)}
+• الدرع: ${this._translateItemName(player.equipment?.armor)}
+• الإكسسوار: ${this._translateItemName(player.equipment?.accessory)}
+• الأداة: ${this._translateItemName(player.equipment?.tool)}
 
 📈 الخبرة
-└── 💡 التقدم: ${player.expProgress}% (${player.experience}/${player.requiredExp})
-╚══════════════════════════════════════╝`;
+• التقدم: ${player.expProgress}% (${player.experience}/${player.requiredExp})`;
 
         } catch (error) {
             console.error('Error in handleStatus:', error);
-            return `❌ حدث خطأ في عرض حالتك.\n${error.message}`;
+            return `❌ حدث خطأ في عرض حالتك:\n${error.message}`;
         }
     }
 
@@ -118,7 +124,7 @@ export class InfoCommands extends BaseCommand {
             return {
                 type: 'image',
                 path: imagePath,
-                caption: `📋 بطاقة بروفايلك يا ${player.name}!`
+                caption: `📋 بطاقة بروفايلك يا ${player.name}`
             };
         } catch (error) {
             return this.handleError(error, 'إنشاء البطاقة');
@@ -129,8 +135,29 @@ export class InfoCommands extends BaseCommand {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        const profileSystem = await this.getSystem('profile');
-        return profileSystem ? profileSystem.getPlayerInventory(player) : '❌ نظام البروفايل غير متوفر.';
+        if (!player.inventory || player.inventory.length === 0) {
+            return `🎒 حقيبة ${player.name}
+
+الحقيبة فارغة`;
+        }
+
+        let text = `🎒 حقيبة ${player.name}\n\n`;
+
+        if (player.equipment) {
+            text += `⚔️ المجهز حالياً:\n`;
+            text += `• سلاح: ${this._translateItemName(player.equipment.weapon)}\n`;
+            text += `• درع: ${this._translateItemName(player.equipment.armor)}\n`;
+            text += `• إكسسوار: ${this._translateItemName(player.equipment.accessory)}\n`;
+            text += `• أداة: ${this._translateItemName(player.equipment.tool)}\n\n`;
+        }
+
+        text += `📦 المخزون:\n`;
+        player.inventory.forEach(item => {
+            const displayName = this._translateItemName(item.id) || item.name;
+            text += `• ${displayName} ×${item.quantity}\n`;
+        });
+
+        return text;
     }
 
     async handleTopPlayers(player) {
@@ -139,24 +166,21 @@ export class InfoCommands extends BaseCommand {
 
         try {
             const topPlayers = await Player.getTopPlayers(5);
-            
-            let topMessage = `╔═══════════ 🏆  قائمة الشجعان (Top 5) ═══════════╗\n`;
-            topMessage += `\`\`\`prolog\n`;
-            
+
+            let msg = `🏆 الأفضل (Top 5)\n\n`;
             topPlayers.forEach((p, index) => {
-                const rankIcon = index === 0 ? '👑' : index === 1 ? '🥇' : index === 2 ? '🥈' : index === 3 ? '🥉' : '✨';
-                topMessage += `${rankIcon} #${index + 1}: ${p.name} (ID: ${p.playerId || p.userId}) - المستوى ${p.level}\n`;
+                const icons = ['👑', '🥇', '🥈', '🥉', '✨'];
+                msg += `${icons[index]} ${index + 1}. ${p.name} - المستوى ${p.level}\n`;
             });
-            
-            topMessage += `\`\`\`\n`;
-            
-            const allPlayers = await Player.find({ registrationStatus: 'completed' }).sort({ level: -1, experience: -1, gold: -1 }).select('name level userId playerId');
+
+            const allPlayers = await Player.find({ registrationStatus: 'completed' })
+                .sort({ level: -1, experience: -1, gold: -1 })
+                .select('name level userId');
             const playerRank = allPlayers.findIndex(p => p.userId === player.userId) + 1;
-            
-            topMessage += `📍 ترتيبك الحالي: **#${playerRank}** - **${player.name}** (المستوى ${player.level})\n`;
 
-            return topMessage;
+            msg += `\n📍 ترتيبك: #${playerRank} - ${player.name}`;
 
+            return msg;
         } catch (error) {
             return this.handleError(error, 'عرض قائمة التوب');
         }
@@ -170,35 +194,25 @@ export class InfoCommands extends BaseCommand {
             if (!this.adminSystem.isAdmin(player.userId)) {
                 return '❌ هذا الأمر خاص بالمدراء فقط.';
             }
-            
-            const activePlayers = await Player.find({ 
+
+            const activePlayers = await Player.find({
                 registrationStatus: 'completed',
-                banned: false 
+                banned: false
             })
             .sort({ level: -1, gold: -1 })
             .select('name level gold currentLocation playerId userId')
             .limit(20);
 
-            let playerList = `╔═════════ 🧑‍💻 لوحة تحكم المدير ═════════╗\n`;
-            playerList += `║     📋 قائمة اللاعبين النشطين (${activePlayers.length})       ║\n`;
-            playerList += `╚═══════════════════════════════════╝\n`;
-            playerList += `\`\`\`markdown\n`;
-            playerList += `| ID | المستوى | الاسم | الذهب | الموقع | المعرف\n`;
-            playerList += `|----|---------|--------|-------|--------|--------\n`;
-            
+            let msg = `📋 اللاعبين النشطين (${activePlayers.length})\n\n`;
+
             activePlayers.forEach((p, index) => {
-                const locationName = locations[p.currentLocation]?.name || p.currentLocation;
-                const shortUserId = p.userId.length > 8 ? p.userId.substring(0, 8) + '...' : p.userId;
-                playerList += `| ${p.playerId || 'N/A'} | L${p.level} | ${p.name} | 💰${p.gold} | ${locationName} | ${shortUserId}\n`;
+                const locationName = this._getLocationName(p.currentLocation);
+                msg += `• ${index + 1}. ${p.name} (${p.playerId || p.userId})\n`;
+                msg += `  المستوى: ${p.level} | الذهب: ${p.gold}\n`;
+                msg += `  الموقع: ${locationName}\n\n`;
             });
-            playerList += `\`\`\`\n`;
-            
-            playerList += `💡 **استخدم:**\n`;
-            playerList += `• \`اعطاء_ذهب P476346 100\` - لإعطاء غولد\n`;
-            playerList += `• \`اعطاء_مورد P476346 خشب 10\` - لإعطاء موارد\n`;
 
-            return playerList;
-
+            return msg;
         } catch (error) {
             return this.handleError(error, 'عرض قائمة اللاعبين');
         }
@@ -209,7 +223,7 @@ export class InfoCommands extends BaseCommand {
         if (approvalCheck.error) return approvalCheck.error;
 
         if (args.length === 0) {
-            return '❌ يرجى تحديد العنصر المراد رميه. مثال: رمي خشب 2';
+            return '❌ اكتب اسم العنصر. مثال: رمي خشب 2';
         }
 
         let quantity = 1;
@@ -218,73 +232,50 @@ export class InfoCommands extends BaseCommand {
         if (!isNaN(args[args.length - 1])) {
             quantity = parseInt(args[args.length - 1]);
             itemNameParts = args.slice(0, args.length - 1);
-        
             if (quantity <= 0) return '❌ الكمية يجب أن تكون أكبر من الصفر.';
         }
 
         const itemName = itemNameParts.join(' ');
-        const itemId = this.ARABIC_ITEM_MAP[itemName.toLowerCase()] || itemName.toLowerCase();
+        const itemId = this.commandHandler?.ARABIC_ITEM_MAP?.[itemName.toLowerCase()] || itemName.toLowerCase();
 
-        if (!itemId || !items[itemId]) {
-            return `❌ العنصر "${itemName}" غير موجود في مخزونك.`;
-        }
-
-        const currentQuantity = player.getItemQuantity ? player.getItemQuantity(itemId) : (player.inventory?.[itemId] || 0);
+        const currentQuantity = player.getItemQuantity ? player.getItemQuantity(itemId) : 0;
         if (currentQuantity < quantity) {
-            return `❌ لا تملك ${quantity} من ${items[itemId].name}. لديك ${currentQuantity} فقط.`;
+            return `❌ لا تملك ${quantity} من ${this._translateItemName(itemId)}. لديك ${currentQuantity} فقط.`;
         }
 
         if (player.removeItem) {
             player.removeItem(itemId, quantity);
-        } else {
-            player.inventory = player.inventory || {};
-            player.inventory[itemId] = (player.inventory[itemId] || 0) - quantity;
-            if (player.inventory[itemId] <= 0) {
-                delete player.inventory[itemId];
-            }
         }
 
         await player.save();
 
-        return `🗑️ **تم رمي ${quantity} من ${items[itemId].name}**\n` +
-               `📦 **المتبقي:** ${player.getItemQuantity ? player.getItemQuantity(itemId) : (player.inventory?.[itemId] || 0)}`;
+        return `🗑️ تم رمي ${quantity} من ${this._translateItemName(itemId)}\n📦 المتبقي: ${player.getItemQuantity(itemId)}`;
     }
 
     async handleEquipment(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        const itemsData = items;
+        const weapon = this._translateItemName(player.equipment?.weapon);
+        const armor = this._translateItemName(player.equipment?.armor);
+        const accessory = this._translateItemName(player.equipment?.accessory);
+        const tool = this._translateItemName(player.equipment?.tool);
 
-        const weapon = player.equipment?.weapon ? itemsData[player.equipment.weapon]?.name : 'لا يوجد';
-        const armor = player.equipment?.armor ? itemsData[player.equipment.armor]?.name : 'لا يوجد';
-        const accessory = player.equipment?.accessory ? itemsData[player.equipment.accessory]?.name : 'لا يوجد';
-        const tool = player.equipment?.tool ? itemsData[player.equipment.tool]?.name : 'لا يوجد';
+        const attack = player.getAttackDamage ? player.getAttackDamage(items) : 0;
+        const defense = player.getDefense ? player.getDefense(items) : 0;
 
-        const attack = player.getAttackDamage ? player.getAttackDamage(itemsData) : 0;
-        const defense = player.getDefense ? player.getDefense(itemsData) : 0;
-        const totalStats = player.getTotalStats ? player.getTotalStats(itemsData) : { maxHealth: 100, maxMana: 50, maxStamina: 100, critChance: 5, healthRegen: 1 };
+        return `⚔️ معداتك
 
-        let equipmentMessage = `⚔️ **المعدات المجهزة حالياً:**\n\n`;
-        equipmentMessage += `• ⚔️ السلاح: ${weapon}\n`;
-        equipmentMessage += `• 🛡️ الدرع: ${armor}\n`;
-        equipmentMessage += `• 💍 الإكسسوار: ${accessory}\n`;
-        equipmentMessage += `• ⛏️ الأداة: ${tool}\n\n`;
+• السلاح: ${weapon}
+• الدرع: ${armor}
+• الإكسسوار: ${accessory}
+• الأداة: ${tool}
 
-        equipmentMessage += `📊 **الإحصائيات الحالية:**\n`;
-        equipmentMessage += `• 🔥 قوة الهجوم: ${attack}\n`;
-        equipmentMessage += `• 🛡️ قوة الدفاع: ${defense}\n`;
-        equipmentMessage += `• ❤️ الصحة القصوى: ${totalStats.maxHealth}\n`;
-        equipmentMessage += `• ⚡ المانا القصوى: ${totalStats.maxMana}\n`;
-        equipmentMessage += `• 🏃 النشاط القصوى: ${Math.floor(totalStats.maxStamina)}\n`;
-        equipmentMessage += `• 🎯 فرصة حرجة: ${totalStats.critChance}%\n`;
-        equipmentMessage += `• 💚 تجديد الصحة: ${totalStats.healthRegen}\n\n`;
+📊 الإحصائيات
+• الهجوم: ${attack}
+• الدفاع: ${defense}
 
-        equipmentMessage += `💡 **الأوامر المتاحة:**\n`;
-        equipmentMessage += `• \`جهز [اسم العنصر]\` - لتجهيز عنصر من المخزون\n`;
-        equipmentMessage += `• \`انزع [اسم الخانة]\` - لنزع عنصر مجهز\n`;
-        equipmentMessage += `• الخانات: سلاح, درع, اكسسوار, اداة`;
-
-        return equipmentMessage;
+💡 للتجهيز: جهز [اسم العنصر]
+💡 للنزع: انزع [الخانة]`;
     }
     }
