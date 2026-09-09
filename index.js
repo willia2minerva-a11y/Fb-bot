@@ -1,14 +1,13 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
-
 import express from 'express';
 import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
 import CommandHandler from './core/CommandHandler.js';
-import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js'; 
-import { migrateAllData } from './core/migrateData.js'; // ✅ تمت الإضافة
+import { ProfileCardGenerator } from './utils/ProfileCardGenerator.js';
+import { migrateAllData } from './core/migrateData.js';
 
 // تحميل متغيرات البيئة
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -27,7 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // تهيئة نظام البطاقات
-const cardGenerator = new ProfileCardGenerator(); 
+const cardGenerator = new ProfileCardGenerator();
 
 // تهيئة معالج الأوامر
 let commandHandler;
@@ -38,15 +37,14 @@ async function connectDatabase() {
     await mongoose.connect(MONGODB_URI);
     console.log('✅ تم الاتصال بقاعدة البيانات');
 
-    // 🛠️ إصلاح: معالجة أخطاء الفهرس
     try {
       const collections = await mongoose.connection.db.listCollections().toArray();
       const playersCollection = collections.find(col => col.name === 'players');
-      
+
       if (playersCollection) {
         const indexes = await mongoose.connection.db.collection('players').indexes();
         const psidIndex = indexes.find(index => index.name === 'psid_1');
-        
+
         if (psidIndex) {
           await mongoose.connection.db.collection('players').dropIndex('psid_1');
           console.log('✅ تم إسقاط الفهرس psid_1 المسبب للمشكلة');
@@ -66,7 +64,7 @@ async function connectDatabase() {
 function startCleanupInterval() {
   setInterval(() => {
     cardGenerator.cleanupOldFiles();
-  }, 3600000); // ساعة واحدة
+  }, 3600000);
   console.log('🧹 تم تفعيل نظام تنظيف الملفات المؤقتة');
 }
 
@@ -94,14 +92,14 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
     }
 
     const formData = new FormData();
-    
+
     formData.append('filedata', fs.createReadStream(imagePath), {
       filename: path.basename(imagePath),
       contentType: 'image/png',
     });
-    
+
     formData.append('recipient', JSON.stringify({ id: senderId }));
-    
+
     formData.append('message', JSON.stringify({
       attachment: {
         type: 'image',
@@ -144,32 +142,29 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
 // معالجة الرسائل الواردة
 async function handleMessage(senderId, message) {
   console.log(`📩 رسالة من ${senderId}: ${message}`);
-  
+
   try {
     if (!commandHandler) {
       commandHandler = new CommandHandler();
     }
-    
+
     const sender = {
       id: senderId,
       name: `مغامر-${senderId.slice(-6)}`
     };
-    
+
     const response = await commandHandler.process(sender, message);
-    
+
     if (response && response.type === 'image') {
       await sendImageMessage(senderId, response.path, response.caption);
-    } 
-    else if (typeof response === 'string') {
+    } else if (typeof response === 'string') {
       await sendTextMessage(senderId, response);
-    }
-    else if (response && response.message) {
+    } else if (response && response.message) {
       await sendTextMessage(senderId, response.message);
-    }
-    else {
+    } else {
       await sendTextMessage(senderId, '❌ لم أتمكن من معالجة طلبك.');
     }
-    
+
   } catch (error) {
     console.error('❌ خطأ في معالجة الرسالة:', error);
     await sendTextMessage(senderId, '❌ حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
@@ -201,7 +196,7 @@ app.post('/webhook', async (req, res) => {
           if (event.message && event.message.text) {
             await handleMessage(event.sender.id, event.message.text);
           }
-          
+
           if (event.postback && event.postback.payload === 'GET_STARTED') {
             await handleMessage(event.sender.id, 'بدء');
           }
@@ -217,7 +212,7 @@ app.post('/webhook', async (req, res) => {
 
 // مسار الصحة (health check)
 app.get('/', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: '✅ البوت يعمل',
     name: 'مغارة غولد بوت',
     version: '1.0.0'
@@ -237,24 +232,28 @@ process.on('uncaughtException', (error) => {
 // الدالة الرئيسية
 async function main() {
   console.log('🚀 بدء تشغيل بوت مغارة غولد...');
-  
+
   try {
     await connectDatabase();
-    
-    // ✅ ترحيل البيانات تلقائيًا من ملفات data إلى MongoDB
+
     await migrateAllData();
     console.log('✅ تم تجهيز البيانات');
 
     startCleanupInterval();
-    
-    commandHandler = new CommandHandler(); 
+
+    commandHandler = new CommandHandler();
     console.log('✅ تم تهيئة معالج الأوامر');
-    
+
+    // ✅ استدعاء بوت تلغرام هنا (مرة واحدة فقط)
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      await import('./telegramBot.js');
+    }
+
     app.listen(PORT, () => {
       console.log(`✅ البوت يعمل على المنفذ ${PORT}`);
       console.log('📱 جاهز لاستقبال الرسائل عبر webhook...');
     });
-    
+
   } catch (error) {
     console.error('❌ فشل في بدء تشغيل البوت:', error);
     process.exit(1);
