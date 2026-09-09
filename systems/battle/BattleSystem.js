@@ -10,6 +10,11 @@ export class BattleSystem {
         this.allMonsters = monsters || {};
         this.allLocations = locations || {};
         this.items = items || {};
+        this.commandHandler = null; // ✅ سيتم تعيينه لاحقاً
+    }
+
+    setCommandHandler(handler) {
+        this.commandHandler = handler;
     }
 
     _drawHealthBar(current, max, length = 10) {
@@ -24,22 +29,12 @@ export class BattleSystem {
 
     _createMonstersDisplay(monsters) {
         const circledNumbers = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
-        const emojiMap = {
-            'slime': '🟢',
-            'goblin': '👺',
-            'demon': '👿',
-            'eye': '👁️',
-            'king_slime': '👑',
-            'zombie': '🧟',
-            'skeleton': '💀',
-            'boss': '👑'
-        };
 
         let display = `👹 الأعداء أمامك: ${monsters.length}\n`;
 
         monsters.forEach((monster, index) => {
             const number = circledNumbers[index] || `(${index + 1})`;
-            const icon = monster.isBoss ? '👑' : emojiMap[monster.id] || '👹';
+            const icon = monster.isBoss ? '👑' : '👹';
             const healthBar = this._drawHealthBar(monster.health, monster.maxHealth, 10);
             display += `\n${number} ${icon} ${monster.name}\n`;
             display += `   Lv.${monster.level}  ${healthBar}  ${Math.floor(monster.health)}/${monster.maxHealth} HP\n`;
@@ -53,9 +48,7 @@ export class BattleSystem {
         const locationInfo = this.allLocations[locationId];
         const playerLevel = player.level || 1;
 
-        if (!locationInfo || !locationInfo.monsters || locationInfo.monsters.length === 0) {
-            return null;
-        }
+        if (!locationInfo || !locationInfo.monsters || locationInfo.monsters.length === 0) return null;
 
         const availableMonsterIds = locationInfo.monsters.filter(id => this.allMonsters[id]);
         if (availableMonsterIds.length === 0) return null;
@@ -71,27 +64,19 @@ export class BattleSystem {
         if (suitableMonsters.length === 0) return null;
 
         let monsterCount = 1;
-        if (playerLevel >= 20) {
-            monsterCount = Math.min(1 + Math.floor(playerLevel / 20), 4);
-        }
+        if (playerLevel >= 20) monsterCount = Math.min(1 + Math.floor(playerLevel / 20), 4);
 
         const selectedMonsters = [];
         for (let i = 0; i < monsterCount; i++) {
             const weightedMonsters = [];
             suitableMonsters.forEach(monster => {
                 const weight = monster.level <= playerLevel ? 3 : 1;
-                for (let j = 0; j < weight; j++) {
-                    weightedMonsters.push(monster);
-                }
+                for (let j = 0; j < weight; j++) weightedMonsters.push(monster);
             });
 
             const randomMonster = weightedMonsters[Math.floor(Math.random() * weightedMonsters.length)];
             if (randomMonster) {
-                selectedMonsters.push({
-                    ...randomMonster,
-                    health: randomMonster.maxHealth,
-                    isBoss: randomMonster.isBoss || false
-                });
+                selectedMonsters.push({ ...randomMonster, health: randomMonster.maxHealth, isBoss: randomMonster.isBoss || false });
             }
         }
 
@@ -101,9 +86,7 @@ export class BattleSystem {
     async startBattle(player) {
         if (this.activeBattles.has(player.userId)) {
             const activeBattle = this.activeBattles.get(player.userId);
-            return {
-                error: `⚔️ أنت بالفعل في معركة!\n\n${this._createMonstersDisplay(activeBattle.monsters)}`
-            };
+            return { error: `⚔️ أنت بالفعل في معركة!\n\n${this._createMonstersDisplay(activeBattle.monsters)}` };
         }
 
         const staminaCost = 5;
@@ -118,36 +101,20 @@ export class BattleSystem {
             return { error: '❌ لا توجد وحوش مناسبة لمستواك هنا.' };
         }
 
-        const battleData = {
-            monsters: monsters,
-            currentTarget: 0,
-            turn: 0
-        };
-
+        const battleData = { monsters, currentTarget: 0, turn: 0 };
         this.activeBattles.set(player.userId, battleData);
         player.setCooldown('battle', 5);
         await player.save();
 
-        return {
-            success: true,
-            message: `⚔️ ━━━ معركة جديدة ━━━ ⚔️\n\n${this._createMonstersDisplay(monsters)}\n\n⚔️ هجوم  •  🏃 هروب`
-        };
+        return { success: true, message: `⚔️ ━━━ معركة جديدة ━━━ ⚔️\n\n${this._createMonstersDisplay(monsters)}\n\n⚔️ هجوم  •  🏃 هروب` };
     }
 
-    _getCurrentMonster(battleData) {
-        return battleData.monsters[battleData.currentTarget];
-    }
-
-    _nextMonster(battleData) {
-        battleData.currentTarget++;
-        return battleData.currentTarget < battleData.monsters.length;
-    }
+    _getCurrentMonster(battleData) { return battleData.monsters[battleData.currentTarget]; }
+    _nextMonster(battleData) { battleData.currentTarget++; return battleData.currentTarget < battleData.monsters.length; }
 
     async attack(player) {
         const battleData = this.activeBattles.get(player.userId);
-        if (!battleData) {
-            return { error: '❌ لست في معركة. استخدم "قتال" للبدء.' };
-        }
+        if (!battleData) return { error: '❌ لست في معركة. استخدم "قتال" للبدء.' };
 
         const currentMonster = this._getCurrentMonster(battleData);
         battleData.turn++;
@@ -155,8 +122,7 @@ export class BattleSystem {
         const playerDamage = player.getAttackDamage(this.items);
         currentMonster.health = Math.max(0, currentMonster.health - playerDamage);
 
-        let battleLog = `💥 هاجمت ${currentMonster.name}\n`;
-        battleLog += `   ألحقت ${playerDamage} ضرر\n`;
+        let battleLog = `💥 هاجمت ${currentMonster.name}\n   ألحقت ${playerDamage} ضرر\n`;
 
         if (currentMonster.health === 0) {
             battleLog += `\n🎯 تم القضاء على ${currentMonster.name}!\n`;
@@ -186,17 +152,12 @@ export class BattleSystem {
 
         await player.save();
 
-        return {
-            success: true,
-            message: `⚔️ ━━━ المعركة مستمرة ━━━ ⚔️\nدورة ${battleData.turn}\n\n${battleLog}\n\n${this._createMonstersDisplay(aliveDisplay)}\n\n❤️ أنت: ${playerBar}  ${Math.floor(player.health)}/${player.maxHealth} HP\n\n⚔️ هجوم  •  🏃 هروب`
-        };
+        return { success: true, message: `⚔️ ━━━ المعركة مستمرة ━━━ ⚔️\nدورة ${battleData.turn}\n\n${battleLog}\n\n${this._createMonstersDisplay(aliveDisplay)}\n\n❤️ أنت: ${playerBar}  ${Math.floor(player.health)}/${player.maxHealth} HP\n\n⚔️ هجوم  •  🏃 هروب` };
     }
 
     async escape(player) {
         const battleData = this.activeBattles.get(player.userId);
-        if (!battleData) {
-            return { error: '❌ لست في معركة حالياً.' };
-        }
+        if (!battleData) return { error: '❌ لست في معركة حالياً.' };
 
         const escapeStaminaCost = 10;
         if (!player.useStamina(escapeStaminaCost)) {
@@ -210,10 +171,7 @@ export class BattleSystem {
         if (Math.random() < escapeChance) {
             this.activeBattles.delete(player.userId);
             await player.save();
-            return {
-                success: true,
-                message: `🏃 هربت بنجاح!\n(-${escapeStaminaCost} نشاط)`
-            };
+            return { success: true, message: `🏃 هربت بنجاح!\n(-${escapeStaminaCost} نشاط)` };
         }
 
         const aliveMonsters = battleData.monsters.filter(m => m.health > 0);
@@ -227,13 +185,9 @@ export class BattleSystem {
         }
 
         const playerBar = this._drawHealthBar(player.health, player.maxHealth, 10);
-
         await player.save();
 
-        return {
-            success: false,
-            message: `❌ فشل الهروب!\n💔 أصبت بـ ${totalMonsterDamage} ضرر (-${escapeStaminaCost} نشاط)\n\n❤️ أنت: ${playerBar}  ${Math.floor(player.health)}/${player.maxHealth} HP\n\n⚔️ هجوم  •  🏃 هروب`
-        };
+        return { success: false, message: `❌ فشل الهروب!\n💔 أصبت بـ ${totalMonsterDamage} ضرر (-${escapeStaminaCost} نشاط)\n\n❤️ أنت: ${playerBar}  ${Math.floor(player.health)}/${player.maxHealth} HP\n\n⚔️ هجوم  •  🏃 هروب` };
     }
 
     async _handleVictory(player, monsters, log) {
@@ -250,9 +204,7 @@ export class BattleSystem {
             if (monster.drops && monster.drops.length > 0) {
                 for (const drop of monster.drops) {
                     if (Math.random() < drop.chance) {
-                        const quantity = drop.min
-                            ? Math.floor(Math.random() * (drop.max - drop.min + 1)) + drop.min
-                            : 1;
+                        const quantity = drop.min ? Math.floor(Math.random() * (drop.max - drop.min + 1)) + drop.min : 1;
                         const dropInfo = this.items[drop.itemId] || { name: drop.itemId };
                         player.addItem(drop.itemId, dropInfo.name, dropInfo.type || 'drop', quantity);
                         drops.push({ name: dropInfo.name, quantity });
@@ -269,35 +221,34 @@ export class BattleSystem {
             player.stats.monstersKilled = (player.stats.monstersKilled || 0) + monsters.length;
         }
 
-        let dropsMsg = '';
-        if (drops.length > 0) {
-            dropsMsg = '\n\n🎁 الغنائم:\n' + drops.map(d => `• ${d.quantity} × ${d.name}`).join('\n');
+        // ✅ تحديث المهام والإنجازات
+        try {
+            const achievementSystem = await this.commandHandler?.getSystem('achievement');
+            if (achievementSystem) {
+                await achievementSystem.updateTaskProgress(player, 'kill', monsters.length);
+                await achievementSystem.checkAchievements(player);
+            }
+        } catch (error) {
+            console.error('❌ خطأ في تحديث الإنجازات:', error);
         }
+
+        let dropsMsg = '';
+        if (drops.length > 0) dropsMsg = '\n\n🎁 الغنائم:\n' + drops.map(d => `• ${d.quantity} × ${d.name}`).join('\n');
 
         await player.save();
 
-        return {
-            success: true,
-            type: 'victory',
-            message: `${log}\n\n🎉 ━━━ انتصار! ━━━ 🎉\n\n👹 الوحوش المهزومة: ${defeatedNames.join('، ')}\n💰 الذهب: +${totalGold}\n✨ الخبرة: +${totalExp}${dropsMsg}`
-        };
+        return { success: true, type: 'victory', message: `${log}\n\n🎉 ━━━ انتصار! ━━━ 🎉\n\n👹 الوحوش المهزومة: ${defeatedNames.join('، ')}\n💰 الذهب: +${totalGold}\n✨ الخبرة: +${totalExp}${dropsMsg}` };
     }
 
     async _handleDefeat(player, monsters, log) {
         const goldLost = player.respawn();
 
-        if (player.stats) {
-            player.stats.battlesLost = (player.stats.battlesLost || 0) + 1;
-        }
+        if (player.stats) player.stats.battlesLost = (player.stats.battlesLost || 0) + 1;
 
         await player.save();
 
         const locationName = this.allLocations['village']?.name || 'القرية';
 
-        return {
-            success: false,
-            type: 'defeat',
-            message: `${log}\n\n💀 ━━━ هُزمت ━━━ 💀\n\n💰 خسرت: ${goldLost} ذهب\n📍 تم نقلك إلى ${locationName}\n❤️ صحتك: ${Math.floor(player.health)}/${player.maxHealth} HP`
-        };
+        return { success: false, type: 'defeat', message: `${log}\n\n💀 ━━━ هُزمت ━━━ 💀\n\n💰 خسرت: ${goldLost} ذهب\n📍 تم نقلك إلى ${locationName}\n❤️ صحتك: ${Math.floor(player.health)}/${player.maxHealth} HP` };
     }
-            }
+}
