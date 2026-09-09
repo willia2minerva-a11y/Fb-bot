@@ -7,10 +7,14 @@ export class GatheringSystem {
     this.allResources = resources;
     this.ITEMS = ITEMS_DATA;
     this.gatheringCooldowns = new Map();
-    console.log('🌿 نظام جمع الموارد تم تهيئته. عدد الموارد القابلة للجمع:', Object.keys(this.allResources).length);
+    this.commandHandler = null;
+    console.log('🌿 نظام جمع الموارد تم تهيئته');
   }
 
-  // ✅ دالة ترجمة موحدة
+  setCommandHandler(handler) {
+    this.commandHandler = handler;
+  }
+
   _translateItemName(itemId) {
     if (this.allResources[itemId]?.name) return this.allResources[itemId].name;
     if (this.ITEMS[itemId]?.name) return this.ITEMS[itemId].name;
@@ -31,16 +35,11 @@ export class GatheringSystem {
 
   _formatCooldown(ms) {
     const seconds = Math.floor(ms / 1000);
-    if (seconds < 60) {
-      return `${seconds} ثانية`;
-    } else {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
-      if (remainingSeconds > 0) {
-        return `${minutes} دقيقة و ${remainingSeconds} ثانية`;
-      }
-      return `${minutes} دقيقة`;
-    }
+    if (seconds < 60) return `${seconds} ثانية`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingSeconds > 0) return `${minutes} دقيقة و ${remainingSeconds} ثانية`;
+    return `${minutes} دقيقة`;
   }
 
   _isOnCooldown(userId) {
@@ -66,9 +65,7 @@ export class GatheringSystem {
   _cleanupCooldowns() {
     const now = Date.now();
     for (const [userId, cooldownData] of this.gatheringCooldowns.entries()) {
-      if (now >= cooldownData.endTime) {
-        this.gatheringCooldowns.delete(userId);
-      }
+      if (now >= cooldownData.endTime) this.gatheringCooldowns.delete(userId);
     }
   }
 
@@ -141,13 +138,8 @@ export class GatheringSystem {
     for (const resourceId in this.allResources) {
       const resource = this.allResources[resourceId];
       
-      if (!resource || !resource.locations || !Array.isArray(resource.locations)) {
-        continue;
-      }
-      
-      if (!resource.items || !resource.gatherTime) {
-        continue;
-      }
+      if (!resource || !resource.locations || !Array.isArray(resource.locations)) continue;
+      if (!resource.items || !resource.gatherTime) continue;
       
       if (resource.locations.includes(playerLocationId)) {
         found = true;
@@ -162,10 +154,7 @@ export class GatheringSystem {
       }
     }
 
-    if (!found) {
-        message += "\n❌ لا توجد موارد قابلة للجمع هنا حاليًا.";
-    }
-
+    if (!found) message += "\n❌ لا توجد موارد قابلة للجمع هنا حاليًا.";
     message += `\n\n💡 استخدم: اجمع [اسم المورد]`;
     return { message };
   }
@@ -179,32 +168,18 @@ export class GatheringSystem {
       const cooldownData = this.gatheringCooldowns.get(player.userId);
       const lastResource = this._translateItemName(cooldownData?.resourceId) || 'المورد';
       
-      return { 
-        error: `⏳ انتظر! لا يمكنك التجميع الآن.\n\n📦 آخر مورد: ${lastResource}\n⏱️ الوقت المتبقي: ${formattedTime}\n\n⚠️ لا ترسل سبام!` 
-      };
+      return { error: `⏳ انتظر! لا يمكنك التجميع الآن.\n\n📦 آخر مورد: ${lastResource}\n⏱️ الوقت المتبقي: ${formattedTime}\n\n⚠️ لا ترسل سبام!` };
     }
 
-    // ✅ حل الترجمة: نقبل العربي أو الإنجليزي
     const resolvedResourceId = this._resolveResourceId(resourceId);
     const resource = this.allResources[resolvedResourceId];
     const playerLocationId = player?.currentLocation || 'forest';
     const locationName = this._getLocationName(playerLocationId);
 
-    if (!resource) {
-      return { error: `❌ المورد "${resourceId}" غير موجود.` };
-    }
-
-    if (!resource.locations || !Array.isArray(resource.locations)) {
-      return { error: `❌ ${this._translateItemName(resolvedResourceId)} ليس مورداً قابلاً للجمع.` };
-    }
-
-    if (!resource.items || !resource.gatherTime) {
-      return { error: `❌ ${this._translateItemName(resolvedResourceId)} ليس مورداً قابلاً للجمع.` };
-    }
-
-    if (!resource.locations.includes(playerLocationId)) {
-      return { error: `❌ لا يمكنك جمع ${this._translateItemName(resolvedResourceId)} في ${locationName}.` };
-    }
+    if (!resource) return { error: `❌ المورد "${resourceId}" غير موجود.` };
+    if (!resource.locations || !Array.isArray(resource.locations)) return { error: `❌ ${this._translateItemName(resolvedResourceId)} ليس مورداً قابلاً للجمع.` };
+    if (!resource.items || !resource.gatherTime) return { error: `❌ ${this._translateItemName(resolvedResourceId)} ليس مورداً قابلاً للجمع.` };
+    if (!resource.locations.includes(playerLocationId)) return { error: `❌ لا يمكنك جمع ${this._translateItemName(resolvedResourceId)} في ${locationName}.` };
 
     const cooldownTime = this._getCooldownByRarity(resource.rarity || 'common');
     this._setCooldown(player.userId, cooldownTime);
@@ -221,10 +196,10 @@ export class GatheringSystem {
         const quantity = Math.floor(Math.random() * (itemDrop.max - itemDrop.min + 1)) + itemDrop.min;
         
         if (quantity > 0) {
-            const itemName = this._translateItemName(itemDrop.itemId);
-            player.addItem(itemDrop.itemId, itemName, 'resource', quantity);
-            itemsGained.push({ name: itemName, quantity });
-            totalQuantity += quantity;
+          const itemName = this._translateItemName(itemDrop.itemId);
+          player.addItem(itemDrop.itemId, itemName, 'resource', quantity);
+          itemsGained.push({ name: itemName, quantity });
+          totalQuantity += quantity;
         }
       }
     }
@@ -234,14 +209,23 @@ export class GatheringSystem {
     const resourceName = this._translateItemName(resolvedResourceId);
     
     if (totalQuantity === 0) {
-        return { 
-          success: false, 
-          message: `${emoji} حاولت جمع ${resourceName} لكنك لم تجد شيئًا!\n\n⏳ وقت الانتظار: ${formattedCooldown}` 
-        };
+      return { success: false, message: `${emoji} حاولت جمع ${resourceName} لكنك لم تجد شيئًا!\n\n⏳ وقت الانتظار: ${formattedCooldown}` };
     }
 
     player.addExperience(resource.experience || 0);
-    await player.save(); 
+
+    // ✅ تحديث المهام والإنجازات
+    try {
+      const achievementSystem = await this.commandHandler?.getSystem('achievement');
+      if (achievementSystem) {
+        await achievementSystem.updateTaskProgress(player, 'gather', totalQuantity);
+        await achievementSystem.checkAchievements(player);
+      }
+    } catch (error) {
+      console.error('❌ خطأ في تحديث الإنجازات:', error);
+    }
+
+    await player.save();
     
     const itemsMessage = itemsGained.map(item => `   • ${item.quantity} × ${item.name}`).join('\n');
 
@@ -254,20 +238,13 @@ export class GatheringSystem {
 
   _resolveResourceId(input) {
     const lower = input.trim().toLowerCase();
-    
-    // 1. معرف مباشر
     if (this.allResources[lower]) return lower;
-    
-    // 2. مطابقة الاسم العربي
     for (const id in this.allResources) {
       if (this.allResources[id].name?.toLowerCase() === lower) return id;
     }
-    
-    // 3. مطابقة جزئية
     for (const id in this.allResources) {
       if (this.allResources[id].name?.toLowerCase().includes(lower)) return id;
     }
-    
     return lower;
   }
-      }
+}
