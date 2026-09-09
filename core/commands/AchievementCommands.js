@@ -1,4 +1,4 @@
-// core/commands/commands/AchievementCommands.js
+// core/commands/AchievementCommands.js
 import { BaseCommand } from './BaseCommand.js';
 
 export class AchievementCommands extends BaseCommand {
