@@ -7,7 +7,6 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TELEGRAM_BOT_TOKEN) {
   console.log('⚠️ لم يتم توفير TELEGRAM_BOT_TOKEN، لن يعمل بوت تلغرام');
 } else {
-  // ✅ استخدام polling مع خيارات تمنع التعارض
   const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { 
     polling: {
       interval: 1000,
@@ -18,12 +17,6 @@ if (!TELEGRAM_BOT_TOKEN) {
   });
   
   const commandHandler = new CommandHandler();
-
-  // ✅ إيقاف أي جلسة سابقة قبل البدء
-  bot.stopPolling().then(() => {
-    bot.startPolling({ restart: true });
-    console.log('✅ تم تشغيل بوت تلغرام');
-  });
 
   bot.on('message', async (msg) => {
     try {
@@ -53,4 +46,6 @@ if (!TELEGRAM_BOT_TOKEN) {
       bot.sendMessage(chatId, '❌ حدث خطأ غير متوقع.');
     }
   });
+
+  console.log('✅ تم تشغيل بوت تلغرام');
 }
