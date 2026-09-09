@@ -1,4 +1,4 @@
-// core/commands/utils/SystemLoader.js
+// core/utils/SystemLoader.js
 export class SystemLoader {
     static systems = {
         'battle': '../../systems/battle/BattleSystem.js',
@@ -11,14 +11,18 @@ export class SystemLoader {
         'crafting': '../../systems/crafting/CraftingSystem.js',
         'furnace': '../../systems/furnace/FurnaceSystem.js',
         'transaction': '../../systems/economy/TransactionSystem.js',
-        'gate': '../../systems/world/GateSystem.js'
+        'gate': '../../systems/world/GateSystem.js',
+        'achievement': '../../systems/achievements/AchievementSystem.js'
     };
 
     static async loadSystem(systemName) {
         try {
             if (this.systems[systemName]) {
+                console.log(`🔄 محاولة تحميل: ${systemName}`);
+                
                 const module = await import(this.systems[systemName]);
                 const SystemClass = module.default || Object.values(module)[0];
+                
                 if (SystemClass) {
                     console.log(`✅ تم تحميل النظام: ${systemName}`);
                     return new SystemClass();
