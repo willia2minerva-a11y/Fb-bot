@@ -8,7 +8,7 @@ const customTaskSchema = new mongoose.Schema({
     type: { type: String, required: true },
     target: { type: Number, required: true },
     reward: { type: Number, default: 20 },
-    isDaily: { type: Boolean, default: false },
+    isDaily: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
 
@@ -23,35 +23,35 @@ export class AchievementSystem {
             { id: 'gather_5', name: 'اجمع 5 موارد', type: 'gather', target: 5, reward: 25 },
             { id: 'gather_10', name: 'اجمع 10 موارد', type: 'gather', target: 10, reward: 40 },
             { id: 'gather_15', name: 'اجمع 15 مورد', type: 'gather', target: 15, reward: 55 },
-            
+
             // القتل
             { id: 'kill_2', name: 'اقتل وحشين', type: 'kill', target: 2, reward: 25 },
             { id: 'kill_3', name: 'اقتل 3 وحوش', type: 'kill', target: 3, reward: 35 },
             { id: 'kill_5', name: 'اقتل 5 وحوش', type: 'kill', target: 5, reward: 50 },
             { id: 'kill_10', name: 'اقتل 10 وحوش', type: 'kill', target: 10, reward: 80 },
-            
+
             // الصناعة
             { id: 'craft_1', name: 'اصنع عنصراً', type: 'craft', target: 1, reward: 20 },
             { id: 'craft_2', name: 'اصنع عنصرين', type: 'craft', target: 2, reward: 35 },
             { id: 'craft_3', name: 'اصنع 3 عناصر', type: 'craft', target: 3, reward: 50 },
             { id: 'craft_5', name: 'اصنع 5 عناصر', type: 'craft', target: 5, reward: 75 },
-            
+
             // السفر
             { id: 'travel_1', name: 'سافر إلى مكان جديد', type: 'travel', target: 1, reward: 15 },
             { id: 'travel_2', name: 'سافر مرتين', type: 'travel', target: 2, reward: 25 },
             { id: 'travel_3', name: 'سافر 3 مرات', type: 'travel', target: 3, reward: 40 },
-            
-            // الذهب (كسب)
+
+            // كسب الذهب
             { id: 'earn_gold_100', name: 'اكسب 100 ذهب', type: 'earn_gold', target: 100, reward: 15 },
             { id: 'earn_gold_200', name: 'اكسب 200 ذهب', type: 'earn_gold', target: 200, reward: 25 },
             { id: 'earn_gold_500', name: 'اكسب 500 ذهب', type: 'earn_gold', target: 500, reward: 40 },
-            
+
             // استخدام النشاط
             { id: 'use_stamina_20', name: 'استهلك 20 نشاط', type: 'use_stamina', target: 20, reward: 20 },
             { id: 'use_stamina_50', name: 'استهلك 50 نشاط', type: 'use_stamina', target: 50, reward: 35 },
         ];
 
-        // ✅ الإنجازات الدائمة (لا تتغير)
+        // ✅ الإنجازات الدائمة
         this.achievements = [
             { id: 'first_kill', name: 'أول قتيل', description: 'اقتل أول وحش', type: 'kill', target: 1, reward: 50 },
             { id: 'kill_50', name: 'صياد الوحوش', description: 'اقتل 50 وحشاً', type: 'kill', target: 50, reward: 300 },
@@ -71,6 +71,51 @@ export class AchievementSystem {
         console.log('🏆 نظام الإنجازات والمهام تم تهيئته');
     }
 
+    // ✅ قاموس ترجمة أنواع المهام من العربية إلى الإنجليزية
+    _translateTaskType(input) {
+        const typeMap = {
+            'جمع': 'gather',
+            'اجمع': 'gather',
+            'موارد': 'gather',
+            'جمع_موارد': 'gather',
+
+            'قتل': 'kill',
+            'اقتل': 'kill',
+            'وحوش': 'kill',
+            'قتال': 'kill',
+
+            'صناعة': 'craft',
+            'اصنع': 'craft',
+            'تصنيع': 'craft',
+
+            'سفر': 'travel',
+            'انتقل': 'travel',
+            'تنقل': 'travel',
+
+            'ذهب': 'earn_gold',
+            'غولد': 'earn_gold',
+            'كسب_ذهب': 'earn_gold',
+
+            'نشاط': 'use_stamina',
+            'استهلاك_نشاط': 'use_stamina'
+        };
+
+        const lower = input.toLowerCase().trim();
+        return typeMap[lower] || lower;
+    }
+
+    _getTypeNameArabic(type) {
+        const names = {
+            'gather': 'جمع',
+            'kill': 'قتل',
+            'craft': 'صناعة',
+            'travel': 'سفر',
+            'earn_gold': 'كسب ذهب',
+            'use_stamina': 'استهلاك نشاط'
+        };
+        return names[type] || type;
+    }
+
     _drawProgressBar(current, max, length = 10) {
         const percentage = max > 0 ? current / max : 0;
         const filled = Math.round(length * percentage);
@@ -81,19 +126,16 @@ export class AchievementSystem {
         return `${color} ${filledBar}${emptyBar}`;
     }
 
-    // ✅ اختيار 4 مهام عشوائية كل يوم + المهام المخصصة من الأدمن
     async _selectDailyTasks(player) {
         const today = new Date().toDateString();
         const taskDate = player.dailyTaskDate || '';
 
         if (taskDate === today && player.dailyTasksList && player.dailyTasksList.length > 0) {
-            return; // المهام محددة بالفعل لهذا اليوم
+            return;
         }
 
-        // ✅ جلب المهام المخصصة من MongoDB
         const customTasks = await CustomTask.find({ isDaily: true });
 
-        // دمج المهام المحتملة العادية + المخصصة
         const allPool = [...this.dailyTaskPool, ...customTasks.map(t => ({
             id: t.id,
             name: t.name,
@@ -102,7 +144,6 @@ export class AchievementSystem {
             reward: t.reward
         }))];
 
-        // اختيار 4 عشوائية
         const shuffled = [...allPool].sort(() => Math.random() - 0.5);
         const selected = shuffled.slice(0, 4);
 
@@ -120,7 +161,7 @@ export class AchievementSystem {
 
     _formatDailyTasks(player) {
         const tasks = player.dailyTasksList || [];
-        
+
         if (tasks.length === 0) {
             return `📋 المهام اليومية\n\n❌ لا توجد مهام حالياً.`;
         }
@@ -283,8 +324,8 @@ export class AchievementSystem {
     // ===================================
 
     async addCustomTask(name, type, target, reward, isDaily = true) {
-        const id = `custom_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
-        
+        const id = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
         const task = new CustomTask({
             id,
             name,
@@ -306,4 +347,4 @@ export class AchievementSystem {
     async listCustomTasks() {
         return await CustomTask.find({});
     }
-                                  }
+                    }
