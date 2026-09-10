@@ -1,23 +1,71 @@
 // systems/achievements/AchievementSystem.js
+import mongoose from 'mongoose';
+
+// ✅ نموذج MongoDB للمهام المخصصة
+const customTaskSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    type: { type: String, required: true },
+    target: { type: Number, required: true },
+    reward: { type: Number, default: 20 },
+    isDaily: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now }
+});
+
+const CustomTask = mongoose.models.CustomTask || mongoose.model('CustomTask', customTaskSchema);
+
 export class AchievementSystem {
     constructor() {
-        this.dailyTasks = [
-            { id: 'gather_5', name: 'اجمع 5 موارد', type: 'gather', target: 5, reward: 50 },
-            { id: 'kill_3', name: 'اقتل 3 وحوش', type: 'kill', target: 3, reward: 100 },
-            { id: 'craft_2', name: 'اصنع عنصرين', type: 'craft', target: 2, reward: 75 },
-            { id: 'travel_1', name: 'سافر إلى مكان جديد', type: 'travel', target: 1, reward: 25 },
+        // ✅ قائمة ضخمة من المهام اليومية المحتملة
+        this.dailyTaskPool = [
+            // جمع الموارد
+            { id: 'gather_3', name: 'اجمع 3 موارد', type: 'gather', target: 3, reward: 15 },
+            { id: 'gather_5', name: 'اجمع 5 موارد', type: 'gather', target: 5, reward: 25 },
+            { id: 'gather_10', name: 'اجمع 10 موارد', type: 'gather', target: 10, reward: 40 },
+            { id: 'gather_15', name: 'اجمع 15 مورد', type: 'gather', target: 15, reward: 55 },
+            
+            // القتل
+            { id: 'kill_2', name: 'اقتل وحشين', type: 'kill', target: 2, reward: 25 },
+            { id: 'kill_3', name: 'اقتل 3 وحوش', type: 'kill', target: 3, reward: 35 },
+            { id: 'kill_5', name: 'اقتل 5 وحوش', type: 'kill', target: 5, reward: 50 },
+            { id: 'kill_10', name: 'اقتل 10 وحوش', type: 'kill', target: 10, reward: 80 },
+            
+            // الصناعة
+            { id: 'craft_1', name: 'اصنع عنصراً', type: 'craft', target: 1, reward: 20 },
+            { id: 'craft_2', name: 'اصنع عنصرين', type: 'craft', target: 2, reward: 35 },
+            { id: 'craft_3', name: 'اصنع 3 عناصر', type: 'craft', target: 3, reward: 50 },
+            { id: 'craft_5', name: 'اصنع 5 عناصر', type: 'craft', target: 5, reward: 75 },
+            
+            // السفر
+            { id: 'travel_1', name: 'سافر إلى مكان جديد', type: 'travel', target: 1, reward: 15 },
+            { id: 'travel_2', name: 'سافر مرتين', type: 'travel', target: 2, reward: 25 },
+            { id: 'travel_3', name: 'سافر 3 مرات', type: 'travel', target: 3, reward: 40 },
+            
+            // الذهب (كسب)
+            { id: 'earn_gold_100', name: 'اكسب 100 ذهب', type: 'earn_gold', target: 100, reward: 15 },
+            { id: 'earn_gold_200', name: 'اكسب 200 ذهب', type: 'earn_gold', target: 200, reward: 25 },
+            { id: 'earn_gold_500', name: 'اكسب 500 ذهب', type: 'earn_gold', target: 500, reward: 40 },
+            
+            // استخدام النشاط
+            { id: 'use_stamina_20', name: 'استهلك 20 نشاط', type: 'use_stamina', target: 20, reward: 20 },
+            { id: 'use_stamina_50', name: 'استهلك 50 نشاط', type: 'use_stamina', target: 50, reward: 35 },
         ];
 
+        // ✅ الإنجازات الدائمة (لا تتغير)
         this.achievements = [
-            { id: 'first_kill', name: 'أول قتيل', description: 'اقتل أول وحش', type: 'kill', target: 1, reward: 100 },
-            { id: 'kill_10', name: 'صياد الوحوش', description: 'اقتل 10 وحوش', type: 'kill', target: 10, reward: 500 },
-            { id: 'kill_100', name: 'مبيد الوحوش', description: 'اقتل 100 وحش', type: 'kill', target: 100, reward: 5000 },
-            { id: 'gather_50', name: 'جامع الموارد', description: 'اجمع 50 مورد', type: 'gather', target: 50, reward: 300 },
-            { id: 'craft_10', name: 'الصانع الماهر', description: 'اصنع 10 عناصر', type: 'craft', target: 10, reward: 400 },
-            { id: 'level_10', name: 'مغامر مبتدئ', description: 'وصل للمستوى 10', type: 'level', target: 10, reward: 200 },
-            { id: 'level_50', name: 'مغامر محترف', description: 'وصل للمستوى 50', type: 'level', target: 50, reward: 2000 },
-            { id: 'level_100', name: 'أسطورة', description: 'وصل للمستوى 100', type: 'level', target: 100, reward: 10000 },
-            { id: 'gold_1000', name: 'ثري', description: 'اجمع 1000 ذهب', type: 'gold', target: 1000, reward: 500 },
+            { id: 'first_kill', name: 'أول قتيل', description: 'اقتل أول وحش', type: 'kill', target: 1, reward: 50 },
+            { id: 'kill_50', name: 'صياد الوحوش', description: 'اقتل 50 وحشاً', type: 'kill', target: 50, reward: 300 },
+            { id: 'kill_200', name: 'مبيد الوحوش', description: 'اقتل 200 وحش', type: 'kill', target: 200, reward: 1500 },
+            { id: 'gather_100', name: 'جامع الموارد', description: 'اجمع 100 مورد', type: 'gather', target: 100, reward: 200 },
+            { id: 'gather_500', name: 'سيد الموارد', description: 'اجمع 500 مورد', type: 'gather', target: 500, reward: 1000 },
+            { id: 'craft_20', name: 'الصانع الماهر', description: 'اصنع 20 عنصراً', type: 'craft', target: 20, reward: 250 },
+            { id: 'craft_100', name: 'الحرفي الأسطوري', description: 'اصنع 100 عنصر', type: 'craft', target: 100, reward: 1500 },
+            { id: 'level_10', name: 'مغامر مبتدئ', description: 'وصل للمستوى 10', type: 'level', target: 10, reward: 100 },
+            { id: 'level_30', name: 'مغامر خبير', description: 'وصل للمستوى 30', type: 'level', target: 30, reward: 500 },
+            { id: 'level_50', name: 'مغامر محترف', description: 'وصل للمستوى 50', type: 'level', target: 50, reward: 1000 },
+            { id: 'level_100', name: 'أسطورة', description: 'وصل للمستوى 100', type: 'level', target: 100, reward: 5000 },
+            { id: 'gold_500', name: 'ثري', description: 'اجمع 500 ذهب', type: 'gold', target: 500, reward: 150 },
+            { id: 'gold_5000', name: 'مليونير', description: 'اجمع 5000 ذهب', type: 'gold', target: 5000, reward: 1500 },
         ];
 
         console.log('🏆 نظام الإنجازات والمهام تم تهيئته');
@@ -33,26 +81,54 @@ export class AchievementSystem {
         return `${color} ${filledBar}${emptyBar}`;
     }
 
-    async showDailyTasks(player) {
+    // ✅ اختيار 4 مهام عشوائية كل يوم + المهام المخصصة من الأدمن
+    async _selectDailyTasks(player) {
         const today = new Date().toDateString();
         const taskDate = player.dailyTaskDate || '';
 
-        if (taskDate !== today) {
-            player.dailyTasks = [];
-            player.dailyTaskProgress = {};
-            player.completedDailyTasks = [];
-            player.dailyTaskDate = today;
-            await player.save();
+        if (taskDate === today && player.dailyTasksList && player.dailyTasksList.length > 0) {
+            return; // المهام محددة بالفعل لهذا اليوم
         }
 
+        // ✅ جلب المهام المخصصة من MongoDB
+        const customTasks = await CustomTask.find({ isDaily: true });
+
+        // دمج المهام المحتملة العادية + المخصصة
+        const allPool = [...this.dailyTaskPool, ...customTasks.map(t => ({
+            id: t.id,
+            name: t.name,
+            type: t.type,
+            target: t.target,
+            reward: t.reward
+        }))];
+
+        // اختيار 4 عشوائية
+        const shuffled = [...allPool].sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 4);
+
+        player.dailyTaskDate = today;
+        player.dailyTasksList = selected;
+        player.dailyTaskProgress = {};
+        player.completedDailyTasks = [];
+        await player.save();
+    }
+
+    async showDailyTasks(player) {
+        await this._selectDailyTasks(player);
         return this._formatDailyTasks(player);
     }
 
     _formatDailyTasks(player) {
+        const tasks = player.dailyTasksList || [];
+        
+        if (tasks.length === 0) {
+            return `📋 المهام اليومية\n\n❌ لا توجد مهام حالياً.`;
+        }
+
         let msg = `📋 المهام اليومية\n`;
         let allCompleted = true;
 
-        this.dailyTasks.forEach(task => {
+        tasks.forEach(task => {
             const progress = this._getTaskProgress(player, task.id);
             const isCompleted = progress >= task.target;
             if (!isCompleted) allCompleted = false;
@@ -80,6 +156,9 @@ export class AchievementSystem {
     }
 
     async updateTaskProgress(player, type, amount = 1) {
+        const tasks = player.dailyTasksList || [];
+        if (tasks.length === 0) return;
+
         let taskProgress = player.dailyTaskProgress || {};
         if (taskProgress instanceof Map) {
             taskProgress = Object.fromEntries(taskProgress);
@@ -87,7 +166,7 @@ export class AchievementSystem {
 
         let updated = false;
 
-        this.dailyTasks.forEach(task => {
+        tasks.forEach(task => {
             if (task.type === type) {
                 const current = taskProgress[task.id] || 0;
                 if (current < task.target) {
@@ -111,8 +190,9 @@ export class AchievementSystem {
         }
 
         const completedTasks = player.completedDailyTasks || [];
+        const tasks = player.dailyTasksList || [];
 
-        for (const task of this.dailyTasks) {
+        for (const task of tasks) {
             if (taskProgress[task.id] >= task.target && !completedTasks.includes(task.id)) {
                 completedTasks.push(task.id);
                 player.addGold(task.reward);
@@ -197,4 +277,33 @@ export class AchievementSystem {
 
         return msg;
     }
-}
+
+    // ===================================
+    // ✅ إدارة المهام (للأدمن)
+    // ===================================
+
+    async addCustomTask(name, type, target, reward, isDaily = true) {
+        const id = `custom_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`;
+        
+        const task = new CustomTask({
+            id,
+            name,
+            type,
+            target,
+            reward,
+            isDaily
+        });
+
+        await task.save();
+        return task;
+    }
+
+    async removeCustomTask(taskId) {
+        const result = await CustomTask.deleteOne({ id: taskId });
+        return result.deletedCount > 0;
+    }
+
+    async listCustomTasks() {
+        return await CustomTask.find({});
+    }
+                                  }
