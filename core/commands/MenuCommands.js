@@ -1,4 +1,4 @@
-// core/commands/commands/MenuCommands.js
+// core/commands/MenuCommands.js
 import { BaseCommand } from './BaseCommand.js';
 
 export class MenuCommands extends BaseCommand {
@@ -15,13 +15,16 @@ export class MenuCommands extends BaseCommand {
             '5': this.handleMenu5.bind(this),
             '6': this.handleMenu6.bind(this),
             '7': this.handleMenu7.bind(this),
+            '8': this.handleMenu8.bind(this),
             'الأساسية': this.handleMenu1.bind(this),
             'الاستكشاف': this.handleMenu2.bind(this),
             'القتال': this.handleMenu3.bind(this),
             'الصناعة': this.handleMenu4.bind(this),
             'المعلومات': this.handleMenu5.bind(this),
             'الاقتصاد': this.handleMenu6.bind(this),
-            'البوابات': this.handleMenu7.bind(this)
+            'البوابات': this.handleMenu7.bind(this),
+            'الإحالة': this.handleMenu8.bind(this),
+            'المكافآت': this.handleMenu8.bind(this)
         };
     }
 
@@ -37,6 +40,7 @@ export class MenuCommands extends BaseCommand {
     async handleMenu5(player) { return player.isApproved() ? this.getMenu('info') : this.getLimitedMenu(); }
     async handleMenu6(player) { return player.isApproved() ? this.getMenu('economy') : this.getLimitedMenu(); }
     async handleMenu7(player) { return player.isApproved() ? this.getMenu('gates') : this.getLimitedMenu(); }
+    async handleMenu8(player) { return player.isApproved() ? this.getMenu('referral') : this.getLimitedMenu(); }
 
     async handleHelp(player) {
         return player.isApproved() ? this.getMenu('main') : this.getLimitedHelpMenu();
@@ -85,6 +89,9 @@ export class MenuCommands extends BaseCommand {
 
 🚪 البوابات
 • بوابات | ادخل | استكشف | مغادرة
+
+🎁 الإحالة والمكافآت
+• دعوة | تفعيل | مكافأة | سلسلة
 
 🏆 المهام والإنجازات
 • مهام | انجازات
@@ -155,6 +162,20 @@ export class MenuCommands extends BaseCommand {
 • استكشف - استكشاف
 • اختر [رقم] - اختيار مسار
 • مغادرة - مغادرة البوابة
+
+💡 رئيسية - العودة`,
+
+            referral: `🎁 الإحالة والمكافآت
+
+• دعوة / كودي - عرض كود الدعوة
+• تفعيل [الكود] - استخدام كود دعوة
+• مكافأة / يومي - استلام المكافأة اليومية
+• سلسلة - عرض سلسلة الدخول
+
+💰 المكافآت:
+• دعوة صديق: 500 ذهب لك + 200 ذهب له
+• المكافأة اليومية: 50-250 ذهب
+• مكافأة أسبوعية: سبيكة نادرة
 
 💡 رئيسية - العودة`
         };
