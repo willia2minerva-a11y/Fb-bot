@@ -4,207 +4,253 @@ import { BaseCommand } from './BaseCommand.js';
 export class EconomyCommands extends BaseCommand {
     getCommands() {
         return {
-            'سحب': this.handleWithdrawal.bind(this),
-            'ايداع': this.handleDeposit.bind(this),
+            'رصيدي': this.handleBalance.bind(this),
+            'رصيد': this.handleBalance.bind(this),
+            'سحب': this.handleWithdraw.bind(this),
+            'ايداع': this.handleDepositInfo.bind(this),
             'تحويل': this.handleTransfer.bind(this),
             'معاملاتي': this.handleTransactions.bind(this),
-            'رصيدي': this.handleBalance.bind(this)
+            // ✅ أوامر الأدمن الجديدة
+            'اقتصاد': this.handleEconomyStats.bind(this),
+            'اغنياء': this.handleRichestPlayers.bind(this),
+            'فقراء': this.handlePoorestPlayers.bind(this),
+            'طلبات_سحب': this.handlePendingWithdrawals.bind(this),
+            'اقتصاد_لاعب': this.handlePlayerEconomy.bind(this)
         };
     }
 
-    async handleWithdrawal(player, args) {
+    // ✅ رصيد اللاعب
+    async handleBalance(player) {
+        const approvalCheck = await this.checkPlayerApproval(player);
+        if (approvalCheck.error) return approvalCheck.error;
+
+        return `💰 رصيدك
+
+💎 الغولد: ${player.gold}
+📊 المستوى: ${player.level}
+
+💡 للتحويل: تحويل [اسم اللاعب] [المبلغ]
+💡 للسحب: سحب [المبلغ]`;
+    }
+
+    // ✅ طلب سحب
+    async handleWithdraw(player, args) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
         const amount = parseInt(args[0]);
         if (!amount || amount <= 0) {
-            return '❌ يرجى تحديد مبلغ صحيح للسحب. مثال: سحب 100';
+            return `❌ اكتب مبلغاً صحيحاً.
+
+مثال: سحب 100
+
+💰 رصيدك: ${player.gold} غولد`;
         }
 
-        if (amount < 100) {
-            return '❌ الحد الأدنى للسحب هو 100 غولد.';
+        if (amount > player.gold) {
+            return `❌ رصيدك غير كافٍ!
+
+💰 رصيدك: ${player.gold} غولد
+📊 المطلوب: ${amount} غولد`;
         }
 
-        if (player.gold < amount) {
-            return `❌ رصيدك غير كافٍ للسحب.\n💰 رصيدك الحالي: ${player.gold} غولد`;
+        if (amount < 50) {
+            return `❌ الحد الأدنى للسحب: 50 غولد`;
         }
 
-        // إنشاء طلب سحب
-        player.pendingWithdrawal = {
-            amount: amount,
-            status: 'pending',
-            requestedAt: new Date()
-        };
-
-        player.gold -= amount;
-
-        // تسجيل المعاملة
-        player.transactions.push({
-            id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            type: 'withdrawal',
-            amount: amount,
-            status: 'pending',
-            description: `طلب سحب - ${amount} غولد`
-        });
+        const result = player.requestWithdrawal(amount);
+        if (result.error) return result.error;
 
         await player.save();
 
-        return `✅ تم تقديم طلب سحب ${amount} غولد بنجاح!\n📋 سيتم معالجته خلال 24 ساعة.\n💎 رصيدك الحالي: ${player.gold} غولد`;
+        return `✅ تم إرسال طلب السحب
+
+💸 المبلغ: ${amount} غولد
+💰 رصيدك الجديد: ${player.gold} غولد
+
+⏳ انتظر موافقة المدير.`;
     }
 
-    async handleDeposit(player) {
+    // ✅ معلومات الإيداع
+    async handleDepositInfo(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        return `💳 **طريقة الإيداع:**\n\n` +
-               `1. قم بتحويل المبلغ للمدير\n` +
-               `2. أرسل إشعار التحويل للمدير\n` +
-               `3. سيتم إضافة الغولد خلال 24 ساعة\n\n` +
-               `💡 الحد الأدنى للإيداع: 50 غولد\n` +
-               `💰 استخدم: "اضافة_غولد [معرفك] [المبلغ]" (للمدير)`;
+        return `💰 الإيداع
+
+💡 للتواصل مع الإدارة حول الإيداع، راسل الأدمن.
+
+📊 رصيدك الحالي: ${player.gold} غولد`;
     }
 
-    async handleTransactions(player, args) {
-        const approvalCheck = await this.checkPlayerApproval(player);
-        if (approvalCheck.error) return approvalCheck.error;
-
-        const limit = parseInt(args[0]) || 10;
-        const transactions = player.transactions
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, limit);
-
-        if (transactions.length === 0) {
-            return '📝 لا توجد معاملات سابقة.';
-        }
-
-        let history = `📋 **سجل المعاملات (آخر ${transactions.length}):**\n\n`;
-
-        transactions.forEach(transaction => {
-            const icons = {
-                withdrawal: '💳',
-                deposit: '💰',
-                transfer_sent: '↗️',
-                transfer_received: '↙️'
-            };
-
-            const statusIcons = {
-                pending: '⏳',
-                completed: '✅',
-                rejected: '❌'
-            };
-
-            const typeNames = {
-                withdrawal: 'سحب',
-                deposit: 'إيداع',
-                transfer_sent: 'تحويل مرسل',
-                transfer_received: 'تحويل مستلم'
-            };
-
-            history += `${icons[transaction.type] || '💸'} ${statusIcons[transaction.status] || '❓'} `;
-            history += `${typeNames[transaction.type] || transaction.type}: ${transaction.amount} غولد\n`;
-
-            if (transaction.targetPlayer) {
-                history += `   👤 ${transaction.description}\n`;
-            }
-
-            history += `   📅 ${new Date(transaction.createdAt || Date.now()).toLocaleDateString('ar-SA')}\n\n`;
-        });
-
-        return history;
-    }
-
-    async handleBalance(player) {
-        const approvalCheck = await this.checkPlayerApproval(player);
-        if (approvalCheck.error) return approvalCheck.error;
-
-        let balanceMessage = `💰 **رصيدك الحالي:** ${player.gold} غولد\n`;
-        balanceMessage += `💳 **الحد الأدنى للسحب:** 100 غولد\n`;
-        balanceMessage += `📊 **إجمالي المعاملات:** ${player.transactions.length} معاملة\n`;
-
-        if (player.pendingWithdrawal && player.pendingWithdrawal.status === 'pending') {
-            balanceMessage += `\n⏳ **طلب سحب معلق:** ${player.pendingWithdrawal.amount} غولد`;
-        }
-
-        return balanceMessage;
-    }
-
+    // ✅ تحويل
     async handleTransfer(player, args) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
         if (args.length < 2) {
-            return '❌ يرجى تحديد لاعب والمبلغ.\nمثال: تحويل @username 50\nمثال: تحويل P476346 50';
+            return `❌ الاستخدام: تحويل [اسم اللاعب] [المبلغ]
+
+مثال: تحويل Ahmed 100`;
         }
 
-        const targetIdentifier = args[0].replace('@', '');
-        const amount = parseInt(args[1]);
+        const amount = parseInt(args[args.length - 1]);
+        const targetName = args.slice(0, -1).join(' ');
 
         if (!amount || amount <= 0) {
-            return '❌ يرجى تحديد مبلغ صحيح للتحويل.';
+            return '❌ مبلغ غير صالح.';
         }
 
-        if (player.gold < amount) {
-            return `❌ رصيدك غير كافٍ للتحويل.\n💰 رصيدك: ${player.gold} غولد`;
+        if (amount > player.gold) {
+            return `❌ رصيدك غير كافٍ!
+
+💰 رصيدك: ${player.gold} غولد`;
         }
 
-        try {
-            let receiver = await this.findPlayer(targetIdentifier);
+        const Player = (await import('../../Player.js')).default;
+        const target = await Player.findOne({
+            name: { $regex: new RegExp(`^${targetName}$`, 'i') }
+        });
 
-            if (!receiver) {
-                return `❌ اللاعب المستهدف غير موجود.\n💡 جرب:\n• المعرف التسلسلي (مثل P476346)\n• معرف المستخدم\n• اسم اللاعب الكامل`;
-            }
-
-            if (receiver.userId === player.userId) {
-                return '❌ لا يمكن التحويل لنفسك.';
-            }
-
-            player.gold -= amount;
-            receiver.gold += amount;
-
-            const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-            player.transactions.push({
-                id: transactionId,
-                type: 'transfer_sent',
-                amount: amount,
-                status: 'completed',
-                targetPlayer: receiver.userId,
-                description: `تحويل إلى ${receiver.name} (${receiver.playerId})`
-            });
-
-            receiver.transactions.push({
-                id: transactionId,
-                type: 'transfer_received',
-                amount: amount,
-                status: 'completed',
-                targetPlayer: player.userId,
-                description: `تحويل من ${player.name} (${player.playerId})`
-            });
-
-            await player.save();
-            await receiver.save();
-
-            return `✅ تم تحويل ${amount} غولد إلى ${receiver.name} (${receiver.playerId}) بنجاح!\n💎 رصيدك الحالي: ${player.gold} غولد`;
-
-        } catch (error) {
-            return this.handleError(error, 'التحويل');
+        if (!target) {
+            return `❌ لم يتم العثور على اللاعب: ${targetName}`;
         }
+
+        if (target.userId === player.userId) {
+            return '❌ لا يمكنك التحويل لنفسك!';
+        }
+
+        player.gold -= amount;
+        target.gold += amount;
+
+        player.transactions.push({
+            id: `tx_${Date.now()}`,
+            type: 'transfer_sent',
+            amount: amount,
+            status: 'completed',
+            targetPlayer: target.name,
+            description: `تحويل إلى ${target.name}`
+        });
+
+        target.transactions.push({
+            id: `tx_${Date.now()}`,
+            type: 'transfer_received',
+            amount: amount,
+            status: 'completed',
+            targetPlayer: player.name,
+            description: `تحويل من ${player.name}`
+        });
+
+        await player.save();
+        await target.save();
+
+        return `✅ تم التحويل بنجاح!
+
+💸 المبلغ: ${amount} غولد
+👤 إلى: ${target.name}
+💰 رصيدك الجديد: ${player.gold} غولد`;
     }
 
-    async findPlayer(identifier) {
-        const Player = (await import('../../Player.js')).default;
-        
-        let receiver = await Player.findOne({ userId: identifier });
-        if (!receiver) {
-            receiver = await Player.findOne({ playerId: identifier });
+    // ✅ سجل المعاملات
+    async handleTransactions(player) {
+        const approvalCheck = await this.checkPlayerApproval(player);
+        if (approvalCheck.error) return approvalCheck.error;
+
+        const transactions = player.getTransactionHistory(10);
+
+        if (transactions.length === 0) {
+            return `📋 سجل المعاملات
+
+❌ لا توجد معاملات حالياً.`;
         }
-        if (!receiver) {
-            receiver = await Player.findOne({ name: identifier });
+
+        let msg = `📋 سجل المعاملات (آخر ${transactions.length})\n`;
+
+        transactions.forEach(tx => {
+            const date = new Date(tx.createdAt).toLocaleDateString('ar-EG');
+            const icon = tx.type === 'deposit' ? '📥' :
+                        tx.type === 'withdrawal' ? '📤' :
+                        tx.type === 'transfer_sent' ? '➡️' : '⬅️';
+
+            msg += `\n${icon} ${tx.description}\n`;
+            msg += `   💰 ${tx.amount} غولد\n`;
+            msg += `   📅 ${date}\n`;
+            msg += `   📊 ${tx.status === 'completed' ? '✅ مكتمل' : tx.status === 'pending' ? '⏳ معلق' : '❌ مرفوض'}\n`;
+        });
+
+        return msg;
+    }
+
+    // ===================================
+    // ✅ أوامر الأدمن الاقتصادية
+    // ===================================
+
+    async handleEconomyStats(player) {
+        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
         }
-        if (!receiver) {
-            receiver = await Player.findOne({ name: { $regex: new RegExp(identifier, 'i') } });
+
+        const economySystem = await this.getSystem('economy');
+        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
+
+        return await economySystem.showEconomyStats();
+    }
+
+    async handleRichestPlayers(player, args) {
+        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
         }
-        
-        return receiver;
+
+        const page = parseInt(args[0]) || 1;
+
+        const economySystem = await this.getSystem('economy');
+        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
+
+        return await economySystem.showRichestPlayers(page);
+    }
+
+    async handlePoorestPlayers(player, args) {
+        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        const page = parseInt(args[0]) || 1;
+
+        const economySystem = await this.getSystem('economy');
+        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
+
+        return await economySystem.showPoorestPlayers(page);
+    }
+
+    async handlePendingWithdrawals(player, args) {
+        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        const page = parseInt(args[0]) || 1;
+
+        const economySystem = await this.getSystem('economy');
+        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
+
+        return await economySystem.showPendingWithdrawals(page);
+    }
+
+    async handlePlayerEconomy(player, args) {
+        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
+            return '❌ هذا الأمر خاص بالمدراء فقط.';
+        }
+
+        if (args.length === 0) {
+            return `❌ الاستخدام: اقتصاد_لاعب [اسم اللاعب]
+
+مثال: اقتصاد_لاعب Ahmed`;
+        }
+
+        const playerName = args.join(' ');
+
+        const economySystem = await this.getSystem('economy');
+        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
+
+        return await economySystem.showPlayerEconomy(playerName);
     }
 }
