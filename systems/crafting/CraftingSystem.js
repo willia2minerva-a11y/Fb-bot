@@ -3,11 +3,35 @@ import { recipes } from '../../data/recipes.js';
 import { items } from '../../data/items.js';
 import { resources } from '../../data/resources.js';
 
+// ✅ قاموس ترجمة إضافي للعناصر الناقصة
+const EXTRA_TRANSLATIONS = {
+  // السبائك
+  'lead_bar': 'سبيكة رصاص',
+  'lead_ore': 'خام الرصاص',
+  'bronze_bar': 'سبيكة برونز',
+  'bronze_ore': 'خام البرونز',
+  'steel_bar': 'سبيكة صلب',
+  'steel_ore': 'خام الصلب',
+  'dark_iron': 'الحديد المظلم',
+  'dark_iron_ore': 'خام الحديد المظلم',
+
+  // أطعمة
+  'cooked_meat': 'لحم مطبوخ',
+  'grilled_mushroom': 'فطر مشوي',
+  'mushroom': 'فطر',
+  'bread': 'خبز',
+  'cooked_fish': 'سمك مطبوخ',
+
+  // أخرى
+  'coal': 'فحم',
+  'wood': 'خشب'
+};
+
 export class CraftingSystem {
   constructor() {
     this.RECIPES = recipes;
     this.ITEMS = items;
-    this.RESOURCES = resources; // لإضافة ترجمة الموارد
+    this.RESOURCES = resources;
     console.log(`🔨 نظام الصناعة تم تهيئته. (وصفات: ${Object.keys(this.RECIPES).length})`);
   }
 
@@ -15,11 +39,9 @@ export class CraftingSystem {
   // Helpers - الترجمة
   // ===================================
   _translateItemName(itemId) {
-    // 1. نبحث في الموارد (أسماء عربية)
     if (this.RESOURCES[itemId]?.name) return this.RESOURCES[itemId].name;
-    // 2. نبحث في العناصر (قد تحتوي أسماء عربية)
     if (this.ITEMS[itemId]?.name) return this.ITEMS[itemId].name;
-    // 3. نرجع المعرف نفسه
+    if (EXTRA_TRANSLATIONS[itemId]) return EXTRA_TRANSLATIONS[itemId];
     return itemId;
   }
 
@@ -34,7 +56,6 @@ export class CraftingSystem {
     const list = [];
     for (const id in this.RECIPES) {
       const recipe = this.RECIPES[id];
-      // التصنيف يعتمد على recipe.type وليس على نوع العنصر
       const isFurnace = recipe.type === 'bar' || recipe.type === 'food' || recipe.requiredTool === 'furnace';
       if (typeFilter === 'FURNACE' && isFurnace) list.push(recipe);
       else if (typeFilter === 'NORMAL' && !isFurnace) list.push(recipe);
@@ -161,15 +182,31 @@ export class CraftingSystem {
     const smelting = filtered.filter(r => r.type === 'bar');
     const cooking = filtered.filter(r => r.type === 'food');
 
-    if (smelting.length) message += this._formatRecipes(smelting, player, '🪙 السبائك (صهر)');
-    if (cooking.length) message += this._formatRecipes(cooking, player, '🍲 الطبخ');
-    if (!smelting.length && !cooking.length) message += `\n❌ لا توجد وصفات فرن متاحة.`;
-
-    message += `\n💡 للصهر: "صهر [اسم الخام] [كمية]"`;
-    message += `\n💡 للطهي: "طهو [اسم الطعام] [كمية]"`;
-    if (!showFullList && filtered.length < allFurnace.length) {
-      message += `\n💡 لعرض جميع وصفات الفرن: "فرن كاملة"`;
+    // ✅ عرض السبائك
+    if (smelting.length) {
+      message += this._formatRecipes(smelting, player, '🪙 السبائك (صهر)');
+    } else if (!showFullList) {
+      message += `\n🪙 السبائك\n`;
+      message += `❌ لا تملك خامات لصهرها حالياً\n`;
+      message += `💡 اجمع خامات: نحاس، حديد، فضة، ذهب\n`;
     }
+
+    // ✅ عرض الطبخ
+    if (cooking.length) {
+      message += this._formatRecipes(cooking, player, '🍲 الطبخ');
+    } else if (!showFullList) {
+      message += `\n🍲 الطبخ\n`;
+      message += `❌ لا تملك مكونات للطهي حالياً\n`;
+      message += `💡 اجمع: لحم نيء، فطر، قمح\n`;
+    }
+
+    message += `\n💡 للصهر: صهر [اسم الخام] [كمية]`;
+    message += `\n💡 للطهي: طهو [اسم الطعام] [كمية]`;
+
+    if (!showFullList && filtered.length < allFurnace.length) {
+      message += `\n💡 لعرض جميع وصفات الفرن: فرن كاملة`;
+    }
+
     return { message };
   }
 
@@ -239,17 +276,14 @@ export class CraftingSystem {
 
   _resolveItemId(input) {
     const lower = input.trim().toLowerCase();
-    // محاولة المعرف المباشر
     if (this.ITEMS[lower]) return lower;
     if (this.RESOURCES[lower]) return lower;
-    // محاولة مطابقة الاسم العربي
     for (const id in this.ITEMS) {
       if (this.ITEMS[id].name?.toLowerCase() === lower) return id;
     }
     for (const id in this.RESOURCES) {
       if (this.RESOURCES[id].name?.toLowerCase() === lower) return id;
     }
-    // محاولة مطابقة جزئية
     for (const id in this.ITEMS) {
       if (this.ITEMS[id].name?.toLowerCase().includes(lower)) return id;
     }
@@ -258,4 +292,4 @@ export class CraftingSystem {
     }
     return lower;
   }
-         }
+      }
