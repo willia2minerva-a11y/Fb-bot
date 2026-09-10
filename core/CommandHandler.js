@@ -28,6 +28,11 @@ export default class CommandHandler {
             this.adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
             this.adminDisplayName = process.env.ADMIN_DISPLAY_NAME || 'المدير';
 
+            // ✅ ربط adminSystem بـ commandHandler
+            if (typeof this.adminSystem.setCommandHandler === 'function') {
+                this.adminSystem.setCommandHandler(this);
+            }
+
             this.initCommandClasses();
             this.commands = this.collectAllCommands();
 
@@ -173,6 +178,28 @@ ${player.userId}
         return this.getLimitedHelpMenu();
     }
 
+    // ✅ تطبيع الأمر (إزالة الشرطات السفلية والمسافات)
+    normalizeCommand(command) {
+        if (!command) return command;
+        return command.replace(/[_\s]/g, '');
+    }
+
+    // ✅ محاولة معالجة أمر مدير بأي شكل
+    async tryAdminCommand(command, args, id) {
+        // 1. مباشرة
+        let result = await this.handleAdminCommand(command, args, id);
+        if (result) return result;
+
+        // 2. بدون شرطات سفلية
+        const normalized = this.normalizeCommand(command);
+        if (normalized !== command) {
+            result = await this.handleAdminCommand(normalized, args, id);
+            if (result) return result;
+        }
+
+        return null;
+    }
+
     async process(sender, message) {
         const { id, name, platform } = sender;
         const processedMessage = message.trim().toLowerCase();
@@ -181,18 +208,31 @@ ${player.userId}
         let command = commandParts[0];
         let args = commandParts.slice(1);
 
-        const fullCommand = command + (args[0] ? ` ${args[0]}` : '');
-        if (this.isCompoundCommand(fullCommand)) {
-            const result = this.handleCompoundCommand(fullCommand, commandParts);
+        // ✅ محاولة دمج الكلمات لعمل أوامر مركبة (مثل "موافقة لاعب")
+        let fullCommandAttempt = command;
+        let remainingArgs = [...args];
+
+        for (let i = Math.min(3, args.length); i >= 1; i--) {
+            const attempt = command + ' ' + args.slice(0, i).join(' ');
+            if (this.isCompoundCommand(attempt)) {
+                fullCommandAttempt = attempt;
+                remainingArgs = args.slice(i);
+                break;
+            }
+        }
+
+        if (this.isCompoundCommand(fullCommandAttempt)) {
+            const result = this.handleCompoundCommand(fullCommandAttempt);
             command = result.command;
-            args = result.args;
+            args = result.args.concat(remainingArgs);
         }
 
         console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
 
+        // ✅ فحص المدير
         const userIsAdmin = this.adminSystem.isAdmin(id);
         if (userIsAdmin) {
-            const adminResult = await this.handleAdminCommand(command, args, id);
+            const adminResult = await this.tryAdminCommand(command, args, id);
             if (adminResult) return adminResult;
         }
 
@@ -221,8 +261,12 @@ ${player.userId}
                 return this.getRegistrationMessage(player);
             }
 
-            if (this.commands[command]) {
-                const handler = this.commands[command];
+            // ✅ محاولة الأوامر العادية (مع تطبيع)
+            const normalizedCommand = this.normalizeCommand(command);
+
+            let handler = this.commands[command] || this.commands[normalizedCommand];
+
+            if (handler) {
                 const result = await handler.call(this, player, args, id);
 
                 if (typeof result === 'string') {
@@ -244,13 +288,18 @@ ${player.userId}
         const compoundCommands = [
             'موافقة لاعب', 'اعطاء مورد', 'اعطاء ذهب', 'تغيير اسم',
             'زيادة صحة', 'زيادة مانا', 'اعادة بيانات', 'حظر لاعب',
-            'تغيير جنس', 'عرض الردود',
-            'صناعة كاملة', 'فرن كاملة'
+            'تغيير جنس', 'عرض الردود', 'حذف طلب سحب',
+            'صناعة كاملة', 'فرن كاملة', 'اضف رد', 'ازل رد',
+            'اضف مهمة', 'حذف مهمة', 'قائمة المهام',
+            'اضف سلاح', 'حذف سلاح', 'اضف وحش', 'حذف وحش',
+            'اضف مورد', 'حذف مورد', 'عرض اسلحة', 'عرض وحوش',
+            'عرض مواقع', 'عرض موارد', 'اقتصاد لاعب', 'اضافة غولد',
+            'طلبات سحب', 'معالجة سحب'
         ];
         return compoundCommands.includes(fullCommand);
     }
 
-    handleCompoundCommand(fullCommand, commandParts) {
+    handleCompoundCommand(fullCommand) {
         const commandMap = {
             'موافقة لاعب': 'موافقة_لاعب',
             'اعطاء مورد': 'اعطاء_مورد',
@@ -262,13 +311,33 @@ ${player.userId}
             'حظر لاعب': 'حظر_لاعب',
             'تغيير جنس': 'تغيير_جنس',
             'عرض الردود': 'عرض_الردود',
+            'حذف طلب سحب': 'حذف_طلب_سحب',
             'صناعة كاملة': 'صناعة_كاملة',
-            'فرن كاملة': 'فرن_كاملة'
+            'فرن كاملة': 'فرن_كاملة',
+            'اضف رد': 'اضف_رد',
+            'ازل رد': 'ازل_رد',
+            'اضف مهمة': 'اضف_مهمة',
+            'حذف مهمة': 'حذف_مهمة',
+            'قائمة المهام': 'قائمة_المهام',
+            'اضف سلاح': 'اضف_سلاح',
+            'حذف سلاح': 'حذف_سلاح',
+            'اضف وحش': 'اضف_وحش',
+            'حذف وحش': 'حذف_وحش',
+            'اضف مورد': 'اضف_مورد',
+            'حذف مورد': 'حذف_مورد',
+            'عرض اسلحة': 'عرض_اسلحة',
+            'عرض وحوش': 'عرض_وحوش',
+            'عرض مواقع': 'عرض_مواقع',
+            'عرض موارد': 'عرض_موارد',
+            'اقتصاد لاعب': 'اقتصاد_لاعب',
+            'اضافة غولد': 'اضافة_غولد',
+            'طلبات سحب': 'طلبات_سحب',
+            'معالجة سحب': 'معالجة_سحب'
         };
 
         return {
-            command: commandMap[fullCommand],
-            args: commandParts.slice(2)
+            command: commandMap[fullCommand] || fullCommand,
+            args: []
         };
     }
 
@@ -324,4 +393,4 @@ ${player.userId}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-}
+            }
