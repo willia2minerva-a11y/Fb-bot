@@ -1,4 +1,4 @@
-// core/commands/commands/EconomyCommands.js
+// core/commands/EconomyCommands.js
 import { BaseCommand } from './BaseCommand.js';
 
 export class EconomyCommands extends BaseCommand {
@@ -8,14 +8,8 @@ export class EconomyCommands extends BaseCommand {
             'رصيد': this.handleBalance.bind(this),
             'سحب': this.handleWithdraw.bind(this),
             'ايداع': this.handleDepositInfo.bind(this),
-            'تحويل': this.handleTransfer.bind(this),
-            'معاملاتي': this.handleTransactions.bind(this),
-            // ✅ أوامر الأدمن الجديدة
-            'اقتصاد': this.handleEconomyStats.bind(this),
-            'اغنياء': this.handleRichestPlayers.bind(this),
-            'فقراء': this.handlePoorestPlayers.bind(this),
-            'طلبات_سحب': this.handlePendingWithdrawals.bind(this),
-            'اقتصاد_لاعب': this.handlePlayerEconomy.bind(this)
+            'إيداع': this.handleDepositInfo.bind(this),
+            'معاملاتي': this.handleTransactions.bind(this)
         };
     }
 
@@ -29,8 +23,8 @@ export class EconomyCommands extends BaseCommand {
 💎 الغولد: ${player.gold}
 📊 المستوى: ${player.level}
 
-💡 للتحويل: تحويل [اسم اللاعب] [المبلغ]
-💡 للسحب: سحب [المبلغ]`;
+💡 للسحب: سحب [المبلغ]
+💡 للإيداع: ايداع`;
     }
 
     // ✅ طلب سحب
@@ -54,10 +48,6 @@ export class EconomyCommands extends BaseCommand {
 📊 المطلوب: ${amount} غولد`;
         }
 
-        if (amount < 50) {
-            return `❌ الحد الأدنى للسحب: 50 غولد`;
-        }
-
         const result = player.requestWithdrawal(amount);
         if (result.error) return result.error;
 
@@ -76,79 +66,30 @@ export class EconomyCommands extends BaseCommand {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        return `💰 الإيداع
+        const adminLink = this.commandHandler?.adminProfileUrl || 'https://www.facebook.com/';
+        const adminName = this.commandHandler?.adminDisplayName || 'المدير';
 
-💡 للتواصل مع الإدارة حول الإيداع، راسل الأدمن.
+        return `💎 الإيداع في البوت
 
-📊 رصيدك الحالي: ${player.gold} غولد`;
-    }
+📖 كيف يعمل الإيداع:
+• تدفع المبلغ للإدارة في مجموعة غولد الرسمية
+• يتم إضافة الغولد لرصيدك في البوت
+• يمكنك استخدامه للشراء أو السحب
 
-    // ✅ تحويل
-    async handleTransfer(player, args) {
-        const approvalCheck = await this.checkPlayerApproval(player);
-        if (approvalCheck.error) return approvalCheck.error;
+📌 خطوات الإيداع:
+1. تواصل مع ${adminName} عبر الرابط:
+${adminLink}
 
-        if (args.length < 2) {
-            return `❌ الاستخدام: تحويل [اسم اللاعب] [المبلغ]
+2. أخبره بالمبلغ الذي تريد إيداعه
+3. أكمل عملية الدفع معه
+4. سيقوم بإضافة الغولد لرصيدك
 
-مثال: تحويل Ahmed 100`;
-        }
+💰 رصيدك الحالي: ${player.gold} غولد
 
-        const amount = parseInt(args[args.length - 1]);
-        const targetName = args.slice(0, -1).join(' ');
-
-        if (!amount || amount <= 0) {
-            return '❌ مبلغ غير صالح.';
-        }
-
-        if (amount > player.gold) {
-            return `❌ رصيدك غير كافٍ!
-
-💰 رصيدك: ${player.gold} غولد`;
-        }
-
-        const Player = (await import('../../Player.js')).default;
-        const target = await Player.findOne({
-            name: { $regex: new RegExp(`^${targetName}$`, 'i') }
-        });
-
-        if (!target) {
-            return `❌ لم يتم العثور على اللاعب: ${targetName}`;
-        }
-
-        if (target.userId === player.userId) {
-            return '❌ لا يمكنك التحويل لنفسك!';
-        }
-
-        player.gold -= amount;
-        target.gold += amount;
-
-        player.transactions.push({
-            id: `tx_${Date.now()}`,
-            type: 'transfer_sent',
-            amount: amount,
-            status: 'completed',
-            targetPlayer: target.name,
-            description: `تحويل إلى ${target.name}`
-        });
-
-        target.transactions.push({
-            id: `tx_${Date.now()}`,
-            type: 'transfer_received',
-            amount: amount,
-            status: 'completed',
-            targetPlayer: player.name,
-            description: `تحويل من ${player.name}`
-        });
-
-        await player.save();
-        await target.save();
-
-        return `✅ تم التحويل بنجاح!
-
-💸 المبلغ: ${amount} غولد
-👤 إلى: ${target.name}
-💰 رصيدك الجديد: ${player.gold} غولد`;
+⚠️ ملاحظة:
+• الإيداع يتم يدوياً من قبل الإدارة
+• تأكد من التعامل مع الإدارة الرسمية فقط
+• لا ترسل أي مبالغ لأي شخص آخر`;
     }
 
     // ✅ سجل المعاملات
@@ -168,9 +109,7 @@ export class EconomyCommands extends BaseCommand {
 
         transactions.forEach(tx => {
             const date = new Date(tx.createdAt).toLocaleDateString('ar-EG');
-            const icon = tx.type === 'deposit' ? '📥' :
-                        tx.type === 'withdrawal' ? '📤' :
-                        tx.type === 'transfer_sent' ? '➡️' : '⬅️';
+            const icon = tx.type === 'deposit' ? '📥' : '📤';
 
             msg += `\n${icon} ${tx.description}\n`;
             msg += `   💰 ${tx.amount} غولد\n`;
@@ -179,78 +118,5 @@ export class EconomyCommands extends BaseCommand {
         });
 
         return msg;
-    }
-
-    // ===================================
-    // ✅ أوامر الأدمن الاقتصادية
-    // ===================================
-
-    async handleEconomyStats(player) {
-        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        const economySystem = await this.getSystem('economy');
-        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
-
-        return await economySystem.showEconomyStats();
-    }
-
-    async handleRichestPlayers(player, args) {
-        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        const page = parseInt(args[0]) || 1;
-
-        const economySystem = await this.getSystem('economy');
-        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
-
-        return await economySystem.showRichestPlayers(page);
-    }
-
-    async handlePoorestPlayers(player, args) {
-        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        const page = parseInt(args[0]) || 1;
-
-        const economySystem = await this.getSystem('economy');
-        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
-
-        return await economySystem.showPoorestPlayers(page);
-    }
-
-    async handlePendingWithdrawals(player, args) {
-        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        const page = parseInt(args[0]) || 1;
-
-        const economySystem = await this.getSystem('economy');
-        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
-
-        return await economySystem.showPendingWithdrawals(page);
-    }
-
-    async handlePlayerEconomy(player, args) {
-        if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
-            return '❌ هذا الأمر خاص بالمدراء فقط.';
-        }
-
-        if (args.length === 0) {
-            return `❌ الاستخدام: اقتصاد_لاعب [اسم اللاعب]
-
-مثال: اقتصاد_لاعب Ahmed`;
-        }
-
-        const playerName = args.join(' ');
-
-        const economySystem = await this.getSystem('economy');
-        if (!economySystem) return '❌ نظام الاقتصاد غير متوفر.';
-
-        return await economySystem.showPlayerEconomy(playerName);
     }
 }
