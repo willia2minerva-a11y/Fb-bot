@@ -10,7 +10,7 @@ import { CraftingCommands } from './commands/CraftingCommands.js';
 import { ExplorationCommands } from './commands/ExplorationCommands.js';
 import { InfoCommands } from './commands/InfoCommands.js';
 import { MenuCommands } from './commands/MenuCommands.js';
-import { AchievementCommands } from './commands/AchievementCommands.js';
+import { AchievementCommands } from './commands/commands/AchievementCommands.js';
 import { SystemLoader } from './utils/SystemLoader.js';
 import { ArabicItemMap } from './utils/ArabicItemMap.js';
 
@@ -103,6 +103,12 @@ export default class CommandHandler {
                     console.error(`❌ فشل تحميل النظام: ${systemName}`);
                     return null;
                 }
+
+                // ✅ تمرير commandHandler للأنظمة التي تحتاجه
+                if (typeof this.systems[systemName].setCommandHandler === 'function') {
+                    this.systems[systemName].setCommandHandler(this);
+                }
+
                 console.log(`✅ تم تحميل النظام: ${systemName}`);
             }
             return this.systems[systemName];
@@ -316,4 +322,4 @@ ${player.userId}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-                }
+    }
