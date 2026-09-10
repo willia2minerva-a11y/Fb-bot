@@ -10,7 +10,7 @@ import { CraftingCommands } from './commands/CraftingCommands.js';
 import { ExplorationCommands } from './commands/ExplorationCommands.js';
 import { InfoCommands } from './commands/InfoCommands.js';
 import { MenuCommands } from './commands/MenuCommands.js';
-import { AchievementCommands } from './commands/commands/AchievementCommands.js';
+import { AchievementCommands } from './commands/AchievementCommands.js';
 import { SystemLoader } from './utils/SystemLoader.js';
 import { ArabicItemMap } from './utils/ArabicItemMap.js';
 
