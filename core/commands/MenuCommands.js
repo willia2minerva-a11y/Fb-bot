@@ -1,4 +1,4 @@
-// core/commands/MenuCommands.js
+// core/commands/commands/MenuCommands.js
 import { BaseCommand } from './BaseCommand.js';
 
 export class MenuCommands extends BaseCommand {
@@ -85,7 +85,7 @@ export class MenuCommands extends BaseCommand {
 • حالتي | بروفايل | حقيبة
 
 💰 الاقتصاد
-• سحب | تحويل | رصيد
+• رصيد | سحب | ايداع | معاملاتي
 
 🚪 البوابات
 • بوابات | ادخل | استكشف | مغادرة
@@ -149,7 +149,7 @@ export class MenuCommands extends BaseCommand {
 
 • رصيد - عرض رصيدك
 • سحب [مبلغ] - سحب غولد
-• تحويل [لاعب] [مبلغ] - تحويل
+• ايداع - طريقة الإيداع
 • معاملاتي - سجل المعاملات
 
 💡 رئيسية - العودة`,
@@ -173,8 +173,8 @@ export class MenuCommands extends BaseCommand {
 • سلسلة - عرض سلسلة الدخول
 
 💰 المكافآت:
-• دعوة صديق: 500 ذهب لك + 200 ذهب له
-• المكافأة اليومية: 50-250 ذهب
+• دعوة صديق: 50 غولد لك + 20 غولد له
+• المكافأة اليومية: 5-30 غولد
 • مكافأة أسبوعية: سبيكة نادرة
 
 💡 رئيسية - العودة`
