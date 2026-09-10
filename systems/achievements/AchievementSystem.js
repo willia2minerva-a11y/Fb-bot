@@ -6,7 +6,7 @@ const customTaskSchema = new mongoose.Schema({
     name: { type: String, required: true },
     type: { type: String, required: true },
     target: { type: Number, required: true },
-    reward: { type: Number, default: 20 },
+    reward: { type: Number, default: 5 },
     isDaily: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now }
 });
@@ -15,70 +15,87 @@ const CustomTask = mongoose.models.CustomTask || mongoose.model('CustomTask', cu
 
 export class AchievementSystem {
     constructor() {
+        // ✅ المهام اليومية (مكافآت صغيرة)
         this.dailyTaskPool = [
             // جمع الموارد
-            { id: 'gather_3', name: 'اجمع 3 موارد', type: 'gather', target: 3, reward: 15 },
-            { id: 'gather_5', name: 'اجمع 5 موارد', type: 'gather', target: 5, reward: 25 },
-            { id: 'gather_10', name: 'اجمع 10 موارد', type: 'gather', target: 10, reward: 40 },
-            { id: 'gather_15', name: 'اجمع 15 مورد', type: 'gather', target: 15, reward: 55 },
+            { id: 'gather_3', name: 'اجمع 3 موارد', type: 'gather', target: 3, reward: 2 },
+            { id: 'gather_5', name: 'اجمع 5 موارد', type: 'gather', target: 5, reward: 3 },
+            { id: 'gather_10', name: 'اجمع 10 موارد', type: 'gather', target: 10, reward: 5 },
+            { id: 'gather_15', name: 'اجمع 15 مورد', type: 'gather', target: 15, reward: 8 },
 
             // القتل
-            { id: 'kill_2', name: 'اقتل وحشين', type: 'kill', target: 2, reward: 25 },
-            { id: 'kill_3', name: 'اقتل 3 وحوش', type: 'kill', target: 3, reward: 35 },
-            { id: 'kill_5', name: 'اقتل 5 وحوش', type: 'kill', target: 5, reward: 50 },
-            { id: 'kill_10', name: 'اقتل 10 وحوش', type: 'kill', target: 10, reward: 80 },
+            { id: 'kill_2', name: 'اقتل وحشين', type: 'kill', target: 2, reward: 3 },
+            { id: 'kill_3', name: 'اقتل 3 وحوش', type: 'kill', target: 3, reward: 5 },
+            { id: 'kill_5', name: 'اقتل 5 وحوش', type: 'kill', target: 5, reward: 8 },
+            { id: 'kill_10', name: 'اقتل 10 وحوش', type: 'kill', target: 10, reward: 12 },
 
             // الصناعة
-            { id: 'craft_1', name: 'اصنع عنصراً', type: 'craft', target: 1, reward: 20 },
-            { id: 'craft_2', name: 'اصنع عنصرين', type: 'craft', target: 2, reward: 35 },
-            { id: 'craft_3', name: 'اصنع 3 عناصر', type: 'craft', target: 3, reward: 50 },
-            { id: 'craft_5', name: 'اصنع 5 عناصر', type: 'craft', target: 5, reward: 75 },
+            { id: 'craft_1', name: 'اصنع عنصراً', type: 'craft', target: 1, reward: 3 },
+            { id: 'craft_2', name: 'اصنع عنصرين', type: 'craft', target: 2, reward: 5 },
+            { id: 'craft_3', name: 'اصنع 3 عناصر', type: 'craft', target: 3, reward: 7 },
+            { id: 'craft_5', name: 'اصنع 5 عناصر', type: 'craft', target: 5, reward: 10 },
 
             // السفر
-            { id: 'travel_1', name: 'سافر إلى مكان جديد', type: 'travel', target: 1, reward: 15 },
-            { id: 'travel_2', name: 'سافر مرتين', type: 'travel', target: 2, reward: 25 },
-            { id: 'travel_3', name: 'سافر 3 مرات', type: 'travel', target: 3, reward: 40 },
+            { id: 'travel_1', name: 'سافر إلى مكان جديد', type: 'travel', target: 1, reward: 2 },
+            { id: 'travel_2', name: 'سافر مرتين', type: 'travel', target: 2, reward: 4 },
+            { id: 'travel_3', name: 'سافر 3 مرات', type: 'travel', target: 3, reward: 6 },
 
             // كسب الذهب
-            { id: 'earn_gold_100', name: 'اكسب 100 ذهب', type: 'earn_gold', target: 100, reward: 15 },
-            { id: 'earn_gold_200', name: 'اكسب 200 ذهب', type: 'earn_gold', target: 200, reward: 25 },
-            { id: 'earn_gold_500', name: 'اكسب 500 ذهب', type: 'earn_gold', target: 500, reward: 40 },
+            { id: 'earn_gold_50', name: 'اكسب 50 غولد', type: 'earn_gold', target: 50, reward: 3 },
+            { id: 'earn_gold_100', name: 'اكسب 100 غولد', type: 'earn_gold', target: 100, reward: 5 },
+            { id: 'earn_gold_200', name: 'اكسب 200 غولد', type: 'earn_gold', target: 200, reward: 8 },
 
             // استخدام النشاط
-            { id: 'use_stamina_20', name: 'استهلك 20 نشاط', type: 'use_stamina', target: 20, reward: 20 },
-            { id: 'use_stamina_50', name: 'استهلك 50 نشاط', type: 'use_stamina', target: 50, reward: 35 },
+            { id: 'use_stamina_20', name: 'استهلك 20 نشاط', type: 'use_stamina', target: 20, reward: 4 },
+            { id: 'use_stamina_50', name: 'استهلك 50 نشاط', type: 'use_stamina', target: 50, reward: 7 },
 
-            // ✅ مهام الإحالة
-            { id: 'invite_1', name: 'ادعُ صديقاً واحداً', type: 'referral', target: 1, reward: 50 },
-            { id: 'invite_2', name: 'ادعُ صديقين', type: 'referral', target: 2, reward: 100 },
+            // الإحالة
+            { id: 'invite_1', name: 'ادعُ صديقاً', type: 'referral', target: 1, reward: 5 },
+            { id: 'invite_2', name: 'ادعُ صديقين', type: 'referral', target: 2, reward: 10 },
         ];
 
+        // ✅ الإنجازات الدائمة
         this.achievements = [
-            { id: 'first_kill', name: 'أول قتيل', description: 'اقتل أول وحش', type: 'kill', target: 1, reward: 50 },
-            { id: 'kill_50', name: 'صياد الوحوش', description: 'اقتل 50 وحشاً', type: 'kill', target: 50, reward: 300 },
-            { id: 'kill_200', name: 'مبيد الوحوش', description: 'اقتل 200 وحش', type: 'kill', target: 200, reward: 1500 },
-            { id: 'gather_100', name: 'جامع الموارد', description: 'اجمع 100 مورد', type: 'gather', target: 100, reward: 200 },
-            { id: 'gather_500', name: 'سيد الموارد', description: 'اجمع 500 مورد', type: 'gather', target: 500, reward: 1000 },
-            { id: 'craft_20', name: 'الصانع الماهر', description: 'اصنع 20 عنصراً', type: 'craft', target: 20, reward: 250 },
-            { id: 'craft_100', name: 'الحرفي الأسطوري', description: 'اصنع 100 عنصر', type: 'craft', target: 100, reward: 1500 },
-            { id: 'level_10', name: 'مغامر مبتدئ', description: 'وصل للمستوى 10', type: 'level', target: 10, reward: 100 },
-            { id: 'level_30', name: 'مغامر خبير', description: 'وصل للمستوى 30', type: 'level', target: 30, reward: 500 },
-            { id: 'level_50', name: 'مغامر محترف', description: 'وصل للمستوى 50', type: 'level', target: 50, reward: 1000 },
-            { id: 'level_100', name: 'أسطورة', description: 'وصل للمستوى 100', type: 'level', target: 100, reward: 5000 },
-            { id: 'gold_500', name: 'ثري', description: 'اجمع 500 ذهب', type: 'gold', target: 500, reward: 150 },
-            { id: 'gold_5000', name: 'مليونير', description: 'اجمع 5000 ذهب', type: 'gold', target: 5000, reward: 1500 },
-            
-            // ✅ إنجازات الإحالة
-            { id: 'referral_first', name: 'المدعو الأول', description: 'ادعُ أول صديق', type: 'referral', target: 1, reward: 200 },
-            { id: 'referral_5', name: 'داعية المغامرين', description: 'ادعُ 5 أصدقاء', type: 'referral', target: 5, reward: 800 },
-            { id: 'referral_10', name: 'قائد الفريق', description: 'ادعُ 10 أصدقاء', type: 'referral', target: 10, reward: 2000 },
-            { id: 'streak_7', name: 'مثابر', description: 'حافظ على سلسلة 7 أيام', type: 'streak', target: 7, reward: 300 },
-            { id: 'streak_30', name: 'أسطورة الالتزام', description: 'حافظ على سلسلة 30 يوم', type: 'streak', target: 30, reward: 1500 },
+            // القتل
+            { id: 'first_kill', name: 'أول قتيل', description: 'اقتل أول وحش', type: 'kill', target: 1, reward: 5 },
+            { id: 'kill_50', name: 'صياد الوحوش', description: 'اقتل 50 وحشاً', type: 'kill', target: 50, reward: 30 },
+            { id: 'kill_200', name: 'مبيد الوحوش', description: 'اقتل 200 وحش', type: 'kill', target: 200, reward: 100 },
+            { id: 'kill_500', name: 'سيد القتل', description: 'اقتل 500 وحش', type: 'kill', target: 500, reward: 250 },
+
+            // الجمع
+            { id: 'gather_100', name: 'جامع الموارد', description: 'اجمع 100 مورد', type: 'gather', target: 100, reward: 25 },
+            { id: 'gather_500', name: 'سيد الموارد', description: 'اجمع 500 مورد', type: 'gather', target: 500, reward: 75 },
+            { id: 'gather_1000', name: 'ملك الموارد', description: 'اجمع 1000 مورد', type: 'gather', target: 1000, reward: 150 },
+
+            // الصناعة
+            { id: 'craft_20', name: 'الصانع الماهر', description: 'اصنع 20 عنصراً', type: 'craft', target: 20, reward: 30 },
+            { id: 'craft_100', name: 'الحرفي الأسطوري', description: 'اصنع 100 عنصر', type: 'craft', target: 100, reward: 100 },
+
+            // المستوى
+            { id: 'level_10', name: 'مغامر مبتدئ', description: 'وصل للمستوى 10', type: 'level', target: 10, reward: 15 },
+            { id: 'level_30', name: 'مغامر خبير', description: 'وصل للمستوى 30', type: 'level', target: 30, reward: 40 },
+            { id: 'level_50', name: 'مغامر محترف', description: 'وصل للمستوى 50', type: 'level', target: 50, reward: 80 },
+            { id: 'level_100', name: 'أسطورة', description: 'وصل للمستوى 100', type: 'level', target: 100, reward: 250 },
+
+            // الذهب
+            { id: 'gold_500', name: 'ثري', description: 'اجمع 500 غولد', type: 'gold', target: 500, reward: 20 },
+            { id: 'gold_2000', name: 'مليونير صغير', description: 'اجمع 2000 غولد', type: 'gold', target: 2000, reward: 60 },
+            { id: 'gold_5000', name: 'مليونير', description: 'اجمع 5000 غولد', type: 'gold', target: 5000, reward: 150 },
+
+            // الإحالة
+            { id: 'referral_first', name: 'المدعو الأول', description: 'ادعُ أول صديق', type: 'referral', target: 1, reward: 20 },
+            { id: 'referral_5', name: 'داعية المغامرين', description: 'ادعُ 5 أصدقاء', type: 'referral', target: 5, reward: 80 },
+            { id: 'referral_10', name: 'قائد الفريق', description: 'ادعُ 10 أصدقاء', type: 'referral', target: 10, reward: 200 },
+
+            // السلسلة
+            { id: 'streak_7', name: 'مثابر', description: 'حافظ على سلسلة 7 أيام', type: 'streak', target: 7, reward: 30 },
+            { id: 'streak_30', name: 'أسطورة الالتزام', description: 'حافظ على سلسلة 30 يوم', type: 'streak', target: 30, reward: 150 },
         ];
 
         console.log('🏆 نظام الإنجازات والمهام تم تهيئته');
     }
 
+    // ✅ ترجمة أنواع المهام
     _translateTaskType(input) {
         const typeMap = {
             'جمع': 'gather', 'اجمع': 'gather', 'موارد': 'gather', 'جمع_موارد': 'gather',
@@ -95,15 +112,17 @@ export class AchievementSystem {
         return typeMap[lower] || lower;
     }
 
+    // ✅ الحصول على الاسم العربي للنوع
     _getTypeNameArabic(type) {
         const names = {
             'gather': 'جمع', 'kill': 'قتل', 'craft': 'صناعة',
-            'travel': 'سفر', 'earn_gold': 'كسب ذهب', 'use_stamina': 'استهلاك نشاط',
+            'travel': 'سفر', 'earn_gold': 'كسب غولد', 'use_stamina': 'استهلاك نشاط',
             'referral': 'إحالة', 'streak': 'سلسلة'
         };
         return names[type] || type;
     }
 
+    // ✅ شريط التقدم
     _drawProgressBar(current, max, length = 10) {
         const percentage = max > 0 ? current / max : 0;
         const filled = Math.round(length * percentage);
@@ -114,6 +133,7 @@ export class AchievementSystem {
         return `${color} ${filledBar}${emptyBar}`;
     }
 
+    // ✅ اختيار المهام اليومية
     async _selectDailyTasks(player) {
         const today = new Date().toDateString();
         const taskDate = player.dailyTaskDate || '';
@@ -138,6 +158,7 @@ export class AchievementSystem {
         await player.save();
     }
 
+    // ✅ عرض المهام اليومية
     async showDailyTasks(player) {
         await this._selectDailyTasks(player);
         return this._formatDailyTasks(player);
@@ -163,7 +184,7 @@ export class AchievementSystem {
 
             msg += `\n${icon} ${task.name}\n`;
             msg += `   ${bar}  ${Math.min(progress, task.target)}/${task.target}\n`;
-            msg += `   💰 المكافأة: ${task.reward} ذهب\n`;
+            msg += `   💰 المكافأة: ${task.reward} غولد\n`;
         });
 
         if (allCompleted) {
@@ -179,6 +200,7 @@ export class AchievementSystem {
         return progress[taskId] || 0;
     }
 
+    // ✅ تحديث تقدم المهام
     async updateTaskProgress(player, type, amount = 1) {
         const tasks = player.dailyTasksList || [];
         if (tasks.length === 0) return;
@@ -234,6 +256,7 @@ export class AchievementSystem {
         player.completedDailyTasks = completedTasks;
     }
 
+    // ✅ فحص الإنجازات
     async checkAchievements(player) {
         const unlocked = player.unlockedAchievements || [];
         let newAchievements = [];
@@ -281,6 +304,7 @@ export class AchievementSystem {
         return newAchievements;
     }
 
+    // ✅ عرض الإنجازات
     async showAchievements(player) {
         const unlocked = player.unlockedAchievements || [];
 
@@ -306,17 +330,21 @@ export class AchievementSystem {
             if (isUnlocked) {
                 msg += `\n✅ ${achievement.name}\n`;
                 msg += `   ${achievement.description}\n`;
-                msg += `   🎁 تم الحصول على ${achievement.reward} ذهب\n`;
+                msg += `   🎁 تم الحصول على ${achievement.reward} غولد\n`;
             } else {
                 msg += `\n🔒 ${achievement.name}\n`;
                 msg += `   ${achievement.description}\n`;
                 msg += `   ${bar}  ${progress}/${achievement.target}\n`;
-                msg += `   💰 المكافأة: ${achievement.reward} ذهب\n`;
+                msg += `   💰 المكافأة: ${achievement.reward} غولد\n`;
             }
         });
 
         return msg;
     }
+
+    // ===================================
+    // إدارة المهام (للأدمن)
+    // ===================================
 
     async addCustomTask(name, type, target, reward, isDaily = true) {
         const id = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -333,4 +361,4 @@ export class AchievementSystem {
     async listCustomTasks() {
         return await CustomTask.find({});
     }
-        }
+                }
