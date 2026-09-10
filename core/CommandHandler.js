@@ -11,6 +11,7 @@ import { ExplorationCommands } from './commands/ExplorationCommands.js';
 import { InfoCommands } from './commands/InfoCommands.js';
 import { MenuCommands } from './commands/MenuCommands.js';
 import { AchievementCommands } from './commands/AchievementCommands.js';
+import { ReferralCommands } from './commands/ReferralCommands.js';
 import { SystemLoader } from './utils/SystemLoader.js';
 import { ArabicItemMap } from './utils/ArabicItemMap.js';
 
@@ -54,6 +55,7 @@ export default class CommandHandler {
             this.infoCommands = new InfoCommands(this);
             this.menuCommands = new MenuCommands(this);
             this.achievementCommands = new AchievementCommands(this);
+            this.referralCommands = new ReferralCommands(this);
             console.log('✅ تم تهيئة جميع فئات الأوامر');
         } catch (error) {
             console.error('❌ خطأ في تهيئة فئات الأوامر:', error);
@@ -74,7 +76,8 @@ export default class CommandHandler {
                 this.craftingCommands,
                 this.battleCommands,
                 this.economyCommands,
-                this.achievementCommands
+                this.achievementCommands,
+                this.referralCommands
             ];
 
             commandSources.forEach(source => {
@@ -104,7 +107,6 @@ export default class CommandHandler {
                     return null;
                 }
 
-                // ✅ تمرير commandHandler للأنظمة التي تحتاجه
                 if (typeof this.systems[systemName].setCommandHandler === 'function') {
                     this.systems[systemName].setCommandHandler(this);
                 }
@@ -322,4 +324,4 @@ ${player.userId}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-    }
+}
