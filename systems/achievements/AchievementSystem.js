@@ -1,6 +1,4 @@
 // systems/achievements/AchievementSystem.js
-import Player from '../../core/Player.js';
-
 export class AchievementSystem {
     constructor() {
         this.dailyTasks = [
@@ -25,25 +23,33 @@ export class AchievementSystem {
         console.log('🏆 نظام الإنجازات والمهام تم تهيئته');
     }
 
-    // ✅ عرض المهام اليومية
+    _drawProgressBar(current, max, length = 10) {
+        const percentage = max > 0 ? current / max : 0;
+        const filled = Math.round(length * percentage);
+        const empty = length - filled;
+        const filledBar = '█'.repeat(filled);
+        const emptyBar = '░'.repeat(empty);
+        const color = percentage >= 1 ? '🟢' : percentage > 0.5 ? '🟢' : percentage > 0.2 ? '🟡' : '🔴';
+        return `${color} ${filledBar}${emptyBar}`;
+    }
+
     async showDailyTasks(player) {
-        const tasks = player.dailyTasks || [];
         const today = new Date().toDateString();
         const taskDate = player.dailyTaskDate || '';
 
-        // إذا كان يوم جديد، أعد تعيين المهام
         if (taskDate !== today) {
             player.dailyTasks = [];
+            player.dailyTaskProgress = {};
+            player.completedDailyTasks = [];
             player.dailyTaskDate = today;
             await player.save();
-            return this._formatDailyTasks(player);
         }
 
         return this._formatDailyTasks(player);
     }
 
     _formatDailyTasks(player) {
-        let msg = `📋 المهام اليومية\n\n`;
+        let msg = `📋 المهام اليومية\n`;
         let allCompleted = true;
 
         this.dailyTasks.forEach(task => {
@@ -52,13 +58,16 @@ export class AchievementSystem {
             if (!isCompleted) allCompleted = false;
 
             const icon = isCompleted ? '✅' : '⏳';
-            msg += `${icon} ${task.name}\n`;
-            msg += `   التقدم: ${Math.min(progress, task.target)}/${task.target}\n`;
-            msg += `   المكافأة: ${task.reward} ذهب\n\n`;
+            const bar = this._drawProgressBar(progress, task.target, 10);
+
+            msg += `\n${icon} ${task.name}\n`;
+            msg += `   ${bar}  ${Math.min(progress, task.target)}/${task.target}\n`;
+            msg += `   💰 المكافأة: ${task.reward} ذهب\n`;
         });
 
         if (allCompleted) {
-            msg += `🎉 أكملت جميع المهام اليومية!\n`;
+            msg += `\n🎉 أكملت جميع المهام اليومية!\n`;
+            msg += `عد غداً لمهام جديدة.`;
         }
 
         return msg;
@@ -66,12 +75,16 @@ export class AchievementSystem {
 
     _getTaskProgress(player, taskId) {
         const progress = player.dailyTaskProgress || {};
+        if (progress instanceof Map) return progress.get(taskId) || 0;
         return progress[taskId] || 0;
     }
 
-    // ✅ تحديث تقدم المهام
     async updateTaskProgress(player, type, amount = 1) {
-        const taskProgress = player.dailyTaskProgress || {};
+        let taskProgress = player.dailyTaskProgress || {};
+        if (taskProgress instanceof Map) {
+            taskProgress = Object.fromEntries(taskProgress);
+        }
+
         let updated = false;
 
         this.dailyTasks.forEach(task => {
@@ -87,11 +100,16 @@ export class AchievementSystem {
         if (updated) {
             player.dailyTaskProgress = taskProgress;
             await this._checkTaskCompletion(player);
+            await player.save();
         }
     }
 
     async _checkTaskCompletion(player) {
-        const taskProgress = player.dailyTaskProgress || {};
+        let taskProgress = player.dailyTaskProgress || {};
+        if (taskProgress instanceof Map) {
+            taskProgress = Object.fromEntries(taskProgress);
+        }
+
         const completedTasks = player.completedDailyTasks || [];
 
         for (const task of this.dailyTasks) {
@@ -104,7 +122,6 @@ export class AchievementSystem {
         player.completedDailyTasks = completedTasks;
     }
 
-    // ✅ فحص الإنجازات
     async checkAchievements(player) {
         const unlocked = player.unlockedAchievements || [];
         let newAchievements = [];
@@ -146,18 +163,36 @@ export class AchievementSystem {
         return newAchievements;
     }
 
-    // ✅ عرض الإنجازات
     async showAchievements(player) {
         const unlocked = player.unlockedAchievements || [];
 
-        let msg = `🏆 الإنجازات (${unlocked.length}/${this.achievements.length})\n\n`;
+        let msg = `🏆 الإنجازات (${unlocked.length}/${this.achievements.length})\n`;
 
         this.achievements.forEach(achievement => {
             const isUnlocked = unlocked.includes(achievement.id);
-            const icon = isUnlocked ? '✅' : '🔒';
-            msg += `${icon} ${achievement.name}\n`;
-            msg += `   ${achievement.description}\n`;
-            msg += `   المكافأة: ${achievement.reward} ذهب\n\n`;
+
+            let current = 0;
+            switch (achievement.type) {
+                case 'kill': current = player.stats?.monstersKilled || 0; break;
+                case 'gather': current = player.stats?.resourcesGathered || 0; break;
+                case 'craft': current = player.stats?.itemsCrafted || 0; break;
+                case 'level': current = player.level; break;
+                case 'gold': current = player.gold; break;
+            }
+
+            const progress = Math.min(current, achievement.target);
+            const bar = this._drawProgressBar(progress, achievement.target, 10);
+
+            if (isUnlocked) {
+                msg += `\n✅ ${achievement.name}\n`;
+                msg += `   ${achievement.description}\n`;
+                msg += `   🎁 تم الحصول على ${achievement.reward} ذهب\n`;
+            } else {
+                msg += `\n🔒 ${achievement.name}\n`;
+                msg += `   ${achievement.description}\n`;
+                msg += `   ${bar}  ${progress}/${achievement.target}\n`;
+                msg += `   💰 المكافأة: ${achievement.reward} ذهب\n`;
+            }
         });
 
         return msg;
