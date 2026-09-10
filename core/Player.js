@@ -21,6 +21,7 @@ const playerSchema = new mongoose.Schema({
     approvedAt: { type: Date, default: null },
     approvedBy: { type: String, default: null },
     level: { type: Number, default: 1, min: 1 },
+    dailyTasksList: { type: Array, default: [] },
     experience: { type: Number, default: 0, min: 0 },
     gold: { type: Number, default: 50, min: 0 },
     transactions: [{
