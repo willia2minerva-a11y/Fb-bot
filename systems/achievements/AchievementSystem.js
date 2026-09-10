@@ -1,7 +1,6 @@
 // systems/achievements/AchievementSystem.js
 import mongoose from 'mongoose';
 
-// ✅ نموذج MongoDB للمهام المخصصة
 const customTaskSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     name: { type: String, required: true },
@@ -16,7 +15,6 @@ const CustomTask = mongoose.models.CustomTask || mongoose.model('CustomTask', cu
 
 export class AchievementSystem {
     constructor() {
-        // ✅ قائمة ضخمة من المهام اليومية المحتملة
         this.dailyTaskPool = [
             // جمع الموارد
             { id: 'gather_3', name: 'اجمع 3 موارد', type: 'gather', target: 3, reward: 15 },
@@ -49,9 +47,12 @@ export class AchievementSystem {
             // استخدام النشاط
             { id: 'use_stamina_20', name: 'استهلك 20 نشاط', type: 'use_stamina', target: 20, reward: 20 },
             { id: 'use_stamina_50', name: 'استهلك 50 نشاط', type: 'use_stamina', target: 50, reward: 35 },
+
+            // ✅ مهام الإحالة
+            { id: 'invite_1', name: 'ادعُ صديقاً واحداً', type: 'referral', target: 1, reward: 50 },
+            { id: 'invite_2', name: 'ادعُ صديقين', type: 'referral', target: 2, reward: 100 },
         ];
 
-        // ✅ الإنجازات الدائمة
         this.achievements = [
             { id: 'first_kill', name: 'أول قتيل', description: 'اقتل أول وحش', type: 'kill', target: 1, reward: 50 },
             { id: 'kill_50', name: 'صياد الوحوش', description: 'اقتل 50 وحشاً', type: 'kill', target: 50, reward: 300 },
@@ -66,38 +67,28 @@ export class AchievementSystem {
             { id: 'level_100', name: 'أسطورة', description: 'وصل للمستوى 100', type: 'level', target: 100, reward: 5000 },
             { id: 'gold_500', name: 'ثري', description: 'اجمع 500 ذهب', type: 'gold', target: 500, reward: 150 },
             { id: 'gold_5000', name: 'مليونير', description: 'اجمع 5000 ذهب', type: 'gold', target: 5000, reward: 1500 },
+            
+            // ✅ إنجازات الإحالة
+            { id: 'referral_first', name: 'المدعو الأول', description: 'ادعُ أول صديق', type: 'referral', target: 1, reward: 200 },
+            { id: 'referral_5', name: 'داعية المغامرين', description: 'ادعُ 5 أصدقاء', type: 'referral', target: 5, reward: 800 },
+            { id: 'referral_10', name: 'قائد الفريق', description: 'ادعُ 10 أصدقاء', type: 'referral', target: 10, reward: 2000 },
+            { id: 'streak_7', name: 'مثابر', description: 'حافظ على سلسلة 7 أيام', type: 'streak', target: 7, reward: 300 },
+            { id: 'streak_30', name: 'أسطورة الالتزام', description: 'حافظ على سلسلة 30 يوم', type: 'streak', target: 30, reward: 1500 },
         ];
 
         console.log('🏆 نظام الإنجازات والمهام تم تهيئته');
     }
 
-    // ✅ قاموس ترجمة أنواع المهام من العربية إلى الإنجليزية
     _translateTaskType(input) {
         const typeMap = {
-            'جمع': 'gather',
-            'اجمع': 'gather',
-            'موارد': 'gather',
-            'جمع_موارد': 'gather',
-
-            'قتل': 'kill',
-            'اقتل': 'kill',
-            'وحوش': 'kill',
-            'قتال': 'kill',
-
-            'صناعة': 'craft',
-            'اصنع': 'craft',
-            'تصنيع': 'craft',
-
-            'سفر': 'travel',
-            'انتقل': 'travel',
-            'تنقل': 'travel',
-
-            'ذهب': 'earn_gold',
-            'غولد': 'earn_gold',
-            'كسب_ذهب': 'earn_gold',
-
-            'نشاط': 'use_stamina',
-            'استهلاك_نشاط': 'use_stamina'
+            'جمع': 'gather', 'اجمع': 'gather', 'موارد': 'gather', 'جمع_موارد': 'gather',
+            'قتل': 'kill', 'اقتل': 'kill', 'وحوش': 'kill', 'قتال': 'kill',
+            'صناعة': 'craft', 'اصنع': 'craft', 'تصنيع': 'craft',
+            'سفر': 'travel', 'انتقل': 'travel', 'تنقل': 'travel',
+            'ذهب': 'earn_gold', 'غولد': 'earn_gold', 'كسب_ذهب': 'earn_gold',
+            'نشاط': 'use_stamina', 'استهلاك_نشاط': 'use_stamina',
+            'دعوة': 'referral', 'إحالة': 'referral', 'احالة': 'referral',
+            'سلسلة': 'streak'
         };
 
         const lower = input.toLowerCase().trim();
@@ -106,12 +97,9 @@ export class AchievementSystem {
 
     _getTypeNameArabic(type) {
         const names = {
-            'gather': 'جمع',
-            'kill': 'قتل',
-            'craft': 'صناعة',
-            'travel': 'سفر',
-            'earn_gold': 'كسب ذهب',
-            'use_stamina': 'استهلاك نشاط'
+            'gather': 'جمع', 'kill': 'قتل', 'craft': 'صناعة',
+            'travel': 'سفر', 'earn_gold': 'كسب ذهب', 'use_stamina': 'استهلاك نشاط',
+            'referral': 'إحالة', 'streak': 'سلسلة'
         };
         return names[type] || type;
     }
@@ -137,11 +125,7 @@ export class AchievementSystem {
         const customTasks = await CustomTask.find({ isDaily: true });
 
         const allPool = [...this.dailyTaskPool, ...customTasks.map(t => ({
-            id: t.id,
-            name: t.name,
-            type: t.type,
-            target: t.target,
-            reward: t.reward
+            id: t.id, name: t.name, type: t.type, target: t.target, reward: t.reward
         }))];
 
         const shuffled = [...allPool].sort(() => Math.random() - 0.5);
@@ -183,8 +167,7 @@ export class AchievementSystem {
         });
 
         if (allCompleted) {
-            msg += `\n🎉 أكملت جميع المهام اليومية!\n`;
-            msg += `عد غداً لمهام جديدة.`;
+            msg += `\n🎉 أكملت جميع المهام اليومية!\nعد غداً لمهام جديدة.`;
         }
 
         return msg;
@@ -209,10 +192,18 @@ export class AchievementSystem {
 
         tasks.forEach(task => {
             if (task.type === type) {
-                const current = taskProgress[task.id] || 0;
-                if (current < task.target) {
-                    taskProgress[task.id] = Math.min(task.target, current + amount);
+                if (type === 'referral') {
+                    taskProgress[task.id] = player.referralCount || 0;
                     updated = true;
+                } else if (type === 'streak') {
+                    taskProgress[task.id] = player.dailyStreak || 0;
+                    updated = true;
+                } else {
+                    const current = taskProgress[task.id] || 0;
+                    if (current < task.target) {
+                        taskProgress[task.id] = Math.min(task.target, current + amount);
+                        updated = true;
+                    }
                 }
             }
         });
@@ -267,6 +258,12 @@ export class AchievementSystem {
                 case 'gold':
                     isUnlocked = player.gold >= achievement.target;
                     break;
+                case 'referral':
+                    isUnlocked = (player.referralCount || 0) >= achievement.target;
+                    break;
+                case 'streak':
+                    isUnlocked = (player.dailyStreak || 0) >= achievement.target;
+                    break;
             }
 
             if (isUnlocked) {
@@ -299,6 +296,8 @@ export class AchievementSystem {
                 case 'craft': current = player.stats?.itemsCrafted || 0; break;
                 case 'level': current = player.level; break;
                 case 'gold': current = player.gold; break;
+                case 'referral': current = player.referralCount || 0; break;
+                case 'streak': current = player.dailyStreak || 0; break;
             }
 
             const progress = Math.min(current, achievement.target);
@@ -319,22 +318,9 @@ export class AchievementSystem {
         return msg;
     }
 
-    // ===================================
-    // ✅ إدارة المهام (للأدمن)
-    // ===================================
-
     async addCustomTask(name, type, target, reward, isDaily = true) {
         const id = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-
-        const task = new CustomTask({
-            id,
-            name,
-            type,
-            target,
-            reward,
-            isDaily
-        });
-
+        const task = new CustomTask({ id, name, type, target, reward, isDaily });
         await task.save();
         return task;
     }
@@ -347,4 +333,4 @@ export class AchievementSystem {
     async listCustomTasks() {
         return await CustomTask.find({});
     }
-                    }
+        }
