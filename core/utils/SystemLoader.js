@@ -10,7 +10,7 @@ export class SystemLoader {
         'travel': '../../systems/world/TravelSystem.js',
         'crafting': '../../systems/crafting/CraftingSystem.js',
         'furnace': '../../systems/furnace/FurnaceSystem.js',
-        'economy': '../../systems/economy/EconomySystem.js' // ✅ هذا مهم
+        'economy': '../../systems/economy/EconomySystem.js',
         'gate': '../../systems/world/GateSystem.js',
         'referral': '../../systems/referral/ReferralSystem.js',
         'achievement': '../../systems/achievements/AchievementSystem.js'
