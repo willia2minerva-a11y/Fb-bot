@@ -587,7 +587,7 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
             approvedBy: null,
             level: 1,
             experience: 0,
-            gold: 50,
+            gold: 10,
             health: 100,
             maxHealth: 100,
             mana: 50,
