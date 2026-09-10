@@ -1,5 +1,5 @@
 // core/commands/AchievementCommands.js
-import { BaseCommand } from './commands/BaseCommand.js';
+import { BaseCommand } from './BaseCommand.js';
 
 export class AchievementCommands extends BaseCommand {
     getCommands() {
