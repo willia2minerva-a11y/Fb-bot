@@ -7,13 +7,11 @@ export class EconomySystem {
         console.log('💰 نظام الاقتصاد تم تهيئته');
     }
 
-    // ✅ عرض إحصائيات الاقتصاد العامة
+    // ✅ إحصائيات الاقتصاد العامة
     async showEconomyStats() {
         try {
             const stats = await Player.aggregate([
-                {
-                    $match: { registrationStatus: 'completed' }
-                },
+                { $match: { registrationStatus: 'completed' } },
                 {
                     $group: {
                         _id: null,
@@ -34,7 +32,6 @@ export class EconomySystem {
 
             const s = stats[0];
 
-            // إحصائيات إضافية
             const playersWithGold = await Player.countDocuments({
                 registrationStatus: 'completed',
                 gold: { $gt: 0 }
@@ -46,7 +43,8 @@ export class EconomySystem {
             });
 
             const pendingWithdrawals = await Player.countDocuments({
-                'pendingWithdrawal.status': 'pending'
+                'pendingWithdrawal.status': 'pending',
+                'pendingWithdrawal.amount': { $gt: 0 }
             });
 
             const totalPendingAmount = await Player.aggregate([
@@ -56,17 +54,16 @@ export class EconomySystem {
 
             const pendingAmount = totalPendingAmount[0]?.total || 0;
 
-            // أغنى لاعب
             const richestPlayer = await Player.findOne({
                 registrationStatus: 'completed'
-            }).sort({ gold: -1 }).select('name gold playerId');
+            }).sort({ gold: -1 }).select('name gold');
 
             let msg = `💰 إحصائيات الاقتصاد
 
 📊 النظرة العامة:
 • عدد اللاعبين: ${s.totalPlayers}
-• إجمالي الغولد في البوت: ${Math.floor(s.totalGold)} غولد
-• متوسط الغولد للاعب: ${Math.floor(s.avgGold)} غولد
+• إجمالي الغولد: ${Math.floor(s.totalGold)} غولد
+• متوسط الغولد: ${Math.floor(s.avgGold)} غولد
 • أعلى رصيد: ${s.maxGold} غولد
 • أقل رصيد: ${s.minGold} غولد
 
@@ -76,12 +73,12 @@ export class EconomySystem {
 
 💸 طلبات السحب:
 • عدد الطلبات المعلقة: ${pendingWithdrawals}
-• إجمالي المبالغ المعلقة: ${Math.floor(pendingAmount)} غولد
+• إجمالي المبالغ: ${Math.floor(pendingAmount)} غولد
 
 👑 أغنى لاعب:
 • ${richestPlayer?.name || 'غير محدد'} - ${richestPlayer?.gold || 0} غولد
 
-💡 لعرض قائمة الأغنياء: اغنياء [رقم الصفحة]`;
+💡 لعرض القائمة: اغنياء [رقم الصفحة]`;
 
             return msg;
         } catch (error) {
@@ -90,7 +87,7 @@ export class EconomySystem {
         }
     }
 
-    // ✅ عرض قائمة الأغنياء (بصفحات)
+    // ✅ قائمة الأغنياء
     async showRichestPlayers(page = 1) {
         try {
             const totalPlayers = await Player.countDocuments({
@@ -100,16 +97,11 @@ export class EconomySystem {
             const totalPages = Math.ceil(totalPlayers / this.PLAYERS_PER_PAGE);
 
             if (totalPlayers === 0) {
-                return `💰 قائمة الأغنياء
-
-❌ لا يوجد لاعبون بعد.`;
+                return `💰 قائمة الأغنياء\n\n❌ لا يوجد لاعبون بعد.`;
             }
 
             if (page < 1 || page > totalPages) {
-                return `❌ الصفحة ${page} غير موجودة.
-
-📄 إجمالي الصفحات: ${totalPages}
-💡 استخدم: اغنياء [رقم]`;
+                return `❌ الصفحة ${page} غير موجودة.\n\n📄 إجمالي الصفحات: ${totalPages}`;
             }
 
             const skip = (page - 1) * this.PLAYERS_PER_PAGE;
@@ -120,7 +112,7 @@ export class EconomySystem {
             .sort({ gold: -1 })
             .skip(skip)
             .limit(this.PLAYERS_PER_PAGE)
-            .select('name gold level playerId');
+            .select('name gold level');
 
             let msg = `💰 أغنى اللاعبين - صفحة ${page}/${totalPages}\n`;
 
@@ -142,7 +134,7 @@ export class EconomySystem {
         }
     }
 
-    // ✅ عرض قائمة الفقراء (للأدمن - لمراقبة اللاعبين الجدد)
+    // ✅ قائمة الفقراء
     async showPoorestPlayers(page = 1) {
         try {
             const totalPlayers = await Player.countDocuments({
@@ -152,15 +144,11 @@ export class EconomySystem {
             const totalPages = Math.ceil(totalPlayers / this.PLAYERS_PER_PAGE);
 
             if (totalPlayers === 0) {
-                return `💰 قائمة الفقراء
-
-❌ لا يوجد لاعبون بعد.`;
+                return `💰 قائمة الفقراء\n\n❌ لا يوجد لاعبون بعد.`;
             }
 
             if (page < 1 || page > totalPages) {
-                return `❌ الصفحة ${page} غير موجودة.
-
-📄 إجمالي الصفحات: ${totalPages}`;
+                return `❌ الصفحة ${page} غير موجودة.\n\n📄 إجمالي الصفحات: ${totalPages}`;
             }
 
             const skip = (page - 1) * this.PLAYERS_PER_PAGE;
@@ -171,7 +159,7 @@ export class EconomySystem {
             .sort({ gold: 1 })
             .skip(skip)
             .limit(this.PLAYERS_PER_PAGE)
-            .select('name gold level playerId');
+            .select('name gold level');
 
             let msg = `💸 أفقر اللاعبين - صفحة ${page}/${totalPages}\n`;
 
@@ -191,61 +179,7 @@ export class EconomySystem {
         }
     }
 
-    // ✅ عرض طلبات السحب (بصفحات)
-    async showPendingWithdrawals(page = 1) {
-        try {
-            const totalPlayers = await Player.countDocuments({
-                'pendingWithdrawal.status': 'pending'
-            });
-
-            const totalPages = Math.ceil(totalPlayers / this.PLAYERS_PER_PAGE);
-
-            if (totalPlayers === 0) {
-                return `💸 طلبات السحب
-
-✅ لا توجد طلبات معلقة حالياً.`;
-            }
-
-            if (page < 1 || page > totalPages) {
-                return `❌ الصفحة ${page} غير موجودة.
-
-📄 إجمالي الصفحات: ${totalPages}`;
-            }
-
-            const skip = (page - 1) * this.PLAYERS_PER_PAGE;
-
-            const players = await Player.find({
-                'pendingWithdrawal.status': 'pending'
-            })
-            .sort({ 'pendingWithdrawal.requestedAt': 1 })
-            .skip(skip)
-            .limit(this.PLAYERS_PER_PAGE)
-            .select('name gold playerId pendingWithdrawal');
-
-            let msg = `💸 طلبات السحب المعلقة - صفحة ${page}/${totalPages}\n`;
-
-            players.forEach((p, index) => {
-                const globalRank = skip + index + 1;
-                const requestDate = new Date(p.pendingWithdrawal.requestedAt);
-                const dateStr = requestDate.toLocaleDateString('ar-EG');
-
-                msg += `\n${globalRank}. ${p.name}\n`;
-                msg += `   💰 المطلوب: ${p.pendingWithdrawal.amount} غولد\n`;
-                msg += `   💎 الرصيد الحالي: ${p.gold} غولد\n`;
-                msg += `   📅 التاريخ: ${dateStr}\n`;
-            });
-
-            msg += `\n💡 لمعالجة: معالجة_سحب [ID] [قبول/رفض]`;
-            msg += `\n💡 للتنقل: طلبات_سحب [رقم]`;
-
-            return msg;
-        } catch (error) {
-            console.error('❌ خطأ في طلبات السحب:', error);
-            return '❌ حدث خطأ في جلب الطلبات.';
-        }
-    }
-
-    // ✅ عرض إحصائيات لاعب محدد (للأدمن)
+    // ✅ إحصائيات لاعب محدد
     async showPlayerEconomy(playerName) {
         try {
             const player = await Player.findOne({
@@ -259,7 +193,6 @@ export class EconomySystem {
             const referralsCount = player.referralCount || 0;
             const referralRewards = referralsCount * 50;
 
-            // حساب ترتيبه
             const rank = await Player.countDocuments({
                 registrationStatus: 'completed',
                 gold: { $gt: player.gold }
