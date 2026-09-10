@@ -2,7 +2,7 @@
 export const gates = [
   {
     id: 'gate_ed',
-    name: 'بوابات E-D',
+    name: 'بوابة المبتدئين',
     availableLocations: ['forest', 'snow', 'desert'],
     requiredLevel: 1,
     danger: 1,
@@ -13,7 +13,7 @@ export const gates = [
   },
   {
     id: 'gate_ba',
-    name: 'بوابات B-A',
+    name: 'بوابة الفرسان',
     availableLocations: ['desert', 'ocean'],
     requiredLevel: 10,
     danger: 2,
@@ -24,7 +24,7 @@ export const gates = [
   },
   {
     id: 'gate_as',
-    name: 'بوابات A-S',
+    name: 'بوابة الأبطال',
     availableLocations: ['underground_jungle', 'sky', 'old_temple'],
     requiredLevel: 20,
     danger: 3,
@@ -35,7 +35,7 @@ export const gates = [
   },
   {
     id: 'gate_s_rank',
-    name: 'بوابات S-Rank',
+    name: 'بوابة الأساطير',
     availableLocations: ['jungle_temple', 'hell', 'lunar_temple'],
     requiredLevel: 40,
     danger: 5,
@@ -46,7 +46,7 @@ export const gates = [
   },
   {
     id: 'gate_double_dungeon',
-    name: 'بوابات Double Dungeon',
+    name: 'الزنزانة المزدوجة',
     availableLocations: ['jungle_temple', 'hell'],
     requiredLevel: 45,
     danger: 5,
@@ -57,7 +57,7 @@ export const gates = [
   },
   {
     id: 'gate_ultimate_dungeon',
-    name: 'بوابات Ultimate Dungeon',
+    name: 'الزنزانة النهائية',
     availableLocations: ['ruler_castle'],
     requiredLevel: 75,
     danger: 5,
@@ -68,7 +68,7 @@ export const gates = [
   },
   {
     id: 'gate_ab_dark_soldier',
-    name: 'بوابات A-B (جنود الظلام)',
+    name: 'بوابة جنود الظلام',
     availableLocations: ['old_temple'],
     requiredLevel: 25,
     danger: 2,
@@ -79,7 +79,7 @@ export const gates = [
   },
   {
     id: 'gate_ca_ice',
-    name: 'بوابات C-A (الثلج)',
+    name: 'بوابة الثلج',
     availableLocations: ['snow'],
     requiredLevel: 15,
     danger: 3,
@@ -90,18 +90,18 @@ export const gates = [
   },
   {
     id: 'gate_s_rank_kamish',
-    name: 'بوابات S-Rank (كاميش)',
+    name: 'بوابة كاميش',
     availableLocations: ['lunar_temple', 'ruler_castle'],
     requiredLevel: 80,
     danger: 5,
-    description: 'مكان ظهور تنين Kamish، أقوى مخلوقات عالم البوابات.',
+    description: 'مكان ظهور تنين كاميش، أقوى مخلوقات عالم البوابات.',
     resources: ['supreme_spirit_energy'],
     monsters: ['kamish'],
     drops: { supreme_spirit_energy: 1 }
   },
   {
     id: 'gate_s_rank_dark_lord',
-    name: 'بوابات S-Rank (سيد الظلام)',
+    name: 'بوابة سيد الظلام',
     availableLocations: ['dark_castle'],
     requiredLevel: 70,
     danger: 5,
@@ -111,10 +111,9 @@ export const gates = [
     drops: { shards_of_darkness: 3 }
   },
 
-  // Tiers Dynamic Dungeon
   {
     id: 'gate_td',
-    name: 'بوابة T-D',
+    name: 'البوابة الديناميكية',
     availableLocations: ['village', 'forest', 'desert'],
     requiredLevel: 1,
     danger: 5,
@@ -124,10 +123,9 @@ export const gates = [
     drops: { random_tier_resources: 2 }
   },
 
-  // --- Solo Leveling inspired gates ---
   {
     id: 'solo_tier_1',
-    name: 'بوابة سولُو - المستوى 1',
+    name: 'بوابة الوحيد - المبتدئ',
     availableLocations: ['forest', 'village'],
     requiredLevel: 1,
     danger: 1,
@@ -138,7 +136,7 @@ export const gates = [
   },
   {
     id: 'solo_tier_2',
-    name: 'بوابة سولُو - المستوى 2',
+    name: 'بوابة الوحيد - المتقدم',
     availableLocations: ['desert', 'forest'],
     requiredLevel: 10,
     danger: 2,
@@ -149,7 +147,7 @@ export const gates = [
   },
   {
     id: 'solo_tier_3',
-    name: 'بوابة سولُو - المستوى 3',
+    name: 'بوابة الوحيد - الخبير',
     availableLocations: ['underground_jungle', 'old_temple'],
     requiredLevel: 25,
     danger: 3,
@@ -160,7 +158,7 @@ export const gates = [
   },
   {
     id: 'solo_tier_boss',
-    name: 'بوابة سولُو - رئيس التصنيف',
+    name: 'بوابة الوحيد - الزعيم',
     availableLocations: ['jungle_temple', 'ruler_castle'],
     requiredLevel: 50,
     danger: 5,
