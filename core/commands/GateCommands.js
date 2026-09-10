@@ -9,6 +9,7 @@ export class GateCommands extends BaseCommand {
             'بوابتي': this.handleGateInfo.bind(this),
             'معلومات_البوابة': this.handleGateInfo.bind(this),
             'ادخل': this.handleEnterGate.bind(this),
+            'دخل': this.handleEnterGate.bind(this),
             'استكشاف': this.handleExploreGate.bind(this),
             'استكشف': this.handleExploreGate.bind(this),
             'مغادرة': this.handleLeaveGate.bind(this),
@@ -18,6 +19,11 @@ export class GateCommands extends BaseCommand {
             'مسار': this.handleGateChoice.bind(this),
             'قرار': this.handleGateChoice.bind(this)
         };
+    }
+
+    _getLocationName(locationId) {
+        if (!locationId) return 'الغابة';
+        return locations[locationId]?.name || locationId;
     }
 
     async handleGates(player) {
@@ -30,38 +36,43 @@ export class GateCommands extends BaseCommand {
                 return '❌ نظام البوابات غير متوفر حالياً.';
             }
 
+            // إذا كان اللاعب داخل بوابة، عرض معلوماتها
             if (gateSystem.isPlayerInsideGate(player.userId)) {
                 const sessionInfo = gateSystem.getSessionInfo(player);
                 if (!sessionInfo.error) {
-                    return `🚪 **أنت داخل بوابة حالياً!**\n\n${sessionInfo.message}\n\n💡 استخدم "بوابتي" لمزيد من التفاصيل`;
+                    return `🚪 أنت داخل بوابة حالياً!\n\n${sessionInfo.message}\n\n💡 استخدم "بوابتي" لمزيد من التفاصيل`;
                 }
             }
 
-            const nearbyGates = gateSystem.getNearbyGates(player);
-
-            if (nearbyGates.length === 0) {
-                return `🚪 لا توجد بوابات نشطة حالياً في **${locations[player.currentLocation]?.name || player.currentLocation}**!\n💡 انتقل إلى موقع آخر أو ارتفع مستواك.`;
+            // استخدام دالة العرض الجديدة من GateSystem
+            if (typeof gateSystem.showNearbyGates === 'function') {
+                return await gateSystem.showNearbyGates(player);
             }
 
-            let message = `╔══════════ 🚪 البوابات القريبة ══════════╗\n\n`;
-            message += `📍 **موقعك:** ${locations[player.currentLocation]?.name || player.currentLocation}\n\n`;
+            // احتياطي إذا لم تكن الدالة موجودة
+            const nearbyGates = gateSystem.getNearbyGates(player);
+            const locationName = this._getLocationName(player.currentLocation);
+
+            if (nearbyGates.length === 0) {
+                return `🚪 البوابات القريبة\n\n📍 موقعك: ${locationName}\n\n❌ لا توجد بوابات متاحة حالياً.\n💡 انتقل إلى موقع آخر: انتقل [مكان]`;
+            }
+
+            let message = `🚪 البوابات القريبة\n\n📍 موقعك: ${locationName}\n`;
 
             nearbyGates.forEach((gate, index) => {
-                const dangerStars = '⭐'.repeat(gate.danger) + '☆'.repeat(5 - gate.danger);
-                const status = player.level >= gate.requiredLevel ? '✅ متاح' : '❌ تحتاج مستوى أعلى';
-
-                message += `**${index + 1}. ${gate.name}**\n`;
+                const dangerStars = '⭐'.repeat(gate.danger || 1) + '☆'.repeat(5 - (gate.danger || 1));
+                message += `\n${index + 1}. ${gate.name}\n`;
                 message += `   📊 ${dangerStars} (مستوى ${gate.requiredLevel}+)\n`;
-                message += `   🎯 ${status}\n`;
-                message += `   📖 ${gate.description}\n\n`;
+                message += `   ✅ متاح\n`;
+                message += `   📖 ${gate.description || 'بوابة غامضة'}\n`;
             });
 
-            message += `💡 **الأوامر:**\n`;
-            message += `• "ادخل [اسم البوابة]" - دخول بوابة\n`;
-            message += `• "بوابتي" - معلومات البوابة الحالية\n`;
-            message += `• "استكشف" - الاستكشاف داخل البوابة\n`;
-            message += `• "اختر [رقم]" - اختيار مسار في القصة\n`;
-            message += `• "مغادرة" - مغادرة البوابة\n`;
+            message += `\n💡 الأوامر:\n`;
+            message += `• ادخل [اسم البوابة]\n`;
+            message += `• بوابتي - معلومات البوابة الحالية\n`;
+            message += `• استكشف - الاستكشاف داخل البوابة\n`;
+            message += `• اختر [رقم] - اختيار مسار\n`;
+            message += `• مغادرة - مغادرة البوابة`;
 
             return message;
         } catch (error) {
@@ -96,7 +107,13 @@ export class GateCommands extends BaseCommand {
 
         const gateName = args.join(' ');
         if (!gateName) {
-            return `❌ يرجى تحديد اسم البوابة.\n💡 مثال: ادخل بوابة سولو\n💡 استخدم "بوابات" لرؤية البوابات المتاحة.`;
+            return `❌ حدد اسم البوابة
+
+مثال:
+ادخل بوابة المبتدئين
+ادخل بوابة الأساطير
+
+💡 استخدم "بوابات" لرؤية المتاح.`;
         }
 
         try {
@@ -106,7 +123,7 @@ export class GateCommands extends BaseCommand {
             }
 
             if (gateSystem.isPlayerInsideGate(player.userId)) {
-                return '❌ أنت داخل بوابة أخرى حالياً! استخدم "مغادرة" أولاً.';
+                return '❌ أنت داخل بوابة أخرى حالياً!\nاستخدم "مغادرة" أولاً.';
             }
 
             const result = await gateSystem.enterGate(player, gateName);
@@ -132,7 +149,7 @@ export class GateCommands extends BaseCommand {
             }
 
             if (!gateSystem.isPlayerInsideGate(player.userId)) {
-                return '❌ لست داخل بوابة حالياً. استخدم "ادخل [اسم البوابة]" أولاً.';
+                return '❌ لست داخل بوابة.\nاستخدم "ادخل [اسم البوابة]" أولاً.';
             }
 
             const result = await gateSystem.exploreGate(player);
@@ -178,7 +195,11 @@ export class GateCommands extends BaseCommand {
         if (approvalCheck.error) return approvalCheck.error;
 
         if (args.length === 0) {
-            return `❌ يرجى تحديد رقم الخيار.\n💡 مثال: اختر 1\n💡 مثال: اختر 2`;
+            return `❌ حدد رقم الخيار
+
+مثال:
+اختر 1
+اختر 2`;
         }
 
         const choiceNumber = args[0];
@@ -190,7 +211,7 @@ export class GateCommands extends BaseCommand {
             }
 
             if (!gateSystem.isPlayerInsideGate(player.userId)) {
-                return '❌ لست داخل بوابة حالياً. استخدم "ادخل [اسم البوابة]" أولاً.';
+                return '❌ لست داخل بوابة.\nاستخدم "ادخل [اسم البوابة]" أولاً.';
             }
 
             const result = await gateSystem.handleChoice(player, choiceNumber);
@@ -204,4 +225,4 @@ export class GateCommands extends BaseCommand {
             return this.handleError(error, 'معالجة الاختيار');
         }
     }
-}
+    }
