@@ -1,5 +1,5 @@
-// core/commands/commands/AchievementCommands.js
-import { BaseCommand } from './BaseCommand.js';
+// core/commands/AchievementCommands.js
+import { BaseCommand } from './commands/BaseCommand.js';
 
 export class AchievementCommands extends BaseCommand {
     getCommands() {
@@ -35,7 +35,6 @@ export class AchievementCommands extends BaseCommand {
         return await achievementSystem.showAchievements(player);
     }
 
-    // ✅ إضافة مهمة (للأدمن فقط)
     async handleAddTask(player, args) {
         if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
             return '❌ هذا الأمر خاص بالمدراء فقط.';
@@ -44,39 +43,56 @@ export class AchievementCommands extends BaseCommand {
         if (args.length < 4) {
             return `❌ الاستخدام: اضف_مهمة [الاسم] [النوع] [الهدف] [المكافأة]
 
-📝 الأنواع المتاحة:
-• gather - جمع الموارد
-• kill - قتل الوحوش
-• craft - الصناعة
-• travel - السفر
-• earn_gold - كسب الذهب
-• use_stamina - استخدام النشاط
+📝 الأنواع المتاحة (عربي أو إنجليزي):
+• جمع / gather - جمع الموارد
+• قتل / kill - قتل الوحوش
+• صناعة / craft - الصناعة
+• سفر / travel - السفر
+• ذهب / earn_gold - كسب الذهب
+• نشاط / use_stamina - استخدام النشاط
 
-مثال: اضف_مهمة "اقتل 5 وحوش" kill 5 40`;
+مثال: اضف_مهمة "اقتل 5 وحوش" قتل 5 40`;
         }
 
         const reward = parseInt(args[args.length - 1]);
         const target = parseInt(args[args.length - 2]);
-        const type = args[args.length - 3];
+        const rawType = args[args.length - 3];
         const name = args.slice(0, -3).join(' ').replace(/["']/g, '');
 
         if (isNaN(target) || isNaN(reward) || target <= 0 || reward <= 0) {
             return '❌ الهدف والمكافأة يجب أن يكونا أرقاماً صحيحة.';
         }
 
-        const validTypes = ['gather', 'kill', 'craft', 'travel', 'earn_gold', 'use_stamina'];
-        if (!validTypes.includes(type)) {
-            return `❌ النوع "${type}" غير صالح.\nالأنواع المتاحة: ${validTypes.join(', ')}`;
-        }
-
         const achievementSystem = await this.getSystem('achievement');
         if (!achievementSystem) return '❌ نظام المهام غير متوفر.';
 
+        const type = achievementSystem._translateTaskType(rawType);
+        const validTypes = ['gather', 'kill', 'craft', 'travel', 'earn_gold', 'use_stamina'];
+
+        if (!validTypes.includes(type)) {
+            return `❌ النوع "${rawType}" غير صالح.
+
+الأنواع المتاحة:
+• جمع / gather
+• قتل / kill
+• صناعة / craft
+• سفر / travel
+• ذهب / earn_gold
+• نشاط / use_stamina`;
+        }
+
         await achievementSystem.addCustomTask(name, type, target, reward);
-        return `✅ تم إضافة المهمة: ${name}\n🎯 النوع: ${type}\n📊 الهدف: ${target}\n💰 المكافأة: ${reward} ذهب`;
+
+        return `✅ تم إضافة المهمة
+
+📛 الاسم: ${name}
+🎯 النوع: ${achievementSystem._getTypeNameArabic(type)}
+📊 الهدف: ${target}
+💰 المكافأة: ${reward} ذهب
+
+💡 ستظهر تلقائياً ضمن المهام اليومية.`;
     }
 
-    // ✅ حذف مهمة (للأدمن فقط)
     async handleRemoveTask(player, args) {
         if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
             return '❌ هذا الأمر خاص بالمدراء فقط.';
@@ -84,14 +100,16 @@ export class AchievementCommands extends BaseCommand {
 
         const taskId = args.join(' ');
         if (!taskId) {
-            return '❌ الاستخدام: حذف_مهمة [معرف_المهمة]\n\n💡 استخدم "قائمة_المهام" لرؤية المعرفات.';
+            return `❌ الاستخدام: حذف_مهمة [معرف_المهمة]
+
+💡 استخدم "قائمة_المهام" لرؤية المعرفات.`;
         }
 
         const achievementSystem = await this.getSystem('achievement');
         if (!achievementSystem) return '❌ نظام المهام غير متوفر.';
 
         const removed = await achievementSystem.removeCustomTask(taskId);
-        
+
         if (removed) {
             return `✅ تم حذف المهمة: ${taskId}`;
         } else {
@@ -99,7 +117,6 @@ export class AchievementCommands extends BaseCommand {
         }
     }
 
-    // ✅ عرض قائمة المهام المخصصة (للأدمن فقط)
     async handleListTasks(player) {
         if (!this.commandHandler?.adminSystem?.isAdmin(player.userId)) {
             return '❌ هذا الأمر خاص بالمدراء فقط.';
@@ -114,20 +131,24 @@ export class AchievementCommands extends BaseCommand {
             return `📋 لا توجد مهام مخصصة حالياً.
 
 💡 لإضافة مهمة:
-اضف_مهمة [الاسم] [النوع] [الهدف] [المكافأة]`;
+اضف_مهمة [الاسم] [النوع] [الهدف] [المكافأة]
+
+مثال:
+اضف_مهمة "اقتل 5 وحوش" قتل 5 40`;
         }
 
         let msg = `📋 المهام المخصصة (${tasks.length})\n`;
 
         tasks.forEach(task => {
             msg += `\n📌 ${task.name}\n`;
-            msg += `   🆔 المعرف: ${task.id}\n`;
-            msg += `   🎯 النوع: ${task.type}\n`;
+            msg += `   🆔 ${task.id}\n`;
+            msg += `   🎯 النوع: ${achievementSystem._getTypeNameArabic(task.type)}\n`;
             msg += `   📊 الهدف: ${task.target}\n`;
             msg += `   💰 المكافأة: ${task.reward} ذهب\n`;
         });
 
         msg += `\n💡 لحذف مهمة: حذف_مهمة [المعرف]`;
+
         return msg;
     }
 }
