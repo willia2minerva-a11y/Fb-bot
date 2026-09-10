@@ -21,7 +21,6 @@ const playerSchema = new mongoose.Schema({
     approvedAt: { type: Date, default: null },
     approvedBy: { type: String, default: null },
     level: { type: Number, default: 1, min: 1 },
-    dailyTasksList: { type: Array, default: [] },
     experience: { type: Number, default: 0, min: 0 },
     gold: { type: Number, default: 50, min: 0 },
     transactions: [{
@@ -81,9 +80,24 @@ const playerSchema = new mongoose.Schema({
     },
     // ✅ حقول المهام والإنجازات
     dailyTaskDate: { type: String, default: '' },
+    dailyTasksList: { type: Array, default: [] },
     dailyTaskProgress: { type: Map, of: Number, default: {} },
     completedDailyTasks: { type: [String], default: [] },
     unlockedAchievements: { type: [String], default: [] },
+    
+    // ✅ حقول الإحالة والمكافآت اليومية
+    referralCode: { type: String, unique: true, sparse: true },
+    referredBy: { type: String, default: null },
+    referredByName: { type: String, default: null },
+    referralCount: { type: Number, default: 0 },
+    referredPlayers: [{
+        userId: String,
+        name: String,
+        date: { type: Date, default: Date.now }
+    }],
+    lastDailyReward: { type: Date, default: null },
+    dailyStreak: { type: Number, default: 0 },
+    
     banned: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
@@ -602,11 +616,14 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
                 itemsCrafted: 0
             },
             cooldowns: { gather: null, battle: null, craft: null },
-            // ✅ حقول المهام
             dailyTaskDate: '',
+            dailyTasksList: [],
             dailyTaskProgress: {},
             completedDailyTasks: [],
-            unlockedAchievements: []
+            unlockedAchievements: [],
+            referralCount: 0,
+            referredPlayers: [],
+            dailyStreak: 0
         });
 
         await player.save();
