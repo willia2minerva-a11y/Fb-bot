@@ -28,7 +28,6 @@ export default class CommandHandler {
             this.adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
             this.adminDisplayName = process.env.ADMIN_DISPLAY_NAME || 'المدير';
 
-            // ✅ ربط adminSystem بـ commandHandler
             if (typeof this.adminSystem.setCommandHandler === 'function') {
                 this.adminSystem.setCommandHandler(this);
             }
@@ -42,7 +41,7 @@ export default class CommandHandler {
             ];
 
             console.log('✅ CommandHandler تم تهيئته بنجاح');
-            console.log('📋 الأوامر المسجلة:', Object.keys(this.commands).join(', '));
+            console.log('📋 الأوامر المسجلة:', Object.keys(this.commands).length);
         } catch (error) {
             console.error('❌ فشل في تهيئة CommandHandler:', error);
             throw error;
@@ -70,35 +69,21 @@ export default class CommandHandler {
 
     collectAllCommands() {
         const allCommands = {};
+        const commandSources = [
+            this.menuCommands, this.registrationCommands, this.infoCommands,
+            this.explorationCommands, this.gateCommands, this.craftingCommands,
+            this.battleCommands, this.economyCommands, this.achievementCommands,
+            this.referralCommands
+        ];
 
-        try {
-            const commandSources = [
-                this.menuCommands,
-                this.registrationCommands,
-                this.infoCommands,
-                this.explorationCommands,
-                this.gateCommands,
-                this.craftingCommands,
-                this.battleCommands,
-                this.economyCommands,
-                this.achievementCommands,
-                this.referralCommands
-            ];
+        commandSources.forEach(source => {
+            if (source && typeof source.getCommands === 'function') {
+                const commands = source.getCommands();
+                if (commands) Object.assign(allCommands, commands);
+            }
+        });
 
-            commandSources.forEach(source => {
-                if (source && typeof source.getCommands === 'function') {
-                    const commands = source.getCommands();
-                    if (commands) {
-                        Object.assign(allCommands, commands);
-                    }
-                }
-            });
-
-            return allCommands;
-        } catch (error) {
-            console.error('❌ خطأ في تجميع الأوامر:', error);
-            return {};
-        }
+        return allCommands;
     }
 
     async getSystem(systemName) {
@@ -106,16 +91,10 @@ export default class CommandHandler {
             if (!this.systems[systemName]) {
                 console.log(`🔄 جاري تحميل النظام: ${systemName}`);
                 this.systems[systemName] = await SystemLoader.loadSystem(systemName);
-
-                if (!this.systems[systemName]) {
-                    console.error(`❌ فشل تحميل النظام: ${systemName}`);
-                    return null;
-                }
-
+                if (!this.systems[systemName]) return null;
                 if (typeof this.systems[systemName].setCommandHandler === 'function') {
                     this.systems[systemName].setCommandHandler(this);
                 }
-
                 console.log(`✅ تم تحميل النظام: ${systemName}`);
             }
             return this.systems[systemName];
@@ -132,13 +111,13 @@ export default class CommandHandler {
         if (status === 'pending') {
             return `🔒 حسابك غير نشط
 
-📩 يرجى مراسلة الأدمن لتفعيل حسابك:
+📩 يرجى مراسلة الأدمن:
 ${adminLink}
 
 🆔 أرسل له معرفك:
-${player.userId}
+${player.playerId || player.userId}
 
-📋 الأوامر المسموحة حالياً:
+📋 الأوامر المسموحة:
 • حالتي
 • معرفي
 • مساعدة`;
@@ -149,12 +128,7 @@ ${player.userId}
 
 🎮 أكمل إنشاء شخصيتك:
 • اكتب ذكر أو أنثى
-• ثم اكتب اسمي [الاسم]
-
-📋 الأوامر المسموحة:
-• حالتي
-• معرفي
-• مساعدة`;
+• ثم اكتب اسمي [الاسم]`;
         }
 
         return this.getLimitedHelpMenu();
@@ -166,31 +140,26 @@ ${player.userId}
 • بدء - متابعة التسجيل
 • حالتي - عرض حالتك
 • معرفي - عرض معرفك
-• مساعدة - عرض الأوامر
-
-📝 للتفعيل:
-1. أرسل معرفك للأدمن
-2. انتظر الموافقة
-3. أكمل إنشاء شخصيتك`;
+• مساعدة - عرض الأوامر`;
     }
 
     getLimitedMenu() {
         return this.getLimitedHelpMenu();
     }
 
-    // ✅ تطبيع الأمر (إزالة الشرطات السفلية والمسافات)
     normalizeCommand(command) {
         if (!command) return command;
         return command.replace(/[_\s]/g, '');
     }
 
-    // ✅ محاولة معالجة أمر مدير بأي شكل
     async tryAdminCommand(command, args, id) {
-        // 1. مباشرة
+        // فحص إذا كان مديراً (بشكل غير متزامن لفحص DB)
+        const isAdmin = await this.adminSystem.isAdminAsync(id);
+        if (!isAdmin) return null;
+
         let result = await this.handleAdminCommand(command, args, id);
         if (result) return result;
 
-        // 2. بدون شرطات سفلية
         const normalized = this.normalizeCommand(command);
         if (normalized !== command) {
             result = await this.handleAdminCommand(normalized, args, id);
@@ -208,7 +177,7 @@ ${player.userId}
         let command = commandParts[0];
         let args = commandParts.slice(1);
 
-        // ✅ محاولة دمج الكلمات لعمل أوامر مركبة (مثل "موافقة لاعب")
+        // ✅ محاولة دمج الكلمات للأوامر المركبة
         let fullCommandAttempt = command;
         let remainingArgs = [...args];
 
@@ -227,59 +196,76 @@ ${player.userId}
             args = result.args.concat(remainingArgs);
         }
 
-        console.log(`📨 معالجة أمر: "${command}" من ${name} (${id})`);
+        console.log(`📨 أمر: "${command}" من ${name} (${id})`);
 
-        // ✅ فحص المدير
-        const userIsAdmin = this.adminSystem.isAdmin(id);
+        // ✅ فحص المستخدم أولاً
+        let player = null;
+        try {
+            player = await Player.findOne({ userId: id });
+            if (!player) {
+                player = await Player.createNew(id, name, platform || 'facebook');
+                console.log(`🎮 لاعب جديد: ${player.name}`);
+            }
+        } catch (error) {
+            console.error('❌ خطأ في جلب/إنشاء اللاعب:', error);
+            return '❌ حدث خطأ.';
+        }
+
+        // ✅ فحص السجن أولاً
+        if (player.isJailed()) {
+            if (!player.jailNotified) {
+                player.jailNotified = true;
+                await player.save();
+
+                const isPermanent = player.jailedUntil.getTime() === 0;
+                const timeStr = isPermanent
+                    ? '🚔 أنت مسجون بشكل دائم'
+                    : `🚔 أنت مسجون حتى\n${player.jailedUntil.toLocaleString('ar-EG')}`;
+
+                return `${timeStr}\n\n📝 السبب: ${player.jailedReason || 'غير محدد'}\n\n💡 لا يمكنك استخدام البوت أثناء السجن.`;
+            }
+            return null; // ✅ لا رد بعد الإشعار الأول
+        }
+
+        // ✅ فحص الحظر
+        if (player.banned) {
+            return '❌ تم حظرك من اللعبة.';
+        }
+
+        // ✅ فحص المدير (بشكل غير متزامن)
+        const userIsAdmin = await this.adminSystem.isAdminAsync(id);
         if (userIsAdmin) {
             const adminResult = await this.tryAdminCommand(command, args, id);
             if (adminResult) return adminResult;
         }
 
+        // الردود التلقائية
         const autoResponse = await this.handleAutoResponse(message);
         if (autoResponse) return autoResponse;
 
         try {
-            const playerPlatform = platform || 'facebook';
-
-            let player = await Player.findOne({ userId: id });
-            if (!player) {
-                player = await Player.createNew(id, name, playerPlatform);
-                console.log(`🎮 تم إنشاء لاعب جديد: ${player.name} (${playerPlatform})`);
-            }
-
             if (userIsAdmin && player.registrationStatus !== 'completed') {
                 player = await this.adminSystem.setupAdminPlayer(id, name);
-                console.log(`🎯 تم تفعيل المدير: ${player.name}`);
-            }
-
-            if (player.banned) {
-                return '❌ تم حظرك من اللعبة.';
             }
 
             if (!player.isApproved() && !this.allowedBeforeApproval.includes(command)) {
                 return this.getRegistrationMessage(player);
             }
 
-            // ✅ محاولة الأوامر العادية (مع تطبيع)
             const normalizedCommand = this.normalizeCommand(command);
-
             let handler = this.commands[command] || this.commands[normalizedCommand];
 
             if (handler) {
                 const result = await handler.call(this, player, args, id);
-
                 if (typeof result === 'string') {
                     await player.save();
                 }
-
                 return result;
             }
 
             return await this.handleUnknown(command, player);
-
         } catch (error) {
-            console.error('❌ خطأ في معالجة الأمر:', error);
+            console.error('❌ خطأ:', error);
             return `❌ حدث خطأ: ${error.message}`;
         }
     }
@@ -294,7 +280,11 @@ ${player.userId}
             'اضف سلاح', 'حذف سلاح', 'اضف وحش', 'حذف وحش',
             'اضف مورد', 'حذف مورد', 'عرض اسلحة', 'عرض وحوش',
             'عرض مواقع', 'عرض موارد', 'اقتصاد لاعب', 'اضافة غولد',
-            'طلبات سحب', 'معالجة سحب'
+            'طلبات سحب', 'معالجة سحب', 'تعديل رصيد', 'اضف رصيد',
+            'اسحب رصيد', 'تعديل مستوى', 'تعديل ايدي', 'تعديل هجوم',
+            'تعديل دفاع', 'تعديل صحة', 'تعديل مانا', 'تعديل نشاط',
+            'اعطاء ادمن', 'ازالة ادمن', 'اعطاء صلاحية', 'ازالة صلاحية',
+            'قائمة الادمن', 'قائمة المسجونين', 'اصلاح لاعب'
         ];
         return compoundCommands.includes(fullCommand);
     }
@@ -332,7 +322,23 @@ ${player.userId}
             'اقتصاد لاعب': 'اقتصاد_لاعب',
             'اضافة غولد': 'اضافة_غولد',
             'طلبات سحب': 'طلبات_سحب',
-            'معالجة سحب': 'معالجة_سحب'
+            'معالجة سحب': 'معالجة_سحب',
+            'تعديل رصيد': 'تعديل_رصيد',
+            'اضف رصيد': 'اضف_رصيد',
+            'اسحب رصيد': 'اسحب_رصيد',
+            'تعديل مستوى': 'تعديل_مستوى',
+            'تعديل ايدي': 'تعديل_ايدي',
+            'تعديل هجوم': 'تعديل_هجوم',
+            'تعديل دفاع': 'تعديل_دفاع',
+            'تعديل صحة': 'تعديل_صحة',
+            'تعديل مانا': 'تعديل_مانا',
+            'تعديل نشاط': 'تعديل_نشاط',
+            'اعطاء ادمن': 'اعطاء_ادمن',
+            'ازالة ادمن': 'ازالة_ادمن',
+            'اعطاء صلاحية': 'اعطاء_صلاحية',
+            'ازالة صلاحية': 'ازالة_صلاحية',
+            'قائمة الادمن': 'قائمة_الادمن',
+            'قائمة المسجونين': 'قائمة_المسجونين'
         };
 
         return {
@@ -342,33 +348,22 @@ ${player.userId}
     }
 
     async handleAdminCommand(command, args, userId) {
-        const adminCommands = this.adminSystem.getAdminCommands();
-        if (adminCommands[command]) {
-            console.log(`👑 تنفيذ أمر مدير: ${command}`);
-            try {
-                let player = await Player.findOne({ userId: userId });
-                if (!player) {
-                    player = await Player.createNew(userId, 'Admin');
-                }
-                const result = await this.adminSystem.handleAdminCommand(command, args, userId, player, this.ARABIC_ITEM_MAP);
-                return result;
-            } catch (error) {
-                console.error('❌ خطأ في أمر المدير:', error);
-                return `❌ خطأ في تنفيذ أمر المدير: ${error.message}`;
-            }
+        try {
+            let player = await Player.findOne({ userId });
+            if (!player) player = await Player.createNew(userId, 'Admin');
+            const result = await this.adminSystem.handleAdminCommand(command, args, userId, player, this.ARABIC_ITEM_MAP);
+            return result;
+        } catch (error) {
+            console.error('❌ خطأ في أمر المدير:', error);
+            return `❌ خطأ: ${error.message}`;
         }
-        return null;
     }
 
     async handleAutoResponse(message) {
         try {
             const autoResponseSys = await this.getSystem('autoResponse');
             if (autoResponseSys && typeof autoResponseSys.findAutoResponse === 'function') {
-                const autoResponse = autoResponseSys.findAutoResponse(message);
-                if (autoResponse) {
-                    console.log(`🤖 رد تلقائي على: "${message}"`);
-                    return autoResponse;
-                }
+                return autoResponseSys.findAutoResponse(message);
             }
         } catch (error) {
             console.error('❌ خطأ في الرد التلقائي:', error);
@@ -377,20 +372,6 @@ ${player.userId}
     }
 
     async handleUnknown(command, player) {
-        const gateHints = {
-            'دخل': '💡 هل تقصد "ادخل [اسم البوابة]"؟',
-            'استكشف': '💡 هل تقصد "استكشف"؟',
-            'اختر': '💡 هل تقصد "اختر [رقم]"؟ مثال: اختر 1',
-            'غادر': '💡 هل تقصد "مغادرة" أو "غادر"؟',
-            'بوابة': '💡 هل تقصد "بوابات" أو "بوابتي"؟'
-        };
-
-        for (const [hintCommand, hintMessage] of Object.entries(gateHints)) {
-            if (command.includes(hintCommand)) {
-                return `${hintMessage}\n\n❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة الكاملة.`;
-            }
-        }
-
-        return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
+        return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة.`;
     }
-            }
+    }
