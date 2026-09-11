@@ -11,6 +11,23 @@ const inventoryItemSchema = new mongoose.Schema({
     quantity: { type: Number, required: true, min: 0, default: 1 }
 }, { _id: false });
 
+// ✅ تأثير مؤقت
+const activeEffectSchema = new mongoose.Schema({
+    type: { type: String, required: true }, // attack, defense, maxHealth, maxMana, maxStamina
+    value: { type: Number, required: true },
+    expiresAt: { type: Date, required: true },
+    grantedBy: String,
+    grantedAt: { type: Date, default: Date.now }
+}, { _id: false });
+
+// ✅ صلاحية
+const adminPermissionSchema = new mongoose.Schema({
+    type: { type: String, required: true }, // full_admin, approve, ban, economy, tasks, give, content, jail, modify
+    grantedBy: String,
+    grantedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, default: null } // null = دائم
+}, { _id: false });
+
 const playerSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     platform: { type: String, default: 'facebook' },
@@ -18,6 +35,7 @@ const playerSchema = new mongoose.Schema({
     registrationStatus: { type: String, enum: ['pending', 'approved', 'completed'], default: 'pending' },
     gender: { type: String, enum: ['male', 'female'], default: null },
     playerId: { type: String, unique: true, sparse: true },
+    originalPlayerId: { type: String, default: null }, // ✅ للاحتفاظ بـ P الأصلي
     approvedAt: { type: Date, default: null },
     approvedBy: { type: String, default: null },
     level: { type: Number, default: 1, min: 1 },
@@ -25,10 +43,9 @@ const playerSchema = new mongoose.Schema({
     gold: { type: Number, default: 50, min: 0 },
     transactions: [{
         id: { type: String, required: true },
-        type: { type: String, enum: ['withdrawal', 'deposit', 'transfer_sent', 'transfer_received'], required: true },
+        type: { type: String, enum: ['withdrawal', 'deposit'], required: true },
         amount: { type: Number, required: true },
         status: { type: String, enum: ['pending', 'completed', 'rejected'], default: 'pending' },
-        targetPlayer: { type: String, default: null },
         description: { type: String, default: '' },
         createdAt: { type: Date, default: Date.now }
     }],
@@ -78,14 +95,14 @@ const playerSchema = new mongoose.Schema({
         battle: { type: Date, default: null },
         craft: { type: Date, default: null }
     },
-    // ✅ حقول المهام والإنجازات
+    // ✅ المهام والإنجازات
     dailyTaskDate: { type: String, default: '' },
     dailyTasksList: { type: Array, default: [] },
     dailyTaskProgress: { type: Map, of: Number, default: {} },
     completedDailyTasks: { type: [String], default: [] },
     unlockedAchievements: { type: [String], default: [] },
     
-    // ✅ حقول الإحالة والمكافآت اليومية
+    // ✅ الإحالة والمكافآت
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: String, default: null },
     referredByName: { type: String, default: null },
@@ -97,24 +114,44 @@ const playerSchema = new mongoose.Schema({
     }],
     lastDailyReward: { type: Date, default: null },
     dailyStreak: { type: Number, default: 0 },
-    
+
+    // ✅ جديد: البونص والإحصائيات
+    bonusStats: {
+        attack: { type: Number, default: 0 },
+        defense: { type: Number, default: 0 },
+        maxHealth: { type: Number, default: 0 },
+        maxMana: { type: Number, default: 0 },
+        maxStamina: { type: Number, default: 0 }
+    },
+    activeEffects: [activeEffectSchema],
+
+    // ✅ جديد: الصلاحيات
+    adminPermissions: [adminPermissionSchema],
+
+    // ✅ جديد: السجن
+    jailedUntil: { type: Date, default: null },
+    jailedReason: { type: String, default: null },
+    jailedBy: { type: String, default: null },
+    jailNotified: { type: Boolean, default: false }, // هل أُخبر بالسجن؟
+
     banned: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// ✅ دالة ثابتة للبحث عن اللاعب
+// ✅ دالة البحث عن اللاعب
 playerSchema.statics.findPlayerByIdentifier = async function(identifier) {
     if (!identifier) return null;
 
-    if (/^\d+$/.test(identifier)) {
-        let player = await this.findOne({ playerId: identifier });
-        if (player) return player;
-    }
-
+    // البحث بـ userId
     let player = await this.findOne({ userId: identifier });
     if (player) return player;
 
+    // البحث بـ playerId
+    player = await this.findOne({ playerId: identifier });
+    if (player) return player;
+
+    // البحث بالاسم
     player = await this.findOne({ name: { $regex: new RegExp(identifier, 'i') } });
     return player;
 };
@@ -126,6 +163,56 @@ playerSchema.pre('save', function(next) {
 });
 
 // ========== دوال المثيل ==========
+
+// ✅ تنظيف التأثيرات المنتهية
+playerSchema.methods.cleanupEffects = function() {
+    const now = new Date();
+    this.activeEffects = (this.activeEffects || []).filter(e => e.expiresAt > now);
+    return this.activeEffects;
+};
+
+// ✅ الحصول على مجموع التأثيرات المؤقتة
+playerSchema.methods.getActiveEffectsTotal = function(type) {
+    this.cleanupEffects();
+    return (this.activeEffects || [])
+        .filter(e => e.type === type)
+        .reduce((sum, e) => sum + e.value, 0);
+};
+
+// ✅ إضافة تأثير مؤقت
+playerSchema.methods.addActiveEffect = function(type, value, durationMs, grantedBy) {
+    this.activeEffects = this.activeEffects || [];
+    this.activeEffects.push({
+        type,
+        value,
+        expiresAt: new Date(Date.now() + durationMs),
+        grantedBy,
+        grantedAt: new Date()
+    });
+};
+
+// ✅ فحص إذا كان مسجوناً
+playerSchema.methods.isJailed = function() {
+    if (!this.jailedUntil) return false;
+    if (this.jailedUntil.getTime() === 0) return true; // سجن دائم (تاريخ = 0)
+    return this.jailedUntil > new Date();
+};
+
+// ✅ الحصول على الصلاحيات الفعالة (بدون منتهية)
+playerSchema.methods.getActivePermissions = function() {
+    const now = new Date();
+    return (this.adminPermissions || []).filter(p => {
+        if (!p.expiresAt) return true; // دائم
+        return p.expiresAt > now;
+    });
+};
+
+// ✅ فحص صلاحية محددة
+playerSchema.methods.hasPermission = function(permissionType) {
+    const perms = this.getActivePermissions();
+    if (perms.some(p => p.type === 'full_admin')) return true;
+    return perms.some(p => p.type === permissionType);
+};
 
 playerSchema.methods.regenerate = function() {
     const now = new Date();
@@ -173,20 +260,6 @@ playerSchema.methods.getRegenerationStatus = function() {
     };
 };
 
-playerSchema.methods.getEnhancedStatus = function() {
-    const regenStatus = this.getRegenerationStatus();
-    const totalStats = this.getTotalStats(global.itemsData);
-
-    return `❤️ الصحة: ${this.health}/${this.maxHealth}\n` +
-           `⚡ المانا: ${this.mana}/${this.maxMana}\n` +
-           `🏃 النشاط: ${this.getActualStamina()}/${this.maxStamina}\n` +
-           `🔥 الهجوم: ${this.getAttackDamage(global.itemsData)}\n` +
-           `🛡️ الدفاع: ${this.getDefense(global.itemsData)}\n` +
-           `🎯 الضربة الحرجة: ${totalStats.critChance}%\n` +
-           `💚 تجديد الصحة: ${totalStats.healthRegen}\n` +
-           `\n${regenStatus.health}\n${regenStatus.mana}\n${regenStatus.rates}`;
-};
-
 playerSchema.methods.getActualStamina = function() {
     const recoveryRate = 5;
     const maxStam = this.maxStamina || 100;
@@ -203,8 +276,23 @@ playerSchema.methods.getActualStamina = function() {
 };
 
 playerSchema.methods.requestWithdrawal = function(amount) {
+    const MIN_WITHDRAWAL = 50;
+    const MAX_WITHDRAWAL = 5000;
+
+    if (amount < MIN_WITHDRAWAL) {
+        return { error: `❌ الحد الأدنى للسحب: ${MIN_WITHDRAWAL} غولد` };
+    }
+
+    if (amount > MAX_WITHDRAWAL) {
+        return { error: `❌ الحد الأقصى للسحب: ${MAX_WITHDRAWAL} غولد` };
+    }
+
     if (this.gold < amount) {
         return { error: '❌ لا تملك رصيد كافٍ للسحب.' };
+    }
+
+    if (this.pendingWithdrawal?.status === 'pending') {
+        this.gold += this.pendingWithdrawal.amount;
     }
 
     this.gold -= amount;
@@ -225,16 +313,6 @@ playerSchema.methods.requestWithdrawal = function(amount) {
     return { success: true, newBalance: this.gold };
 };
 
-playerSchema.methods.addDepositTransaction = function(amount, description = 'إيداع') {
-    this.transactions.push({
-        id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        type: 'deposit',
-        amount: amount,
-        status: 'completed',
-        description: description
-    });
-};
-
 playerSchema.methods.getTransactionHistory = function(limit = 10) {
     return this.transactions
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -243,7 +321,6 @@ playerSchema.methods.getTransactionHistory = function(limit = 10) {
 
 playerSchema.methods.useStamina = function(amount) {
     const actualStamina = this.getActualStamina();
-
     if (actualStamina >= amount) {
         this.stamina = actualStamina - amount;
         this.lastStaminaAction = Date.now();
@@ -269,10 +346,6 @@ playerSchema.methods.isApprovedButNotCompleted = function() {
     return this.registrationStatus === 'approved';
 };
 
-playerSchema.methods.getRegistrationStatus = function() {
-    return this.registrationStatus;
-};
-
 playerSchema.methods.getCurrentLocation = function() {
     return this.currentLocation || 'forest';
 };
@@ -282,7 +355,6 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
 
     const itemName = name || id;
     const itemType = type || 'unknown';
-
     const existingItem = this.inventory.find(item => item.id === id);
 
     if (existingItem) {
@@ -299,12 +371,10 @@ playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
 
 playerSchema.methods.removeItem = function(id, quantity = 1) {
     if (!this.inventory) return false;
-
     const itemIndex = this.inventory.findIndex(item => item.id === id);
 
     if (itemIndex !== -1) {
         const item = this.inventory[itemIndex];
-
         if (item.quantity > quantity) {
             item.quantity -= quantity;
         } else {
@@ -317,7 +387,6 @@ playerSchema.methods.removeItem = function(id, quantity = 1) {
 
 playerSchema.methods.getItemQuantity = function(id) {
     if (!this.inventory) return 0;
-
     const item = this.inventory.find(item => item.id === id);
     return item ? item.quantity : 0;
 };
@@ -339,7 +408,6 @@ playerSchema.methods.removeGold = function(amount) {
 playerSchema.methods.addExperience = function(amount) {
     this.experience = (this.experience || 0) + amount;
     const requiredExp = (this.level || 1) * 100;
-
     if (this.experience >= requiredExp) {
         this.levelUp();
         return true;
@@ -391,7 +459,6 @@ playerSchema.methods.respawn = function() {
 
 playerSchema.methods.setCooldown = function(action, minutes = 1) {
     if (!this.cooldowns) this.cooldowns = {};
-
     const cooldownTime = new Date();
     cooldownTime.setMinutes(cooldownTime.getMinutes() + minutes);
     this.cooldowns[action] = cooldownTime;
@@ -399,7 +466,6 @@ playerSchema.methods.setCooldown = function(action, minutes = 1) {
 
 playerSchema.methods.getCooldown = function(action) {
     if (!this.cooldowns) return null;
-
     const cooldown = this.cooldowns[action];
     if (!cooldown || new Date() > cooldown) return null;
     return Math.ceil((cooldown - new Date()) / 1000 / 60);
@@ -407,13 +473,8 @@ playerSchema.methods.getCooldown = function(action) {
 
 playerSchema.methods.getEquippedItemStats = function(itemsData) {
     const totalStats = {
-        damage: 0,
-        defense: 0,
-        maxHealth: 0,
-        maxMana: 0,
-        maxStamina: 0,
-        critChance: 0,
-        healthRegen: 0,
+        damage: 0, defense: 0, maxHealth: 0, maxMana: 0,
+        maxStamina: 0, critChance: 0, healthRegen: 0,
     };
 
     if (!itemsData) return totalStats;
@@ -435,13 +496,14 @@ playerSchema.methods.getEquippedItemStats = function(itemsData) {
 };
 
 playerSchema.methods.recalculateMaxStats = function(equippedStats) {
+    const bonus = this.bonusStats || {};
     const baseHealth = 100 + ((this.level || 1) - 1) * 20;
     const baseMana = 50 + ((this.level || 1) - 1) * 10;
     const baseStamina = 100;
 
-    const newMaxHealth = baseHealth + (equippedStats.maxHealth || 0);
-    const newMaxMana = baseMana + (equippedStats.maxMana || 0);
-    const newMaxStamina = baseStamina + (equippedStats.maxStamina || 0);
+    const newMaxHealth = baseHealth + (equippedStats.maxHealth || 0) + (bonus.maxHealth || 0) + this.getActiveEffectsTotal('maxHealth');
+    const newMaxMana = baseMana + (equippedStats.maxMana || 0) + (bonus.maxMana || 0) + this.getActiveEffectsTotal('maxMana');
+    const newMaxStamina = baseStamina + (equippedStats.maxStamina || 0) + (bonus.maxStamina || 0) + this.getActiveEffectsTotal('maxStamina');
 
     this.maxHealth = newMaxHealth;
     this.maxMana = newMaxMana;
@@ -453,6 +515,7 @@ playerSchema.methods.recalculateMaxStats = function(equippedStats) {
 };
 
 playerSchema.methods.getTotalStats = function(itemsData) {
+    const bonus = this.bonusStats || {};
     const baseStats = {
         damage: 10 + ((this.level || 1) - 1) * 2,
         defense: 5 + ((this.level || 1) - 1) * 1,
@@ -466,11 +529,11 @@ playerSchema.methods.getTotalStats = function(itemsData) {
     const equippedStats = this.getEquippedItemStats(itemsData);
 
     return {
-        damage: baseStats.damage + (equippedStats.damage || 0),
-        defense: baseStats.defense + (equippedStats.defense || 0),
-        maxHealth: baseStats.maxHealth + (equippedStats.maxHealth || 0),
-        maxMana: baseStats.maxMana + (equippedStats.maxMana || 0),
-        maxStamina: baseStats.maxStamina + (equippedStats.maxStamina || 0),
+        damage: baseStats.damage + (equippedStats.damage || 0) + (bonus.attack || 0) + this.getActiveEffectsTotal('attack'),
+        defense: baseStats.defense + (equippedStats.defense || 0) + (bonus.defense || 0) + this.getActiveEffectsTotal('defense'),
+        maxHealth: baseStats.maxHealth + (equippedStats.maxHealth || 0) + (bonus.maxHealth || 0) + this.getActiveEffectsTotal('maxHealth'),
+        maxMana: baseStats.maxMana + (equippedStats.maxMana || 0) + (bonus.maxMana || 0) + this.getActiveEffectsTotal('maxMana'),
+        maxStamina: baseStats.maxStamina + (equippedStats.maxStamina || 0) + (bonus.maxStamina || 0) + this.getActiveEffectsTotal('maxStamina'),
         critChance: baseStats.critChance + (equippedStats.critChance || 0),
         healthRegen: baseStats.healthRegen + (equippedStats.healthRegen || 0),
     };
@@ -484,37 +547,28 @@ playerSchema.methods.equipItem = function(itemId, itemType, itemsData) {
     const slotMap = { 'weapon': 'weapon', 'armor': 'armor', 'accessory': 'accessory', 'tool': 'tool' };
     const slot = slotMap[itemType] || null;
 
-    if (!slot) {
-        return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه في خانة معدات.` };
-    }
+    if (!slot) return { error: `❌ النوع "${itemType}" لا يمكن تجهيزه.` };
 
     const oldItemId = this.equipment[slot];
-    if (oldItemId === itemId) {
-        return { error: `❌ العنصر ${itemsData[itemId]?.name || itemId} مجهز بالفعل في خانة ${slot}.` };
-    }
+    if (oldItemId === itemId) return { error: `❌ العنصر مجهز بالفعل.` };
 
     if (oldItemId) this.equipment[slot] = null;
-
     this.equipment[slot] = itemId;
     this.recalculateMaxStats(this.getEquippedItemStats(itemsData));
 
     return {
         success: true,
         message: `✅ تم تجهيز ${itemsData[itemId]?.name || itemId} في خانة ${slot}.`,
-        oldItemId: oldItemId
+        oldItemId
     };
 };
 
 playerSchema.methods.unequipItem = function(slot, itemsData) {
     const validSlots = ['weapon', 'armor', 'accessory', 'tool'];
-    if (!validSlots.includes(slot)) {
-        return { error: '❌ الخانة غير صالحة. استخدم: weapon, armor, accessory, tool.' };
-    }
+    if (!validSlots.includes(slot)) return { error: '❌ الخانة غير صالحة.' };
 
     const unequippedItem = this.equipment[slot];
-    if (!unequippedItem) {
-        return { error: `❌ لا يوجد شيء مجهز في خانة ${slot}.` };
-    }
+    if (!unequippedItem) return { error: `❌ لا يوجد شيء مجهز في خانة ${slot}.` };
 
     this.equipment[slot] = null;
     this.recalculateMaxStats(this.getEquippedItemStats(itemsData));
@@ -559,22 +613,41 @@ playerSchema.methods.getGatherEfficiency = function() {
 
 // ========== دوال ثابتة ==========
 
-playerSchema.statics.getLastNumericId = async function() {
-    const lastPlayer = await this.findOne({ playerId: { $regex: /^[0-9]+$/ } })
-        .sort({ playerId: -1 })
-        .exec();
+// ✅ الحصول على آخر معرف لاعب (P1100 إلى P9999)
+playerSchema.statics.getLastPlayerNumericId = async function() {
+    const lastPlayer = await this.findOne({
+        playerId: { $regex: /^P\d+$/ }
+    }).sort({ playerId: -1 }).exec();
 
     if (lastPlayer && lastPlayer.playerId) {
-        const lastId = parseInt(lastPlayer.playerId, 10);
+        const lastId = parseInt(lastPlayer.playerId.substring(1), 10);
+        if (!isNaN(lastId) && lastId >= 1100) return lastId;
+    }
+    return 1099; // أول لاعب سيحصل على P1100
+};
+
+// ✅ الحصول على آخر معرف مدير (1000 إلى 1099)
+playerSchema.statics.getLastAdminNumericId = async function() {
+    const lastAdmin = await this.findOne({
+        playerId: { $regex: /^\d+$/ }
+    }).sort({ playerId: -1 }).exec();
+
+    if (lastAdmin && lastAdmin.playerId) {
+        const lastId = parseInt(lastAdmin.playerId, 10);
         if (!isNaN(lastId) && lastId >= 1000) return lastId;
     }
-    return 1000;
+    return 999; // أول مدير سيحصل على 1000
 };
 
 playerSchema.statics.createNew = async function(userId, name, platform = 'facebook') {
     try {
-        const lastId = await this.getLastNumericId();
-        const newPlayerId = (lastId + 1).toString();
+        const lastId = await this.getLastPlayerNumericId();
+        const newPlayerId = `P${lastId + 1}`;
+
+        // التحقق من عدم تجاوز النطاق
+        if (lastId + 1 > 9999) {
+            throw new Error('تم الوصول للحد الأقصى من اللاعبين');
+        }
 
         const player = new this({
             userId,
@@ -608,12 +681,8 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
             skills: { gathering: 1, combat: 1, crafting: 1 },
             equipment: { weapon: null, armor: null, accessory: null, tool: null },
             stats: {
-                battlesWon: 0,
-                battlesLost: 0,
-                monstersKilled: 0,
-                questsCompleted: 0,
-                resourcesGathered: 0,
-                itemsCrafted: 0
+                battlesWon: 0, battlesLost: 0, monstersKilled: 0,
+                questsCompleted: 0, resourcesGathered: 0, itemsCrafted: 0
             },
             cooldowns: { gather: null, battle: null, craft: null },
             dailyTaskDate: '',
@@ -623,7 +692,10 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
             unlockedAchievements: [],
             referralCount: 0,
             referredPlayers: [],
-            dailyStreak: 0
+            dailyStreak: 0,
+            bonusStats: { attack: 0, defense: 0, maxHealth: 0, maxMana: 0, maxStamina: 0 },
+            activeEffects: [],
+            adminPermissions: []
         });
 
         await player.save();
@@ -634,10 +706,7 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
 
         if (error.code === 11000) {
             const existingPlayer = await this.findOne({ userId });
-            if (existingPlayer) {
-                console.log('✅ وجد لاعب موجود بالفعل:', existingPlayer.name);
-                return existingPlayer;
-            }
+            if (existingPlayer) return existingPlayer;
         }
 
         throw error;
@@ -670,18 +739,6 @@ playerSchema.virtual('expProgress').get(function() {
     const required = this.requiredExp;
     return Math.floor((exp / required) * 100) || 0;
 });
-
-playerSchema.virtual('inventoryCount').get(function() {
-    if (!this.inventory) return 0;
-    return this.inventory.reduce((total, item) => total + item.quantity, 0);
-});
-
-playerSchema.virtual('inventoryTypes').get(function() {
-    if (!this.inventory) return 0;
-    return this.inventory.length;
-});
-
-// ========== التصدير ==========
 
 const Player = mongoose.model('Player', playerSchema);
 export default Player;
