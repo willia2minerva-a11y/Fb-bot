@@ -10,22 +10,22 @@ export class SystemLoader {
         'travel': '../../systems/world/TravelSystem.js',
         'crafting': '../../systems/crafting/CraftingSystem.js',
         'furnace': '../../systems/furnace/FurnaceSystem.js',
-        'economy': '../../systems/economy/EconomySystem.js',
+        'transaction': '../../systems/economy/TransactionSystem.js',
         'gate': '../../systems/world/GateSystem.js',
+        'achievement': '../../systems/achievements/AchievementSystem.js',
         'referral': '../../systems/referral/ReferralSystem.js',
-        'achievement': '../../systems/achievements/AchievementSystem.js'
+        'economy': '../../systems/economy/EconomySystem.js',
+        'permission': '../../systems/permissions/PermissionSystem.js'
     };
 
     static async loadSystem(systemName) {
         try {
             if (this.systems[systemName]) {
-                console.log(`🔄 محاولة تحميل: ${systemName}`);
-                
+                console.log(`🔄 تحميل: ${systemName}`);
                 const module = await import(this.systems[systemName]);
                 const SystemClass = module.default || Object.values(module)[0];
-                
                 if (SystemClass) {
-                    console.log(`✅ تم تحميل النظام: ${systemName}`);
+                    console.log(`✅ تم تحميل: ${systemName}`);
                     return new SystemClass();
                 }
             }
