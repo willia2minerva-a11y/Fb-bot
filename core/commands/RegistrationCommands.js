@@ -1,4 +1,4 @@
-// core/commands/commands/RegistrationCommands.js
+// core/commands/RegistrationCommands.js
 import { BaseCommand } from './BaseCommand.js';
 import { locations } from '../../data/locations.js';
 
@@ -37,7 +37,7 @@ export class RegistrationCommands extends BaseCommand {
 ${this.commandHandler?.adminProfileUrl || 'https://www.facebook.com/'}
 
 🆔 معرفك:
-${player.userId}
+${player.playerId || player.userId}
 
 📋 الأوامر المسموحة:
 • حالتي
@@ -75,11 +75,11 @@ ${player.userId}
 
             const locationName = this.getLocationName(player.currentLocation);
 
-            return `🎮 مرحباً ${player.name} في مغارة غولد!
+            return `🎮 مرحباً ${player.name} في مغارة ريو!
 
 📍 موقعك: ${locationName}
 ✨ مستواك: ${player.level}
-💰 ذهبك: ${player.gold}
+💰 رصيدك: ${player.gold} ريو
 
 اكتب "مساعدة" لرؤية الأوامر`;
         } catch (error) {
