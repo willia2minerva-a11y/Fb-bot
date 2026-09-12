@@ -1,186 +1,247 @@
 // core/commands/RegistrationCommands.js
+// الموقع: مشترك - يُنسخ في مغارة ريو + سوق ريو
 import { BaseCommand } from './BaseCommand.js';
-import { locations } from '../../data/locations.js';
 
 export class RegistrationCommands extends BaseCommand {
     getCommands() {
         return {
+            // بدء / الحساب
             'بدء': this.handleStart.bind(this),
             'ابدأ': this.handleStart.bind(this),
             'ابدء': this.handleStart.bind(this),
             'ابد': this.handleStart.bind(this),
+            'start': this.handleStart.bind(this),
+            
+            // تسجيل دخول
+            'دخول': this.handleLoginStart.bind(this),
+            'تسجيل دخول': this.handleLoginStart.bind(this),
+            'تسجيل_دخول': this.handleLoginStart.bind(this),
+            'تسجيلالدخول': this.handleLoginStart.bind(this),
+            'لدي حساب': this.handleLoginStart.bind(this),
+            'لدي_حساب': this.handleLoginStart.bind(this),
+            'لديحساب': this.handleLoginStart.bind(this),
+            
+            // إنشاء حساب
+            'انشاء': this.handleRegisterStart.bind(this),
+            'إنشاء': this.handleRegisterStart.bind(this),
+            'تسجيل': this.handleRegisterStart.bind(this),
+            'حساب جديد': this.handleRegisterStart.bind(this),
+            'حساب_جديد': this.handleRegisterStart.bind(this),
+            'حسابجديد': this.handleRegisterStart.bind(this),
+            
+            // إلغاء
+            'الغاء': this.handleCancel.bind(this),
+            'إلغاء': this.handleCancel.bind(this),
+            'cancel': this.handleCancel.bind(this),
+            
+            // تسجيل خروج
+            'تسجيل خروج': this.handleLogout.bind(this),
+            'تسجيل_خروج': this.handleLogout.bind(this),
+            'تسجيلخروج': this.handleLogout.bind(this),
+            'خروج': this.handleLogout.bind(this),
+            'logout': this.handleLogout.bind(this),
+            
+            // الرقم 1 و 2 (للاختيار)
+            '1': this.handleChoice1.bind(this),
+            '2': this.handleChoice2.bind(this),
+            
+            // معرفي / حسابي
             'معرفي': this.handleGetId.bind(this),
             'معرف': this.handleGetId.bind(this),
-            'اي دي': this.handleGetId.bind(this),
-            'ذكر': this.handleGenderMale.bind(this),
-            'رجل': this.handleGenderMale.bind(this),
-            'ولد': this.handleGenderMale.bind(this),
-            'انثى': this.handleGenderFemale.bind(this),
-            'أنثى': this.handleGenderFemale.bind(this),
-            'بنت': this.handleGenderFemale.bind(this),
-            'فتاة': this.handleGenderFemale.bind(this),
-            'اسمي': this.handleSetName.bind(this)
+            'حسابي': this.handleGetAccount.bind(this),
+            'معلوماتي': this.handleGetAccount.bind(this)
         };
     }
 
-    getLocationName(locationId) {
-        if (!locationId) return 'الغابة';
-        return locations[locationId]?.name || locationId;
+    // ===================================
+    // بدء - عرض القائمة
+    // ===================================
+    async handleStart(player, args, senderId) {
+        return await this._handleStartFlow(player, senderId);
     }
 
-    async handleStart(player) {
-        try {
-            if (player.isPending()) {
-                return `🔒 حسابك غير نشط
+    async _handleStartFlow(player, senderId) {
+        const accountSystem = await this.getSystem('account');
+        if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
 
-📩 راسل الأدمن لتفعيل حسابك:
-${this.commandHandler?.adminProfileUrl || 'https://www.facebook.com/'}
-
-🆔 معرفك:
-${player.playerId || player.userId}
-
-📋 الأوامر المسموحة:
-• حالتي
-• معرفي
-• مساعدة`;
-            }
-
-            if (player.isApprovedButNotCompleted()) {
-                const registrationSystem = await this.getSystem('registration');
-                const step = registrationSystem ? registrationSystem.getRegistrationStep(player.userId) : null;
-
-                if (step?.step === 'gender_selection') {
-                    return `👋 أهلاً ${player.name}
-
-✅ تمت الموافقة على حسابك
-
-اختر جنس شخصيتك:
-• ذكر 👦
-• أنثى 👧
-
-⚠️ هذا الخيار نهائي`;
-                }
-
-                if (step?.step === 'name_selection') {
-                    return `📝 اختر اسم إنجليزي
-
-اكتب: اسمي [الاسم]
-بين 3 إلى 9 أحرف إنجليزية
-
-مثال:
-اسمي John
-اسمي Sarah`;
-                }
-            }
-
-            const locationName = this.getLocationName(player.currentLocation);
-
-            return `🎮 مرحباً ${player.name} في مغارة ريو!
-
-📍 موقعك: ${locationName}
-✨ مستواك: ${player.level}
-💰 رصيدك: ${player.gold} ريو
-
-اكتب "مساعدة" لرؤية الأوامر`;
-        } catch (error) {
-            return this.handleError(error, 'بدء اللعبة');
+        // هل لديه حساب؟
+        const hasAccount = await accountSystem.hasAccount(senderId);
+        if (hasAccount) {
+            // لديه حساب نشط
+            return this._getWelcomeBackMessage(player);
         }
+
+        // مرتبط لكن مسجل خروج
+        const isLinked = await accountSystem.isLinkedButLoggedOut(senderId);
+        if (isLinked) {
+            return `👋 مرحباً بعودتك!
+
+🔒 أنت مسجل خروج من هذه المنصة.
+
+💡 اكتب "دخول" لتسجيل الدخول من جديد.`;
+        }
+
+        // ليس لديه حساب
+        return accountSystem.getWelcomeMessage(player?.platform || 'facebook');
     }
 
-    async handleGetId(player) {
-        if (player.registrationStatus === 'completed') {
-            return `🆔 معرفك: ${player.userId}`;
-        }
+    _getWelcomeBackMessage(player) {
+        const locationName = this._getLocationName(player.currentLocation);
+        
+        return `🎮 مرحباً ${player.username}!
 
-        return `🆔 معرفك: ${player.userId}
+📊 معلوماتك:
+• المستوى: ${player.level}
+• الرصيد: ${player.gold} ريو
+• الموقع: ${locationName}
+• ID: ${player.playerId}
 
-📨 أرسل هذا المعرف للأدمن للتفعيل:
-${this.commandHandler?.adminProfileUrl || 'https://www.facebook.com/'}
-
-💡 خطوات التفعيل:
-1. انسخ المعرف
-2. أرسله للأدمن
-3. انتظر الموافقة
-4. اكتب "بدء" بعد الموافقة
-
-⏳ حالتك: ${player.registrationStatus === 'pending' ? 'قيد الانتظار' : player.registrationStatus}`;
+اكتب "مساعدة" لعرض الأوامر.`;
     }
 
-    async handleGenderMale(player) {
-        if (!player.isApprovedButNotCompleted()) {
-            return this.getRegistrationMessage(player);
-        }
-
-        const registrationSystem = await this.getSystem('registration');
-        if (registrationSystem) {
-            return await registrationSystem.setGender(player.userId, 'male');
-        }
-
-        player.gender = 'male';
-        player.registrationStatus = 'name_pending';
-        await player.save();
-
-        return `✅ تم اختيار الجنس: ذكر 👦
-
-📝 الآن اختر اسم إنجليزي:
-اكتب "اسمي [الاسم]"
-بين 3 إلى 9 أحرف
-
-مثال: اسمي John`;
+    // ===================================
+    // اختيار 1 (لدي حساب)
+    // ===================================
+    async handleChoice1(player, args, senderId) {
+        return await this.handleLoginStart(player, args, senderId);
     }
 
-    async handleGenderFemale(player) {
-        if (!player.isApprovedButNotCompleted()) {
-            return this.getRegistrationMessage(player);
-        }
-
-        const registrationSystem = await this.getSystem('registration');
-        if (registrationSystem) {
-            return await registrationSystem.setGender(player.userId, 'female');
-        }
-
-        player.gender = 'female';
-        player.registrationStatus = 'name_pending';
-        await player.save();
-
-        return `✅ تم اختيار الجنس: أنثى 👧
-
-📝 الآن اختر اسم إنجليزي:
-اكتب "اسمي [الاسم]"
-بين 3 إلى 9 أحرف
-
-مثال: اسمي Sarah`;
+    // ===================================
+    // اختيار 2 (إنشاء حساب)
+    // ===================================
+    async handleChoice2(player, args, senderId) {
+        return await this.handleRegisterStart(player, args, senderId);
     }
 
-    async handleSetName(player, args) {
-        if (!player.isApprovedButNotCompleted()) {
-            return this.getRegistrationMessage(player);
+    // ===================================
+    // بدء تسجيل دخول
+    // ===================================
+    async handleLoginStart(player, args, senderId) {
+        const accountSystem = await this.getSystem('account');
+        if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
+
+        // إذا كان لديه حساب نشط
+        if (await accountSystem.hasAccount(senderId)) {
+            return `✅ أنت مسجل دخول بالفعل يا ${player.username}.\n\n💡 اكتب "مساعدة" للأوامر.`;
         }
 
-        const name = args.join(' ');
-        if (!name) return '❌ اكتب اسمك. مثال: اسمي John';
+        // بدء جلسة الدخول
+        const result = await accountSystem.startLogin(
+            senderId,
+            player?.platform || 'facebook',
+            player?.name || null
+        );
 
-        const registrationSystem = await this.getSystem('registration');
-        if (registrationSystem) {
-            return await registrationSystem.setName(player.userId, name);
+        return result.message;
+    }
+
+    // ===================================
+    // بدء إنشاء حساب
+    // ===================================
+    async handleRegisterStart(player, args, senderId) {
+        const accountSystem = await this.getSystem('account');
+        if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
+
+        // إذا كان لديه حساب نشط
+        if (await accountSystem.hasAccount(senderId)) {
+            return `✅ لديك حساب بالفعل يا ${player.username}.\n\n💡 اكتب "تسجيل خروج" أولاً إذا أردت إنشاء حساب آخر.`;
         }
 
-        if (name.length < 3 || name.length > 9) {
-            return '❌ الاسم يجب أن يكون بين 3 و 9 أحرف.';
+        // بدء جلسة التسجيل
+        const result = await accountSystem.startRegistration(
+            senderId,
+            player?.platform || 'facebook',
+            player?.name || null
+        );
+
+        return result.message;
+    }
+
+    // ===================================
+    // إلغاء
+    // ===================================
+    async handleCancel(player, args, senderId) {
+        const accountSystem = await this.getSystem('account');
+        if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
+
+        accountSystem.cancelAllSessions(senderId);
+        return '❌ تم إلغاء العملية.\n\n💡 اكتب "بدء" للبدء من جديد.';
+    }
+
+    // ===================================
+    // تسجيل خروج
+    // ===================================
+    async handleLogout(player, args, senderId) {
+        const accountSystem = await this.getSystem('account');
+        if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
+
+        // هل لديه حساب نشط؟
+        if (!await accountSystem.hasAccount(senderId)) {
+            return '❌ أنت غير مسجل دخول.\n\n💡 اكتب "بدء" للدخول أو إنشاء حساب.';
         }
-        if (!/^[a-zA-Z]+$/.test(name)) {
-            return '❌ الاسم إنجليزي فقط.';
+
+        // إذا كان الأدمن الرئيسي - منع
+        if (this.commandHandler?.adminSystem?.isRootAdmin(senderId)) {
+            return '❌ لا يمكنك تسجيل الخروج كأدمن رئيسي.';
         }
 
-        player.name = name;
-        player.registrationStatus = 'completed';
-        await player.save();
+        // تنفيذ تسجيل الخروج
+        const result = await accountSystem.logout(player, senderId);
 
-        return `🎉 اكتمل إنشاء شخصيتك!
+        return result.message;
+    }
 
-✅ الاسم: ${name}
-✅ الجنس: ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}
+    // ===================================
+    // معرفي
+    // ===================================
+    async handleGetId(player, args, senderId) {
+        if (!player || !player.username) {
+            return `🆔 معرفك في المنصة: ${senderId}\n\n💡 ليس لديك حساب بعد.`;
+        }
 
-🎮 اكتب "مساعدة" لرؤية الأوامر`;
+        return `🆔 معلومات حسابك
+
+👤 اسم المستخدم: ${player.username}
+🎯 معرف اللاعب: ${player.playerId}
+📱 معرف المنصة: ${senderId}`;
+    }
+
+    // ===================================
+    // حسابي
+    // ===================================
+    async handleGetAccount(player, args, senderId) {
+        if (!player || !player.username) {
+            return `❌ ليس لديك حساب بعد.\n\n💡 اكتب "بدء" للإنشاء.`;
+        }
+
+        const platforms = (player.linkedPlatforms || []).map(p => {
+            const platformName = p.platform === 'telegram' ? 'تلغرام' : 'فيسبوك';
+            return `• ${platformName}: ${p.platformId}`;
+        }).join('\n');
+
+        return `👤 معلومات حسابك
+
+🆔 اسم المستخدم: ${player.username}
+🎯 معرف اللاعب: ${player.playerId}
+⚧️ الجنس: ${player.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}
+📊 المستوى: ${player.level}
+💰 الرصيد: ${player.gold} ريو
+
+📱 المنصات المرتبطة:
+${platforms || 'لا يوجد'}
+
+💡 لتسجيل الخروج: "تسجيل خروج"`;
+    }
+
+    // ===================================
+    // أدوات مساعدة
+    // ===================================
+    _getLocationName(locationId) {
+        const names = {
+            'forest': 'الغابة', 'desert': 'الصحراء',
+            'mountain': 'الجبل', 'cave': 'الكهف',
+            'plains': 'السهول', 'village': 'القرية'
+        };
+        return names[locationId] || locationId;
     }
 }
