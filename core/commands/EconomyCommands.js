@@ -4,119 +4,78 @@ import { BaseCommand } from './BaseCommand.js';
 export class EconomyCommands extends BaseCommand {
     getCommands() {
         return {
-            'رصيدي': this.handleBalance.bind(this),
             'رصيد': this.handleBalance.bind(this),
-            'سحب': this.handleWithdraw.bind(this),
-            'ايداع': this.handleDepositInfo.bind(this),
-            'إيداع': this.handleDepositInfo.bind(this),
-            'معاملاتي': this.handleTransactions.bind(this)
+            'رصيدي': this.handleBalance.bind(this),
+            // ✅ كل أمر اقتصادي آخر يتم توجيهه لسوق ريو
+            'سحب': this.handleRedirect.bind(this),
+            'تحويل': this.handleRedirect.bind(this),
+            'حول': this.handleRedirect.bind(this),
+            'متجر': this.handleRedirect.bind(this),
+            'المتجر': this.handleRedirect.bind(this),
+            'شراء': this.handleRedirect.bind(this),
+            'اشتري': this.handleRedirect.bind(this),
+            'هدية': this.handleRedirect.bind(this),
+            'كود': this.handleRedirect.bind(this),
+            'خصم': this.handleRedirect.bind(this),
+            'كوبون': this.handleRedirect.bind(this),
+            'معاملاتي': this.handleRedirect.bind(this),
+            'سجلي': this.handleRedirect.bind(this),
+            'ايداع': this.handleRedirect.bind(this),
+            'إيداع': this.handleRedirect.bind(this),
+            'بطاقة': this.handleRedirect.bind(this),
+            'بطاقتي': this.handleRedirect.bind(this),
+            'منتج': this.handleRedirect.bind(this),
+            'تفاصيل': this.handleRedirect.bind(this)
         };
     }
 
-    // ✅ رصيد اللاعب
+    // ✅ عرض الرصيد والتوجيه للسوق
     async handleBalance(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
+        const marketUrl = this.commandHandler?.marketPageUrl || 'https://facebook.com/souqrio';
+
         return `💰 رصيدك
 
-💎 الغولد: ${player.gold}
+💎 الرصيد: ${player.gold} ريو
 📊 المستوى: ${player.level}
+🆔 المعرف: ${player.playerId || player.userId}
 
-💡 للسحب: سحب [المبلغ]
-💡 للإيداع: ايداع`;
+⚠️ لاستخدام رصيدك (الشراء، التحويل، إلخ):
+🛒 توجه إلى سوق ريو
+🔗 ${marketUrl}
+
+📋 أوامر السوق:
+• متجر - عرض المنتجات
+• شراء [ID] - شراء منتج
+• تحويل [الاسم] [المبلغ] - تحويل ريو
+• هدية [الكود] - استخدام كود هدية
+• خصم [الكود] - كود خصم
+• بطاقة - بطاقة رصيدك
+• معاملاتي - سجل معاملاتك`;
     }
 
-    // ✅ طلب سحب
-    async handleWithdraw(player, args) {
+    // ✅ توجيه أي أمر اقتصادي
+    async handleRedirect(player) {
         const approvalCheck = await this.checkPlayerApproval(player);
         if (approvalCheck.error) return approvalCheck.error;
 
-        const amount = parseInt(args[0]);
-        if (!amount || amount <= 0) {
-            return `❌ اكتب مبلغاً صحيحاً.
+        const marketUrl = this.commandHandler?.marketPageUrl || 'https://facebook.com/souqrio';
 
-مثال: سحب 100
+        return `🛒 هذا الأمر متاح في سوق ريو
 
-💰 رصيدك: ${player.gold} غولد`;
-        }
+🔗 توجه إلى:
+${marketUrl}
 
-        if (amount > player.gold) {
-            return `❌ رصيدك غير كافٍ!
-
-💰 رصيدك: ${player.gold} غولد
-📊 المطلوب: ${amount} غولد`;
-        }
-
-        const result = player.requestWithdrawal(amount);
-        if (result.error) return result.error;
-
-        await player.save();
-
-        return `✅ تم إرسال طلب السحب
-
-💸 المبلغ: ${amount} غولد
-💰 رصيدك الجديد: ${player.gold} غولد
-
-⏳ انتظر موافقة المدير.`;
-    }
-
-    // ✅ معلومات الإيداع
-    async handleDepositInfo(player) {
-        const approvalCheck = await this.checkPlayerApproval(player);
-        if (approvalCheck.error) return approvalCheck.error;
-
-        const adminLink = this.commandHandler?.adminProfileUrl || 'https://www.facebook.com/';
-        const adminName = this.commandHandler?.adminDisplayName || 'المدير';
-
-        return `💎 الإيداع في البوت
-
-📖 كيف يعمل الإيداع:
-• تدفع المبلغ للإدارة في مجموعة غولد الرسمية
-• يتم إضافة الغولد لرصيدك في البوت
-• يمكنك استخدامه للشراء أو السحب
-
-📌 خطوات الإيداع:
-1. تواصل مع ${adminName} عبر الرابط:
-${adminLink}
-
-2. أخبره بالمبلغ الذي تريد إيداعه
-3. أكمل عملية الدفع معه
-4. سيقوم بإضافة الغولد لرصيدك
-
-💰 رصيدك الحالي: ${player.gold} غولد
-
-⚠️ ملاحظة:
-• الإيداع يتم يدوياً من قبل الإدارة
-• تأكد من التعامل مع الإدارة الرسمية فقط
-• لا ترسل أي مبالغ لأي شخص آخر`;
-    }
-
-    // ✅ سجل المعاملات
-    async handleTransactions(player) {
-        const approvalCheck = await this.checkPlayerApproval(player);
-        if (approvalCheck.error) return approvalCheck.error;
-
-        const transactions = player.getTransactionHistory(10);
-
-        if (transactions.length === 0) {
-            return `📋 سجل المعاملات
-
-❌ لا توجد معاملات حالياً.`;
-        }
-
-        let msg = `📋 سجل المعاملات (آخر ${transactions.length})\n`;
-
-        transactions.forEach(tx => {
-            const date = new Date(tx.createdAt).toLocaleDateString('ar-EG');
-            const icon = tx.type === 'deposit' ? '📥' : '📤';
-
-            msg += `\n${icon} ${tx.description}\n`;
-            msg += `   💰 ${tx.amount} غولد\n`;
-            msg += `   📅 ${date}\n`;
-            msg += `   📊 ${tx.status === 'completed' ? '✅ مكتمل' : tx.status === 'pending' ? '⏳ معلق' : '❌ مرفوض'}\n`;
-        });
-
-        return msg;
+💡 أوامر السوق المتاحة:
+• رصيد - عرض رصيدك
+• متجر - عرض المنتجات
+• شراء [ID] - شراء منتج
+• تحويل [الاسم] [المبلغ]
+• هدية [الكود]
+• خصم [الكود]
+• بطاقة
+• معاملاتي`;
     }
 }
