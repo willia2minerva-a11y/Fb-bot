@@ -1,5 +1,6 @@
 // systems/admin/AdminSystem.js
 import Player from '../../core/Player.js';
+import BannedPlayer from '../../core/models/BannedPlayer.js';
 import { items } from '../../data/items.js';
 import { AutoResponseSystem } from '../autoResponse/AutoResponseSystem.js';
 import { PermissionSystem } from '../permissions/PermissionSystem.js';
@@ -44,6 +45,11 @@ export class AdminSystem {
         }
     }
 
+    // ✅ فحص إذا كان الأدمن الرئيسي
+    isRootAdmin(userId) {
+        return this.permissionSystem.isRootAdmin(userId);
+    }
+
     _translateRarity(rarity) {
         const map = {
             'common': 'عادي', 'uncommon': 'غير عادي', 'rare': 'نادر',
@@ -81,10 +87,12 @@ export class AdminSystem {
         try {
             let player = await Player.findOne({ userId });
             if (!player) player = await Player.createNew(userId, userName);
+            
             if (!player.playerId) {
                 const newAdminId = await this.permissionSystem.getNextAdminId();
                 player.playerId = newAdminId;
             }
+
             player.registrationStatus = 'completed';
             player.gender = 'male';
             player.name = userName || 'المدير';
@@ -111,6 +119,9 @@ export class AdminSystem {
             'تغيير_اسم': 'تغيير اسم',
             'تغيير_جنس': 'تغيير جنس',
             'حظر_لاعب': 'حظر لاعب',
+            'نزع_ادمن': 'نزع أدمن',
+            'قائمة_المحظورين': 'قائمة المحظورين',
+            'حذف_محظور': 'حذف محظور',
             'اعادة_بيانات': 'اعادة بيانات',
             'اضف_رد': 'إضافة رد',
             'ازل_رد': 'إزالة رد',
@@ -119,6 +130,7 @@ export class AdminSystem {
             'عرض_وحوش': 'عرض الوحوش',
             'عرض_مواقع': 'عرض المواقع',
             'عرض_موارد': 'عرض الموارد',
+            'عرض_لاعبين': 'عرض اللاعبين',
             'اضف_سلاح': 'إضافة سلاح',
             'حذف_سلاح': 'حذف سلاح',
             'اضف_وحش': 'إضافة وحش',
@@ -137,7 +149,6 @@ export class AdminSystem {
             'سجن': 'سجن',
             'اطلاق': 'إطلاق',
             'قائمة_المسجونين': 'قائمة المسجونين',
-            // ✅ المنح داخل اللعبة (تبقى للأدمن)
             'اعطاء_ذهب': 'إعطاء رصيد',
             'اعطاء_مورد': 'إعطاء مورد',
             'زيادة_صحة': 'زيادة صحة',
@@ -152,8 +163,21 @@ export class AdminSystem {
 • موافقة_لاعب [ID]
 • تغيير_اسم [ID] [الاسم]
 • تغيير_جنس [ID] [ذكر/أنثى]
-• حظر_لاعب [ID] [صحيح/خطأ]
 • اعادة_بيانات [ID]
+
+🚫 الحظر
+• حظر_لاعب [ID] [صحيح/خطأ]
+• قائمة_المحظورين [صفحة]
+• حذف_محظور [ID]
+
+🔐 الصلاحيات
+• اعطاء_ادمن [ID] [مدة]
+• اعطاء_صلاحية [ID] [النوع] [مدة]
+• ازالة_صلاحية [ID] [النوع]
+• نزع_ادمن [ID] - إزالة كل الصلاحيات
+• ازالة_ادمن [ID] - نفس الشيء
+• قائمة_الادمن
+• صلاحيات [ID]
 
 🎁 المنح
 • اعطاء_ذهب [ID] [الكمية]
@@ -167,12 +191,14 @@ export class AdminSystem {
 • عرض_الردود
 
 📋 العرض
+• عرض_لاعبين [صفحة]
 • عرض_اسلحة [ص] | عرض_وحوش [ص]
 • عرض_مواقع [ص] | عرض_موارد [ص]
 
-🏆 المهام
-• اضف_مهمة [الاسم] [النوع] [الهدف] [المكافأة]
-• حذف_مهمة [ID] | قائمة_المهام
+🚔 السجن
+• سجن [ID] [المدة]
+• اطلاق [ID]
+• قائمة_المسجونين
 
 ➕ الإضافة والحذف
 • اضف_سلاح [اسم] [قوة] [مستوى]
@@ -181,24 +207,9 @@ export class AdminSystem {
 • حذف_وحش [اسم]
 • اضف_مورد [اسم] [ندرة] [موقع]
 • حذف_مورد [اسم]
+• اضف_مهمة | حذف_مهمة | قائمة_المهام
 
-🚔 السجن
-• سجن [ID] [المدة]
-• اطلاق [ID]
-• قائمة_المسجونين
-
-🔐 الصلاحيات
-• اعطاء_ادمن [ID] [مدة]
-• اعطاء_صلاحية [ID] [النوع] [مدة]
-• ازالة_صلاحية [ID] [النوع]
-• ازالة_ادمن [ID]
-• قائمة_الادمن
-• صلاحيات [ID]
-
-💰 الاقتصاد:
-• جميع أوامر الاقتصاد في سوق ريو
-
-💡 الأوامر تقبل:
+💡 الأوامر تقبل أي شكل:
 موافقة_لاعب | موافقة لاعب | موافقةلاعب`;
     }
 
@@ -210,6 +221,9 @@ export class AdminSystem {
             'تغييراسم': 'تغيير_اسم',
             'تغييرجنس': 'تغيير_جنس',
             'حظرلاعب': 'حظر_لاعب',
+            'نزعادمن': 'نزع_ادمن',
+            'قائمةالمحظورين': 'قائمة_المحظورين',
+            'حذفمحظور': 'حذف_محظور',
             'اعطاءذهب': 'اعطاء_ذهب',
             'اعطاءمورد': 'اعطاء_مورد',
             'زيادةصحة': 'زيادة_صحة',
@@ -221,6 +235,7 @@ export class AdminSystem {
             'عرضوحوش': 'عرض_وحوش',
             'عرضمواقع': 'عرض_مواقع',
             'عرضموارد': 'عرض_موارد',
+            'عرضلاعبين': 'عرض_لاعبين',
             'اضفمهمة': 'اضف_مهمة',
             'حذفمهمة': 'حذف_مهمة',
             'قائمةالمهام': 'قائمة_المهام',
@@ -268,7 +283,10 @@ export class AdminSystem {
             case 'اعادة_بيانات': return await this.handleResetPlayer(args, findTargetPlayer);
             case 'تغيير_اسم': return await this.handleSetPlayerName(args, findTargetPlayer);
             case 'تغيير_جنس': return await this.handleSetPlayerGender(args, findTargetPlayer);
-            case 'حظر_لاعب': return await this.handleBanPlayer(args, findTargetPlayer);
+            case 'حظر_لاعب': return await this.handleBanPlayer(args, findTargetPlayer, senderId);
+            case 'نزع_ادمن': return await this.handleRevokeAdmin(args, senderId);
+            case 'قائمة_المحظورين': return await this.handleBannedList(args);
+            case 'حذف_محظور': return await this.handleRemoveBanned(args, senderId);
             case 'اعطاء_ذهب': return await this.handleGiveGold(args, findTargetPlayer);
             case 'اعطاء_مورد': return await this.handleGiveItem(args, findTargetPlayer, itemMap);
             case 'زيادة_صحة': return await this.handleIncreaseStat(args, 'maxHealth', findTargetPlayer);
@@ -280,6 +298,7 @@ export class AdminSystem {
             case 'عرض_وحوش': return await this.handleShowMonsters(args);
             case 'عرض_مواقع': return await this.handleShowLocations(args);
             case 'عرض_موارد': return await this.handleShowResources(args);
+            case 'عرض_لاعبين': return await this.handleShowPlayers(args);
             case 'اضف_سلاح': return await this.handleAddWeapon(args);
             case 'حذف_سلاح': return await this.handleDeleteWeapon(args);
             case 'اضف_وحش': return await this.handleAddMonster(args);
@@ -320,10 +339,10 @@ export class AdminSystem {
             let message = `⏳ اللاعبين المنتظرين (${pendingPlayers.length}):\n\n`;
             pendingPlayers.forEach((p, index) => {
                 message += `${index + 1}. ${p.name}\n`;
-                message += `   🆔 ${p.playerId || p.userId}\n`;
+                message += `   🆔 ${p.playerId || 'N/A'}\n`;
                 message += `   📱 ${p.userId}\n\n`;
             });
-            message += `💡 للموافقة: موافقة_لاعب [المعرف]`;
+            message += `💡 للموافقة: موافقة_لاعب [ID]`;
             return message;
         }
 
@@ -334,7 +353,7 @@ export class AdminSystem {
         if (!target) target = await Player.findOne({ name: new RegExp(targetId, 'i') });
 
         if (!target) return `❌ لم يتم العثور على اللاعب: ${targetId}`;
-        if (target.banned) return '❌ هذا اللاعب محظور! ارفع الحظر أولاً.';
+        if (target.banned) return '❌ هذا اللاعب محظور!';
         if (target.registrationStatus === 'completed') return '❌ هذا اللاعب مسجل بالفعل.';
 
         target.registrationStatus = 'approved';
@@ -342,19 +361,14 @@ export class AdminSystem {
         target.approvedBy = senderId;
         await target.save();
 
-        return `✅ تمت الموافقة على اللاعب ${target.name}!
-
-📋 الخطوة التالية للاعب:
-• اكتب "بدء"
-• اختر الجنس (ذكر/أنثى)
-• اختر الاسم`;
+        return `✅ تمت الموافقة على اللاعب ${target.name}!\n\n🆔 ID: ${target.playerId}\n📱 userId: ${target.userId}\n\n📋 الخطوة التالية للاعب:\n• اكتب "بدء"\n• اختر الجنس\n• اختر الاسم`;
     }
 
     // ===================================
-    // الحظر مع إعادة التعيين
+    // الحظر الجديد (نقل إلى BannedPlayers)
     // ===================================
 
-    async handleBanPlayer(args, findTargetPlayer) {
+    async handleBanPlayer(args, findTargetPlayer, senderId) {
         const targetId = args[0];
         const banStatusRaw = args[1] ? args[1].toLowerCase() : 'true';
 
@@ -363,97 +377,173 @@ export class AdminSystem {
         const target = await findTargetPlayer(targetId);
         if (!target) return `❌ لم يتم العثور على اللاعب ${targetId}.`;
 
+        // ✅ منع حظر الأدمن الرئيسي
+        if (this.isRootAdmin(target.userId)) {
+            return '❌ لا يمكن حظر الأدمن الرئيسي!';
+        }
+
         const isBanning = banStatusRaw === 'true' || banStatusRaw === 'صحيح' || banStatusRaw === 'حظر';
 
+        // ✅ إذا كان الحظر
         if (isBanning) {
-            const oldName = target.name;
-            const oldUserId = target.userId;
-
-            target.registrationStatus = 'pending';
-            target.banned = true;
-            target.level = 1;
-            target.experience = 0;
-            target.gold = 10;
-            target.health = 100;
-            target.maxHealth = 100;
-            target.mana = 50;
-            target.maxMana = 50;
-            target.stamina = 100;
-            target.maxStamina = 100;
-            target.gender = null;
-            target.approvedAt = null;
-            target.approvedBy = null;
-            target.inventory = [
-                { id: 'wood', name: 'خشب', type: 'resource', quantity: 5 },
-                { id: 'stone', name: 'حجر', type: 'resource', quantity: 3 }
-            ];
-            target.equipment = { weapon: null, armor: null, accessory: null, tool: null };
-            target.skills = { gathering: 1, combat: 1, crafting: 1 };
-            target.stats = {
-                battlesWon: 0, battlesLost: 0, monstersKilled: 0,
-                questsCompleted: 0, resourcesGathered: 0, itemsCrafted: 0
-            };
-            target.cooldowns = { gather: null, battle: null, craft: null };
-            target.dailyTaskDate = '';
-            target.dailyTasksList = [];
-            target.dailyTaskProgress = {};
-            target.completedDailyTasks = [];
-            target.unlockedAchievements = [];
-            target.bonusStats = { attack: 0, defense: 0, maxHealth: 0, maxMana: 0, maxStamina: 0 };
-            target.activeEffects = [];
-            target.jailedUntil = null;
-            target.jailedReason = null;
-            target.jailedBy = null;
-            target.jailNotified = false;
-            target.adminPermissions = [];
-
-            if (target.originalPlayerId) {
-                target.playerId = target.originalPlayerId;
-                target.originalPlayerId = null;
+            // فحص أنه ليس محظوراً بالفعل
+            const alreadyBanned = await BannedPlayer.findOne({ userId: target.userId });
+            if (alreadyBanned) {
+                return `❌ اللاعب ${target.name} محظور بالفعل.`;
             }
 
-            target.referredBy = null;
-            target.referredByName = null;
-            target.referralCount = 0;
-            target.referredPlayers = [];
-            target.pendingWithdrawal = { amount: 0, requestedAt: null, status: 'pending' };
-            target.currentLocation = 'forest';
-            target.name = `محظور-${oldUserId.slice(-6)}`;
+            // حفظ معلومات في BannedPlayers
+            const bannedPlayer = new BannedPlayer({
+                userId: target.userId,
+                name: target.name,
+                playerId: target.playerId,
+                platform: target.platform,
+                bannedBy: senderId,
+                bannedAt: new Date(),
+                reason: 'حظر إداري',
+                level: target.level,
+                gold: target.gold,
+                wasAdmin: target.getActivePermissions().length > 0,
+                adminPermissions: target.adminPermissions || []
+            });
+            await bannedPlayer.save();
 
-            await target.save();
+            // حذف اللاعب من players
+            const oldName = target.name;
+            const oldId = target.playerId;
+            await target.deleteOne();
 
-            return `🚫 تم حظر اللاعب ${oldName}
+            return `🚫 تم حظر اللاعب نهائياً
 
-📋 الإجراءات:
-• مسح جميع البيانات
-• إعادة تعيين الشخصية
-• حالة التسجيل: قيد الانتظار
-• يحتاج موافقة جديدة
+👤 الاسم: ${oldName}
+🆔 ID: ${oldId}
+📱 userId: ${target.userId}
 
-💡 عند رفع الحظر:
-1. موافقتك على حسابه
-2. يختار الجنس والاسم
-3. يبدأ من الصفر`;
-        } else {
-            if (!target.banned) return `❌ اللاعب ${target.name} غير محظور.`;
+📋 الإجراءات المتخذة:
+• نقل بياناته إلى قائمة المحظورين
+• حذف حسابه بالكامل
+• الاسم "${oldName}" أصبح متاحاً
+• ID "${oldId}" أصبح متاحاً
 
-            target.banned = false;
-            target.registrationStatus = 'pending';
-            await target.save();
+💡 للعرض: قائمة_المحظورين`;
+        }
+        // رفع الحظر
+        else {
+            const bannedRecord = await BannedPlayer.findOne({ userId: target.userId });
+            if (!bannedRecord) {
+                return `❌ اللاعب ${target.name} غير محظور.`;
+            }
 
-            return `✅ تم رفع الحظر
+            // حذف من قائمة المحظورين
+            await BannedPlayer.deleteOne({ userId: target.userId });
 
-👤 اللاعب: ${target.name}
-🆔 ${target.playerId || target.userId}
+            return `✅ تم رفع الحظر عن اللاعب
 
-📋 الخطوات التالية:
-1. اللاعب يكتب "بدء"
-2. ينتظر موافقتك: موافقة_لاعب [${target.userId}]`;
+👤 الاسم السابق: ${bannedRecord.name}
+📱 userId: ${bannedRecord.userId}
+
+⚠️ ملاحظة: اللاعب يحتاج للتسجيل من جديد
+حيث أن بياناته السابقة تم حذفها عند الحظر.`;
         }
     }
 
     // ===================================
-    // باقي الدوال (كما كانت سابقاً)
+    // قائمة المحظورين
+    // ===================================
+
+    async handleBannedList(args) {
+        const page = parseInt(args[0]) || 1;
+
+        const result = await BannedPlayer.getBannedList(page);
+
+        if (result.error) return result.error;
+
+        let msg = `🚫 قائمة المحظورين - صفحة ${result.page}/${result.totalPages}\n`;
+        msg += `📊 الإجمالي: ${result.total}\n\n`;
+
+        result.banned.forEach((b, index) => {
+            const rank = (result.page - 1) * 20 + index + 1;
+            const date = new Date(b.bannedAt).toLocaleDateString('ar-EG');
+            const icon = b.wasAdmin ? '👑🚫' : '🚫';
+
+            msg += `${rank}. ${icon} ${b.name}\n`;
+            msg += `   🆔 ${b.playerId || 'N/A'}\n`;
+            msg += `   📱 ${b.userId}\n`;
+            msg += `   📅 ${date}\n`;
+            msg += `   📝 ${b.reason}\n\n`;
+        });
+
+        msg += `💡 للتنقل: قائمة_المحظورين [رقم]`;
+        msg += `\n💡 لحذف محظور: حذف_محظور [ID]`;
+
+        return msg;
+    }
+
+    // ===================================
+    // حذف محظور (رفع الحظر نهائياً)
+    // ===================================
+
+    async handleRemoveBanned(args, senderId) {
+        if (args.length === 0) return '❌ الاستخدام: حذف_محظور [userId/name/playerId]';
+
+        const identifier = args.join(' ');
+
+        const result = await BannedPlayer.removeBan(identifier);
+
+        if (result.error) return result.error;
+
+        return `✅ تم حذف المحظور من القائمة
+
+👤 الاسم: ${result.info.name}
+🆔 ID: ${result.info.playerId || 'N/A'}
+📱 userId: ${result.info.userId}
+
+💡 يمكن للاعب التسجيل من جديد الآن.`;
+    }
+
+    // ===================================
+    // نزع الأدمن (إزالة صلاحيات + ID جديد)
+    // ===================================
+
+    async handleRevokeAdmin(args, senderId) {
+        const sender = await Player.findOne({ userId: senderId });
+        const isRoot = this.permissionSystem.isRootAdmin(senderId);
+        const senderHasFull = sender && sender.hasPermission('full_admin');
+
+        if (!isRoot && !senderHasFull) {
+            return '❌ ليس لديك صلاحية.';
+        }
+
+        if (args.length < 1) {
+            return `❌ الاستخدام: نزع_ادمن [ID]
+
+💡 يزيل صلاحيات الأدمن ويعطيه ID لاعب عادي.
+⚠️ ملاحظة: الأدمن الرئيسي (من ENV) لا يمكن نزعه.`;
+        }
+
+        const targetId = args[0];
+        const target = await Player.findOne({ userId: targetId }) ||
+                       await Player.findOne({ playerId: targetId }) ||
+                       await Player.findOne({ name: new RegExp(targetId, 'i') });
+
+        if (!target) return `❌ لم يتم العثور على اللاعب: ${targetId}`;
+
+        // ✅ منع نزع الأدمن الرئيسي
+        if (this.isRootAdmin(target.userId)) {
+            return '❌ لا يمكن نزع صلاحيات الأدمن الرئيسي!';
+        }
+
+        // ✅ منع نزع نفسك
+        if (target.userId === senderId) {
+            return '❌ لا يمكنك نزع صلاحياتك!';
+        }
+
+        const result = await this.permissionSystem.revokeAllPermissions(target.userId);
+        return result.error || result.message;
+    }
+
+    // ===================================
+    // باقي الدوال
     // ===================================
 
     async handleResetPlayer(args, findTargetPlayer) {
@@ -463,13 +553,15 @@ export class AdminSystem {
         const target = await findTargetPlayer(targetId);
         if (!target) return `❌ لم يتم العثور على اللاعب ${targetId}.`;
 
-        const oldName = target.name;
-        const userId = target.userId;
-        const platform = target.platform;
-        await target.deleteOne();
-        const newPlayer = await Player.createNew(userId, oldName, platform);
+        if (this.isRootAdmin(target.userId)) {
+            return '❌ لا يمكن إعادة تعيين الأدمن الرئيسي!';
+        }
 
-        return `🗑️ تم مسح بيانات ${oldName}\n\n🆔 ID الجديد: ${newPlayer.playerId}\n📊 الحالة: قيد الانتظار`;
+        const oldName = target.name;
+        const oldId = target.playerId;
+        await target.deleteOne();
+
+        return `🗑️ تم مسح بيانات ${oldName}\n\n🆔 ID السابق: ${oldId}\n💡 اللاعب يجب أن يسجل من جديد.`;
     }
 
     async handleSetPlayerName(args, findTargetPlayer) {
@@ -482,13 +574,13 @@ export class AdminSystem {
         if (!target) return `❌ لم يتم العثور على اللاعب ${targetId}.`;
 
         const existing = await Player.findOne({ name: newName, userId: { $ne: target.userId } });
-        if (existing) return `❌ الاسم مستخدم.`;
+        if (existing) return `❌ الاسم ${newName} مستخدم من لاعب آخر.`;
 
         const oldName = target.name;
         target.name = newName;
         await target.save();
 
-        return `✅ تم تغيير الاسم من ${oldName} إلى ${newName}.`;
+        return `✅ تم تغيير الاسم\n\n👤 من: ${oldName}\n👤 إلى: ${newName}`;
     }
 
     async handleSetPlayerGender(args, findTargetPlayer) {
@@ -506,14 +598,20 @@ export class AdminSystem {
         target.gender = genderCode;
         await target.save();
 
-        return `✅ تم تغيير جنس ${target.name}.`;
+        return `✅ تم تغيير جنس ${target.name} إلى ${genderCode === 'male' ? 'ذكر' : 'أنثى'}.`;
     }
+
+    // ===================================
+    // المنح
+    // ===================================
 
     async handleGiveGold(args, findTargetPlayer) {
         const targetId = args[0];
         const amount = parseInt(args[1], 10);
 
-        if (!targetId || isNaN(amount) || amount <= 0) return '❌ الاستخدام: اعطاء_ذهب [ID] [الكمية]';
+        if (!targetId || isNaN(amount) || amount <= 0) {
+            return '❌ الاستخدام: اعطاء_ذهب [ID] [الكمية]';
+        }
 
         const target = await findTargetPlayer(targetId);
         if (!target) return `❌ لم يتم العثور على اللاعب ${targetId}.`;
@@ -521,7 +619,7 @@ export class AdminSystem {
         target.addGold(amount);
         await target.save();
 
-        return `✅ تم إعطاء ${target.name} ${amount} ريو.`;
+        return `✅ تم إعطاء ${target.name}\n\n💰 المبلغ: ${amount} ريو\n💎 الرصيد الجديد: ${target.gold} ريو`;
     }
 
     async handleGiveItem(args, findTargetPlayer, itemMap) {
@@ -534,7 +632,9 @@ export class AdminSystem {
         const itemId = itemMap[rawItemName] || rawItemName;
         const itemInfo = items[itemId];
 
-        if (!itemInfo || isNaN(quantity) || quantity <= 0) return '❌ العنصر غير موجود أو الكمية غير صالحة.';
+        if (!itemInfo || isNaN(quantity) || quantity <= 0) {
+            return '❌ العنصر غير موجود أو الكمية غير صالحة.';
+        }
 
         const target = await findTargetPlayer(targetId);
         if (!target) return `❌ لم يتم العثور على اللاعب ${targetId}.`;
@@ -565,16 +665,28 @@ export class AdminSystem {
         }
 
         await target.save();
-        return `✅ تم زيادة ${statToChange === 'maxHealth' ? 'الصحة' : 'المانا'} لـ ${target.name}.`;
+        return `✅ تم زيادة ${statToChange === 'maxHealth' ? 'الصحة' : 'المانا'} لـ ${target.name} بمقدار ${amount}.`;
     }
+
+    // ===================================
+    // الردود التلقائية
+    // ===================================
 
     async handleAddAutoResponse(args, senderId) {
         const input = args.join(' ');
         const parts = input.split('||');
-        if (parts.length < 2) return '❌ الاستخدام: اضف_رد [الكلمة] || [الرد]';
+
+        if (parts.length < 2) {
+            return '❌ الاستخدام: اضف_رد [الكلمة] || [الرد]';
+        }
+
         const keyword = parts[0].trim().toLowerCase();
         const response = parts.slice(1).join('||').trim();
-        if (!keyword || !response) return '❌ يجب تحديد الكلمة والرد.';
+
+        if (!keyword || !response) {
+            return '❌ يجب تحديد الكلمة والرد.';
+        }
+
         this.autoResponseSystem.addResponse(keyword, response);
         return `✅ تم إضافة رد للكلمة "${keyword}".`;
     }
@@ -582,21 +694,28 @@ export class AdminSystem {
     async handleRemoveAutoResponse(args, senderId) {
         const keyword = args.join(' ').toLowerCase().trim();
         if (!keyword) return '❌ الاستخدام: ازل_رد [الكلمة]';
+
         const removed = this.autoResponseSystem.removeResponse(keyword);
-        return removed ? `✅ تم حذف الرد "${keyword}".` : `❌ لا يوجد رد للكلمة "${keyword}".`;
+        return removed 
+            ? `✅ تم حذف الرد "${keyword}".` 
+            : `❌ لا يوجد رد للكلمة "${keyword}".`;
     }
 
     async handleShowAutoResponses(args, senderId) {
         const all = this.autoResponseSystem.getAllResponses();
         const keys = Object.keys(all);
+
         if (keys.length === 0) return '📝 لا توجد ردود تلقائية.';
+
         let msg = `🤖 الردود التلقائية (${keys.length}):\n\n`;
-        for (const key of keys) msg += `• ${key}: ${all[key]}\n`;
+        for (const key of keys) {
+            msg += `• ${key}\n  ${all[key]}\n\n`;
+        }
         return msg;
     }
 
     // ===================================
-    // أوامر العرض (كما كانت)
+    // أوامر العرض (مع ID + userId)
     // ===================================
 
     async handleShowItemsByType(args, type) {
@@ -604,19 +723,27 @@ export class AdminSystem {
         const perPage = 10;
         const itemsList = Object.entries(items).filter(([id, item]) => item.type === type);
         const totalPages = Math.ceil(itemsList.length / perPage);
+
         if (totalPages === 0) return `❌ لا توجد عناصر من نوع ${type}`;
-        if (page < 1 || page > totalPages) return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        if (page < 1 || page > totalPages) {
+            return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        }
+
         const start = (page - 1) * perPage;
         const pageItems = itemsList.slice(start, start + perPage);
+
         let message = `📋 ${type} - صفحة ${page}/${totalPages}\n\n`;
+
         pageItems.forEach(([id, item]) => {
-            message += `• ${item.name} (${id})\n`;
-            message += `  المستوى: ${item.level || 1}\n`;
-            if (item.attack) message += `  الهجوم: ${item.attack}\n`;
-            if (item.defense) message += `  الدفاع: ${item.defense}\n`;
-            if (item.rarity) message += `  الندرة: ${this._translateRarity(item.rarity)}\n`;
+            message += `• ${item.name}\n`;
+            message += `  🆔 ${id}\n`;
+            message += `  📊 المستوى: ${item.level || 1}\n`;
+            if (item.attack) message += `  ⚔️ الهجوم: ${item.attack}\n`;
+            if (item.defense) message += `  🛡️ الدفاع: ${item.defense}\n`;
+            if (item.rarity) message += `  💎 الندرة: ${this._translateRarity(item.rarity)}\n`;
             message += `\n`;
         });
+
         message += `📄 للتنقل: عرض_اسلحة [رقم]`;
         return message;
     }
@@ -627,19 +754,27 @@ export class AdminSystem {
         const { monsters } = await import('../../data/monsters.js');
         const monstersList = Object.entries(monsters);
         const totalPages = Math.ceil(monstersList.length / perPage);
+
         if (totalPages === 0) return '❌ لا توجد وحوش';
-        if (page < 1 || page > totalPages) return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        if (page < 1 || page > totalPages) {
+            return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        }
+
         const start = (page - 1) * perPage;
         const pageMonsters = monstersList.slice(start, start + perPage);
+
         let message = `👹 الوحوش - صفحة ${page}/${totalPages}\n\n`;
+
         pageMonsters.forEach(([id, monster]) => {
-            message += `• ${monster.name} (${id})\n`;
-            message += `  المستوى: ${monster.level || 1}\n`;
-            message += `  الصحة: ${monster.health || monster.maxHealth || 0}\n`;
-            message += `  الضرر: ${monster.damage || 0}\n`;
+            message += `• ${monster.name}\n`;
+            message += `  🆔 ${id}\n`;
+            message += `  📊 المستوى: ${monster.level || 1}\n`;
+            message += `  ❤️ الصحة: ${monster.health || monster.maxHealth || 0}\n`;
+            message += `  ⚔️ الضرر: ${monster.damage || 0}\n`;
             if (monster.isBoss) message += `  👑 زعيم\n`;
             message += `\n`;
         });
+
         message += `📄 للتنقل: عرض_وحوش [رقم]`;
         return message;
     }
@@ -650,17 +785,25 @@ export class AdminSystem {
         const { locations } = await import('../../data/locations.js');
         const locationsList = Object.entries(locations);
         const totalPages = Math.ceil(locationsList.length / perPage);
+
         if (totalPages === 0) return '❌ لا توجد مواقع';
-        if (page < 1 || page > totalPages) return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        if (page < 1 || page > totalPages) {
+            return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        }
+
         const start = (page - 1) * perPage;
         const pageLocations = locationsList.slice(start, start + perPage);
+
         let message = `📍 المواقع - صفحة ${page}/${totalPages}\n\n`;
+
         pageLocations.forEach(([id, location]) => {
-            message += `• ${location.name || id} (${id})\n`;
-            if (location.monsters) message += `  الوحوش: ${location.monsters.length}\n`;
-            if (location.resources) message += `  الموارد: ${location.resources.length}\n`;
+            message += `• ${location.name || id}\n`;
+            message += `  🆔 ${id}\n`;
+            if (location.monsters) message += `  👹 الوحوش: ${location.monsters.length}\n`;
+            if (location.resources) message += `  🌿 الموارد: ${location.resources.length}\n`;
             message += `\n`;
         });
+
         message += `📄 للتنقل: عرض_مواقع [رقم]`;
         return message;
     }
@@ -671,23 +814,73 @@ export class AdminSystem {
         const { resources } = await import('../../data/resources.js');
         const resourcesList = Object.entries(resources);
         const totalPages = Math.ceil(resourcesList.length / perPage);
+
         if (totalPages === 0) return '❌ لا توجد موارد';
-        if (page < 1 || page > totalPages) return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        if (page < 1 || page > totalPages) {
+            return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        }
+
         const start = (page - 1) * perPage;
         const pageResources = resourcesList.slice(start, start + perPage);
+
         let message = `🌿 الموارد - صفحة ${page}/${totalPages}\n\n`;
+
         pageResources.forEach(([id, resource]) => {
-            message += `• ${resource.name} (${id})\n`;
-            message += `  الندرة: ${this._translateRarity(resource.rarity || 'common')}\n`;
-            if (resource.locations) message += `  المواقع: ${resource.locations.length}\n`;
+            message += `• ${resource.name}\n`;
+            message += `  🆔 ${id}\n`;
+            message += `  💎 الندرة: ${this._translateRarity(resource.rarity || 'common')}\n`;
+            if (resource.locations) message += `  📍 المواقع: ${resource.locations.length}\n`;
             message += `\n`;
         });
+
         message += `📄 للتنقل: عرض_موارد [رقم]`;
         return message;
     }
 
+    // ✅ عرض اللاعبين (مع ID + userId)
+    async handleShowPlayers(args) {
+        const page = parseInt(args[0]) || 1;
+        const perPage = 10;
+
+        const total = await Player.countDocuments({
+            registrationStatus: 'completed'
+        });
+
+        if (total === 0) return '📋 لا يوجد لاعبون مسجلون.';
+
+        const totalPages = Math.ceil(total / perPage);
+        if (page < 1 || page > totalPages) {
+            return `❌ الصفحة ${page} غير موجودة. الإجمالي: ${totalPages}`;
+        }
+
+        const start = (page - 1) * perPage;
+
+        const players = await Player.find({
+            registrationStatus: 'completed'
+        })
+        .sort({ level: -1, createdAt: 1 })
+        .skip(start)
+        .limit(perPage)
+        .select('name playerId userId level gold currentLocation');
+
+        let msg = `📋 اللاعبون - صفحة ${page}/${totalPages}\n`;
+        msg += `📊 الإجمالي: ${total}\n\n`;
+
+        players.forEach((p, index) => {
+            const rank = start + index + 1;
+            msg += `${rank}. 👤 ${p.name}\n`;
+            msg += `   🆔 ${p.playerId || 'N/A'}\n`;
+            msg += `   📱 ${p.userId}\n`;
+            msg += `   📊 المستوى: ${p.level}\n`;
+            msg += `   💰 الرصيد: ${p.gold} ريو\n\n`;
+        });
+
+        msg += `💡 للتنقل: عرض_لاعبين [رقم]`;
+        return msg;
+    }
+
     // ===================================
-    // أوامر الإضافة والحذف (كما كانت)
+    // أوامر الإضافة والحذف
     // ===================================
 
     async handleAddWeapon(args) {
@@ -695,13 +888,22 @@ export class AdminSystem {
         const name = args.slice(0, -2).join(' ');
         const attack = parseInt(args[args.length - 2]);
         const level = parseInt(args[args.length - 1]);
+
         if (isNaN(attack) || isNaN(level)) return '❌ القوة والمستوى أرقام';
+
         const id = name.toLowerCase().replace(/\s+/g, '_');
+
         try {
             const { Weapon } = await import('../../core/models/Weapon.js');
-            await Weapon.updateOne({ id }, { $set: { id, name, type: 'weapon', attack, level, rarity: 'common' } }, { upsert: true });
-            return `✅ تمت إضافة السلاح ${name}`;
-        } catch (e) { return '❌ فشل: ' + e.message; }
+            await Weapon.updateOne(
+                { id },
+                { $set: { id, name, type: 'weapon', attack, level, rarity: 'common' } },
+                { upsert: true }
+            );
+            return `✅ تمت إضافة السلاح ${name}\n🆔 ${id}`;
+        } catch (e) {
+            return '❌ فشل: ' + e.message;
+        }
     }
 
     async handleDeleteWeapon(args) {
@@ -711,7 +913,9 @@ export class AdminSystem {
             const { Weapon } = await import('../../core/models/Weapon.js');
             await Weapon.deleteOne({ id });
             return `✅ تم حذف السلاح ${name}`;
-        } catch (e) { return '❌ فشل: ' + e.message; }
+        } catch (e) {
+            return '❌ فشل: ' + e.message;
+        }
     }
 
     async handleAddMonster(args) {
@@ -720,13 +924,21 @@ export class AdminSystem {
         const health = parseInt(args[args.length - 3]);
         const damage = parseInt(args[args.length - 2]);
         const level = parseInt(args[args.length - 1]);
+
         if ([health, damage, level].some(isNaN)) return '❌ أرقام غير صالحة';
+
         const id = name.toLowerCase().replace(/\s+/g, '_');
         try {
             const { Monster } = await import('../../core/models/Monster.js');
-            await Monster.updateOne({ id }, { $set: { id, name, level, health, maxHealth: health, damage } }, { upsert: true });
-            return `✅ تمت إضافة الوحش ${name}`;
-        } catch (e) { return '❌ فشل: ' + e.message; }
+            await Monster.updateOne(
+                { id },
+                { $set: { id, name, level, health, maxHealth: health, damage } },
+                { upsert: true }
+            );
+            return `✅ تمت إضافة الوحش ${name}\n🆔 ${id}`;
+        } catch (e) {
+            return '❌ فشل: ' + e.message;
+        }
     }
 
     async handleDeleteMonster(args) {
@@ -736,7 +948,9 @@ export class AdminSystem {
             const { Monster } = await import('../../core/models/Monster.js');
             await Monster.deleteOne({ id });
             return `✅ تم حذف الوحش ${name}`;
-        } catch (e) { return '❌ فشل: ' + e.message; }
+        } catch (e) {
+            return '❌ فشل: ' + e.message;
+        }
     }
 
     async handleAddResource(args) {
@@ -745,11 +959,18 @@ export class AdminSystem {
         const rarity = args[args.length - 2];
         const location = args[args.length - 1];
         const id = name.toLowerCase().replace(/\s+/g, '_');
+
         try {
             const { Resource } = await import('../../core/models/Resource.js');
-            await Resource.updateOne({ id }, { $set: { id, name, rarity, locations: [location] } }, { upsert: true });
-            return `✅ تمت إضافة المورد ${name}`;
-        } catch (e) { return '❌ فشل: ' + e.message; }
+            await Resource.updateOne(
+                { id },
+                { $set: { id, name, rarity, locations: [location] } },
+                { upsert: true }
+            );
+            return `✅ تمت إضافة المورد ${name}\n🆔 ${id}`;
+        } catch (e) {
+            return '❌ فشل: ' + e.message;
+        }
     }
 
     async handleDeleteResource(args) {
@@ -759,21 +980,41 @@ export class AdminSystem {
             const { Resource } = await import('../../core/models/Resource.js');
             await Resource.deleteOne({ id });
             return `✅ تم حذف المورد ${name}`;
-        } catch (e) { return '❌ فشل: ' + e.message; }
+        } catch (e) {
+            return '❌ فشل: ' + e.message;
+        }
     }
 
+    // ===================================
+    // المهام
+    // ===================================
+
     async handleAddTaskCommand(args, senderId) {
-        if (args.length < 4) return '❌ الاستخدام: اضف_مهمة [الاسم] [النوع] [الهدف] [المكافأة]';
+        if (args.length < 4) {
+            return '❌ الاستخدام: اضف_مهمة [الاسم] [النوع] [الهدف] [المكافأة]';
+        }
+
         const reward = parseInt(args[args.length - 1]);
         const target = parseInt(args[args.length - 2]);
         const rawType = args[args.length - 3];
         const name = args.slice(0, -3).join(' ').replace(/["']/g, '');
-        if (isNaN(target) || isNaN(reward) || target <= 0 || reward <= 0) return '❌ أرقام غير صالحة.';
-        const achievementSystem = this.commandHandler ? await this.commandHandler.getSystem('achievement') : null;
+
+        if (isNaN(target) || isNaN(reward) || target <= 0 || reward <= 0) {
+            return '❌ أرقام غير صالحة.';
+        }
+
+        const achievementSystem = this.commandHandler 
+            ? await this.commandHandler.getSystem('achievement') 
+            : null;
         if (!achievementSystem) return '❌ نظام المهام غير متوفر.';
+
         const type = achievementSystem._translateTaskType(rawType);
         const validTypes = ['gather', 'kill', 'craft', 'travel', 'earn_gold', 'use_stamina', 'referral', 'streak'];
-        if (!validTypes.includes(type)) return `❌ النوع "${rawType}" غير صالح.`;
+
+        if (!validTypes.includes(type)) {
+            return `❌ النوع "${rawType}" غير صالح.`;
+        }
+
         await achievementSystem.addCustomTask(name, type, target, reward);
         return `✅ تم إضافة المهمة ${name}`;
     }
@@ -781,20 +1022,32 @@ export class AdminSystem {
     async handleRemoveTaskCommand(args, senderId) {
         const taskId = args.join(' ');
         if (!taskId) return '❌ الاستخدام: حذف_مهمة [المعرف]';
-        const achievementSystem = this.commandHandler ? await this.commandHandler.getSystem('achievement') : null;
+
+        const achievementSystem = this.commandHandler 
+            ? await this.commandHandler.getSystem('achievement') 
+            : null;
         if (!achievementSystem) return '❌ نظام المهام غير متوفر.';
+
         const removed = await achievementSystem.removeCustomTask(taskId);
         return removed ? `✅ تم حذف المهمة: ${taskId}` : `❌ لم يتم العثور على المهمة`;
     }
 
     async handleListTasksCommand(args, senderId) {
-        const achievementSystem = this.commandHandler ? await this.commandHandler.getSystem('achievement') : null;
+        const achievementSystem = this.commandHandler 
+            ? await this.commandHandler.getSystem('achievement') 
+            : null;
         if (!achievementSystem) return '❌ نظام المهام غير متوفر.';
+
         const tasks = await achievementSystem.listCustomTasks();
         if (tasks.length === 0) return '📋 لا توجد مهام مخصصة.';
+
         let msg = `📋 المهام المخصصة (${tasks.length})\n`;
         tasks.forEach(task => {
-            msg += `\n📌 ${task.name}\n   🆔 ${task.id}\n   🎯 ${achievementSystem._getTypeNameArabic(task.type)}\n   📊 ${task.target}\n   💰 ${task.reward} ريو\n`;
+            msg += `\n📌 ${task.name}\n`;
+            msg += `   🆔 ${task.id}\n`;
+            msg += `   🎯 ${achievementSystem._getTypeNameArabic(task.type)}\n`;
+            msg += `   📊 ${task.target}\n`;
+            msg += `   💰 ${task.reward} ريو\n`;
         });
         return msg;
     }
@@ -815,7 +1068,9 @@ export class AdminSystem {
 
 أمثلة:
 • اعطاء_ادمن 1001 (دائم)
-• اعطاء_ادمن 1001 24 (24 ساعة)`;
+• اعطاء_ادمن 1001 24 (24 ساعة)
+
+⚠️ ID يجب أن يكون من نطاق المدراء (1000-1099)`;
         }
 
         const targetId = args[0];
@@ -831,25 +1086,6 @@ export class AdminSystem {
             target.userId, 'full_admin', senderId, durationHours
         );
 
-        return result.error || result.message;
-    }
-
-    async handleRevokeAdmin(args, senderId) {
-        const sender = await Player.findOne({ userId: senderId });
-        const isRoot = this.permissionSystem.isRootAdmin(senderId);
-        const senderHasFull = sender && sender.hasPermission('full_admin');
-
-        if (!isRoot && !senderHasFull) return '❌ ليس لديك صلاحية.';
-        if (args.length < 1) return '❌ الاستخدام: ازالة_ادمن [ID]';
-
-        const targetId = args[0];
-        const target = await Player.findOne({ userId: targetId }) ||
-                       await Player.findOne({ playerId: targetId }) ||
-                       await Player.findOne({ name: new RegExp(targetId, 'i') });
-
-        if (!target) return `❌ لم يتم العثور على اللاعب: ${targetId}`;
-
-        const result = await this.permissionSystem.revokeAllPermissions(target.userId);
         return result.error || result.message;
     }
 
@@ -952,6 +1188,11 @@ export class AdminSystem {
         if (!target) return `❌ لم يتم العثور على اللاعب: ${targetId}`;
         if (target.userId === senderId) return '❌ لا يمكنك سجن نفسك!';
 
+        // منع سجن الأدمن الرئيسي
+        if (this.isRootAdmin(target.userId)) {
+            return '❌ لا يمكن سجن الأدمن الرئيسي!';
+        }
+
         if (durationInput) {
             const durationMs = this._parseDuration(durationInput);
             if (!durationMs) return `❌ مدة غير صالحة: ${durationInput}`;
@@ -962,7 +1203,7 @@ export class AdminSystem {
             target.jailNotified = false;
             await target.save();
 
-            return `🚔 تم سجن اللاعب\n\n👤 ${target.name}\n⏳ المدة: ${this._formatDuration(durationMs)}\n⏰ ينتهي: ${target.jailedUntil.toLocaleString('ar-EG')}`;
+            return `🚔 تم سجن اللاعب\n\n👤 ${target.name}\n🆔 ${target.playerId}\n⏳ المدة: ${this._formatDuration(durationMs)}\n⏰ ينتهي: ${target.jailedUntil.toLocaleString('ar-EG')}`;
         } else {
             target.jailedUntil = new Date(0);
             target.jailedReason = 'سجن دائم';
@@ -970,7 +1211,7 @@ export class AdminSystem {
             target.jailNotified = false;
             await target.save();
 
-            return `🚔 سجن دائم\n\n👤 ${target.name}\n⏳ المدة: دائم`;
+            return `🚔 سجن دائم\n\n👤 ${target.name}\n🆔 ${target.playerId}\n⏳ المدة: دائم`;
         }
     }
 
@@ -1020,9 +1261,13 @@ export class AdminSystem {
 
         jailed.forEach((p, index) => {
             const isPermanent = p.jailedUntil.getTime() === 0;
-            const timeStr = isPermanent ? 'دائم' : `ينتهي: ${p.jailedUntil.toLocaleString('ar-EG')}`;
+            const timeStr = isPermanent 
+                ? 'دائم' 
+                : `ينتهي: ${p.jailedUntil.toLocaleString('ar-EG')}`;
+
             msg += `${index + 1}. ${p.name}\n`;
-            msg += `   🆔 ${p.playerId || p.userId}\n`;
+            msg += `   🆔 ${p.playerId || 'N/A'}\n`;
+            msg += `   📱 ${p.userId}\n`;
             msg += `   ⏰ ${timeStr}\n\n`;
         });
 
@@ -1032,4 +1277,5 @@ export class AdminSystem {
     findAutoResponse(message) {
         return this.autoResponseSystem.findAutoResponse(message);
     }
-            }
+    }
+    
