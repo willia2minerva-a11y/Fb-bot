@@ -27,10 +27,8 @@ export default class CommandHandler {
 
             this.adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
             this.adminDisplayName = process.env.ADMIN_DISPLAY_NAME || 'المدير';
-
-            if (typeof this.adminSystem.setCommandHandler === 'function') {
-                this.adminSystem.setCommandHandler(this);
-            }
+            // ✅ رابط سوق ريو
+            this.marketPageUrl = process.env.MARKET_PAGE_URL || 'https://facebook.com/souqrio';
 
             this.initCommandClasses();
             this.commands = this.collectAllCommands();
@@ -69,21 +67,35 @@ export default class CommandHandler {
 
     collectAllCommands() {
         const allCommands = {};
-        const commandSources = [
-            this.menuCommands, this.registrationCommands, this.infoCommands,
-            this.explorationCommands, this.gateCommands, this.craftingCommands,
-            this.battleCommands, this.economyCommands, this.achievementCommands,
-            this.referralCommands
-        ];
 
-        commandSources.forEach(source => {
-            if (source && typeof source.getCommands === 'function') {
-                const commands = source.getCommands();
-                if (commands) Object.assign(allCommands, commands);
-            }
-        });
+        try {
+            const commandSources = [
+                this.menuCommands,
+                this.registrationCommands,
+                this.infoCommands,
+                this.explorationCommands,
+                this.gateCommands,
+                this.craftingCommands,
+                this.battleCommands,
+                this.economyCommands,
+                this.achievementCommands,
+                this.referralCommands
+            ];
 
-        return allCommands;
+            commandSources.forEach(source => {
+                if (source && typeof source.getCommands === 'function') {
+                    const commands = source.getCommands();
+                    if (commands) {
+                        Object.assign(allCommands, commands);
+                    }
+                }
+            });
+
+            return allCommands;
+        } catch (error) {
+            console.error('❌ خطأ في تجميع الأوامر:', error);
+            return {};
+        }
     }
 
     async getSystem(systemName) {
@@ -91,10 +103,16 @@ export default class CommandHandler {
             if (!this.systems[systemName]) {
                 console.log(`🔄 جاري تحميل النظام: ${systemName}`);
                 this.systems[systemName] = await SystemLoader.loadSystem(systemName);
-                if (!this.systems[systemName]) return null;
+
+                if (!this.systems[systemName]) {
+                    console.error(`❌ فشل تحميل النظام: ${systemName}`);
+                    return null;
+                }
+
                 if (typeof this.systems[systemName].setCommandHandler === 'function') {
                     this.systems[systemName].setCommandHandler(this);
                 }
+
                 console.log(`✅ تم تحميل النظام: ${systemName}`);
             }
             return this.systems[systemName];
@@ -111,13 +129,13 @@ export default class CommandHandler {
         if (status === 'pending') {
             return `🔒 حسابك غير نشط
 
-📩 يرجى مراسلة الأدمن:
+📩 يرجى مراسلة الأدمن لتفعيل حسابك:
 ${adminLink}
 
-🆔 أرسل له معرفك:
+🆔 معرفك:
 ${player.playerId || player.userId}
 
-📋 الأوامر المسموحة:
+📋 الأوامر المسموحة حالياً:
 • حالتي
 • معرفي
 • مساعدة`;
@@ -126,21 +144,31 @@ ${player.playerId || player.userId}
         if (status === 'approved') {
             return `✅ تمت الموافقة على حسابك
 
-🎮 أكمل إنشاء شخصيتك:
+🎮 أكمل إنشاء شخصيتك في مغارة ريو:
 • اكتب ذكر أو أنثى
-• ثم اكتب اسمي [الاسم]`;
+• ثم اكتب اسمي [الاسم]
+
+📋 الأوامر المسموحة:
+• حالتي
+• معرفي
+• مساعدة`;
         }
 
         return this.getLimitedHelpMenu();
     }
 
     getLimitedHelpMenu() {
-        return `🎮 الأوامر المتاحة
+        return `🎮 مغارة ريو - الأوامر المتاحة
 
 • بدء - متابعة التسجيل
 • حالتي - عرض حالتك
 • معرفي - عرض معرفك
-• مساعدة - عرض الأوامر`;
+• مساعدة - عرض الأوامر
+
+📝 للتفعيل:
+1. أرسل معرفك للأدمن
+2. انتظر الموافقة
+3. أكمل إنشاء شخصيتك`;
     }
 
     getLimitedMenu() {
@@ -153,7 +181,6 @@ ${player.playerId || player.userId}
     }
 
     async tryAdminCommand(command, args, id) {
-        // فحص إذا كان مديراً (بشكل غير متزامن لفحص DB)
         const isAdmin = await this.adminSystem.isAdminAsync(id);
         if (!isAdmin) return null;
 
@@ -198,7 +225,7 @@ ${player.playerId || player.userId}
 
         console.log(`📨 أمر: "${command}" من ${name} (${id})`);
 
-        // ✅ فحص المستخدم أولاً
+        // ✅ جلب/إنشاء اللاعب
         let player = null;
         try {
             player = await Player.findOne({ userId: id });
@@ -211,7 +238,7 @@ ${player.playerId || player.userId}
             return '❌ حدث خطأ.';
         }
 
-        // ✅ فحص السجن أولاً
+        // ✅ فحص السجن
         if (player.isJailed()) {
             if (!player.jailNotified) {
                 player.jailNotified = true;
@@ -224,22 +251,22 @@ ${player.playerId || player.userId}
 
                 return `${timeStr}\n\n📝 السبب: ${player.jailedReason || 'غير محدد'}\n\n💡 لا يمكنك استخدام البوت أثناء السجن.`;
             }
-            return null; // ✅ لا رد بعد الإشعار الأول
+            return null;
         }
 
         // ✅ فحص الحظر
         if (player.banned) {
-            return '❌ تم حظرك من اللعبة.';
+            return '❌ تم حظرك من مغارة ريو.';
         }
 
-        // ✅ فحص المدير (بشكل غير متزامن)
+        // ✅ فحص المدير
         const userIsAdmin = await this.adminSystem.isAdminAsync(id);
         if (userIsAdmin) {
             const adminResult = await this.tryAdminCommand(command, args, id);
             if (adminResult) return adminResult;
         }
 
-        // الردود التلقائية
+        // ✅ الردود التلقائية
         const autoResponse = await this.handleAutoResponse(message);
         if (autoResponse) return autoResponse;
 
@@ -272,40 +299,22 @@ ${player.playerId || player.userId}
 
     isCompoundCommand(fullCommand) {
         const compoundCommands = [
-            'موافقة لاعب', 'اعطاء مورد', 'اعطاء ذهب', 'تغيير اسم',
-            'زيادة صحة', 'زيادة مانا', 'اعادة بيانات', 'حظر لاعب',
-            'تغيير جنس', 'عرض الردود', 'حذف طلب سحب',
-            'صناعة كاملة', 'فرن كاملة', 'اضف رد', 'ازل رد',
+            'اضف رد', 'ازل رد', 'عرض الردود',
             'اضف مهمة', 'حذف مهمة', 'قائمة المهام',
             'اضف سلاح', 'حذف سلاح', 'اضف وحش', 'حذف وحش',
             'اضف مورد', 'حذف مورد', 'عرض اسلحة', 'عرض وحوش',
-            'عرض مواقع', 'عرض موارد', 'اقتصاد لاعب', 'اضافة غولد',
-            'طلبات سحب', 'معالجة سحب', 'تعديل رصيد', 'اضف رصيد',
-            'اسحب رصيد', 'تعديل مستوى', 'تعديل ايدي', 'تعديل هجوم',
-            'تعديل دفاع', 'تعديل صحة', 'تعديل مانا', 'تعديل نشاط',
-            'اعطاء ادمن', 'ازالة ادمن', 'اعطاء صلاحية', 'ازالة صلاحية',
-            'قائمة الادمن', 'قائمة المسجونين', 'اصلاح لاعب'
+            'عرض مواقع', 'عرض موارد', 'اعطاء ادمن', 'ازالة ادمن',
+            'اعطاء صلاحية', 'ازالة صلاحية', 'قائمة الادمن',
+            'قائمة المسجونين', 'اضافة غولد'
         ];
         return compoundCommands.includes(fullCommand);
     }
 
     handleCompoundCommand(fullCommand) {
         const commandMap = {
-            'موافقة لاعب': 'موافقة_لاعب',
-            'اعطاء مورد': 'اعطاء_مورد',
-            'اعطاء ذهب': 'اعطاء_ذهب',
-            'تغيير اسم': 'تغيير_اسم',
-            'زيادة صحة': 'زيادة_صحة',
-            'زيادة مانا': 'زيادة_مانا',
-            'اعادة بيانات': 'اعادة_بيانات',
-            'حظر لاعب': 'حظر_لاعب',
-            'تغيير جنس': 'تغيير_جنس',
-            'عرض الردود': 'عرض_الردود',
-            'حذف طلب سحب': 'حذف_طلب_سحب',
-            'صناعة كاملة': 'صناعة_كاملة',
-            'فرن كاملة': 'فرن_كاملة',
             'اضف رد': 'اضف_رد',
             'ازل رد': 'ازل_رد',
+            'عرض الردود': 'عرض_الردود',
             'اضف مهمة': 'اضف_مهمة',
             'حذف مهمة': 'حذف_مهمة',
             'قائمة المهام': 'قائمة_المهام',
@@ -319,20 +328,6 @@ ${player.playerId || player.userId}
             'عرض وحوش': 'عرض_وحوش',
             'عرض مواقع': 'عرض_مواقع',
             'عرض موارد': 'عرض_موارد',
-            'اقتصاد لاعب': 'اقتصاد_لاعب',
-            'اضافة غولد': 'اضافة_غولد',
-            'طلبات سحب': 'طلبات_سحب',
-            'معالجة سحب': 'معالجة_سحب',
-            'تعديل رصيد': 'تعديل_رصيد',
-            'اضف رصيد': 'اضف_رصيد',
-            'اسحب رصيد': 'اسحب_رصيد',
-            'تعديل مستوى': 'تعديل_مستوى',
-            'تعديل ايدي': 'تعديل_ايدي',
-            'تعديل هجوم': 'تعديل_هجوم',
-            'تعديل دفاع': 'تعديل_دفاع',
-            'تعديل صحة': 'تعديل_صحة',
-            'تعديل مانا': 'تعديل_مانا',
-            'تعديل نشاط': 'تعديل_نشاط',
             'اعطاء ادمن': 'اعطاء_ادمن',
             'ازالة ادمن': 'ازالة_ادمن',
             'اعطاء صلاحية': 'اعطاء_صلاحية',
@@ -372,6 +367,20 @@ ${player.playerId || player.userId}
     }
 
     async handleUnknown(command, player) {
-        return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة.`;
+        const gateHints = {
+            'دخل': '💡 هل تقصد "ادخل [اسم البوابة]"؟',
+            'استكشف': '💡 هل تقصد "استكشف"؟',
+            'اختر': '💡 هل تقصد "اختر [رقم]"؟ مثال: اختر 1',
+            'غادر': '💡 هل تقصد "مغادرة" أو "غادر"؟',
+            'بوابة': '💡 هل تقصد "بوابات" أو "بوابتي"؟'
+        };
+
+        for (const [hintCommand, hintMessage] of Object.entries(gateHints)) {
+            if (command.includes(hintCommand)) {
+                return `${hintMessage}\n\n❓ أمر غير معروف: "${command}"\nاكتب "مساعدة" للقائمة الكاملة.`;
+            }
+        }
+
+        return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-    }
+                }
