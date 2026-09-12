@@ -11,55 +11,57 @@ let commandHandler = null;
 if (!TELEGRAM_BOT_TOKEN) {
     console.log('⚠️ لم يتم توفير TELEGRAM_BOT_TOKEN');
 } else {
-    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
-        polling: {
-            interval: 1000,
-            params: { timeout: 10 }
-        }
-    });
-
+    // ✅ polling: false أولاً لتفادي 409
+    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
     commandHandler = new CommandHandler();
 
-    // ===================================
-    // معالجة الإعلانات
-    // ===================================
+    // ✅ بدء polling مع تأخير
+    (async () => {
+        try {
+            // انتظر 5 ثواني ليتوقف أي نسخة قديمة
+            await new Promise(r => setTimeout(r, 5000));
+            
+            // احذف webhook
+            try { await bot.deleteWebHook(); } catch (e) {}
+            
+            // ابدأ polling
+            await bot.startPolling({ restart: true });
+            console.log('✅ بدأ polling (مغارة ريو)');
+        } catch (error) {
+            console.error('⚠️ خطأ polling:', error.message);
+        }
+    })();
+
+    // ✅ الإعلانات
     async function handleAnnouncement(response, chatId) {
-        console.log(`📢 إرسال الإعلان لـ ${response.recipients.length} مستخدم...`);
+        console.log(`📢 إرسال لـ ${response.recipients.length} مستخدم`);
         let successCount = 0;
         let failCount = 0;
 
         for (const recipient of response.recipients) {
             try {
                 if (recipient.platform === 'telegram') {
-                    const chatIdToSend = recipient.platformId.replace('tg_', '');
-                    await bot.sendMessage(chatIdToSend, response.text);
+                    const cid = recipient.platformId.replace('tg_', '');
+                    await bot.sendMessage(cid, response.text);
                     successCount++;
                 }
-                // فيسبوك — يُعالج في index.js
-                await new Promise(r => setTimeout(r, 100));
+                await new Promise(r => setTimeout(r, 150));
             } catch (error) {
                 failCount++;
-                console.error(`❌ فشل الإرسال إلى ${recipient.platformId}:`, error.message);
             }
         }
 
-        await bot.sendMessage(
-            chatId,
-            `📢 تم إرسال الإعلان\n\n✅ نجح: ${successCount}\n❌ فشل: ${failCount}\n📊 الإجمالي: ${response.recipients.length}`
+        await bot.sendMessage(chatId, 
+            `📢 تم الإرسال\n\n✅ نجح: ${successCount}\n❌ فشل: ${failCount}\n📊 الإجمالي: ${response.recipients.length}`
         );
     }
 
-    // ===================================
-    // معالجة الرسائل
-    // ===================================
+    // ✅ معالجة الرسائل
     bot.on('message', async (msg) => {
         try {
             const chatId = msg.chat.id;
             let text = msg.text;
-
             if (!text) return;
-
-            // تحويل /start
             if (text === '/start') text = 'بدء';
 
             const sender = {
@@ -70,39 +72,47 @@ if (!TELEGRAM_BOT_TOKEN) {
 
             const response = await commandHandler.process(sender, text);
 
-            // لا رد
             if (response === null || response === undefined) return;
 
-            // إعلان
             if (response && response._announcement) {
                 await handleAnnouncement(response, chatId);
                 return;
             }
 
-            // صورة
             if (response && response.type === 'image') {
                 await bot.sendPhoto(chatId, response.path, { caption: response.caption || '' });
-            }
-            // نص
-            else if (typeof response === 'string') {
+            } else if (typeof response === 'string') {
                 await bot.sendMessage(chatId, response);
-            }
-            // رسالة
-            else if (response && response.message) {
+            } else if (response && response.message) {
                 await bot.sendMessage(chatId, response.message);
-            }
-            else {
+            } else {
                 await bot.sendMessage(chatId, '❌ لم أتمكن من معالجة طلبك.');
             }
         } catch (error) {
-            console.error('❌ خطأ في بوت تلغرام:', error);
-            try {
-                await bot.sendMessage(msg.chat.id, '❌ حدث خطأ غير متوقع.');
-            } catch (e) {}
+            console.error('❌ خطأ:', error);
+            try { await bot.sendMessage(msg.chat.id, '❌ حدث خطأ.'); } catch (e) {}
         }
     });
 
-    console.log('✅ تم تشغيل بوت تلغرام (مغارة ريو)');
+    // ✅ تجاهل 409
+    bot.on('polling_error', (error) => {
+        if (!error.message.includes('409')) {
+            console.error('⚠️ polling error:', error.message);
+        }
+    });
+
+    // ✅ SIGTERM / SIGINT
+    process.on('SIGTERM', async () => {
+        console.log('🛑 SIGTERM - إيقاف polling...');
+        try { await bot.stopPolling(); } catch (e) {}
+    });
+
+    process.on('SIGINT', async () => {
+        console.log('🛑 SIGINT - إيقاف polling...');
+        try { await bot.stopPolling(); } catch (e) {}
+    });
+
+    console.log('✅ telegramBot.js (مغارة ريو) جاهز');
 }
 
 export default bot;
