@@ -228,6 +228,9 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// ===================================
+// Health Check
+// ===================================
 app.get('/', (req, res) => {
   res.status(200).json({
     status: '✅ يعمل',
@@ -235,6 +238,66 @@ app.get('/', (req, res) => {
     mode: 'game',
     version: '2.0.0'
   });
+});
+
+// ===================================
+// 🆘 Endpoint حذف الحسابات (للهاتف)
+// ===================================
+app.get('/admin/reset/:secret', async (req, res) => {
+  const RESET_SECRET = process.env.RESET_SECRET || 'mgara-reset-2024';
+
+  if (req.params.secret !== RESET_SECRET) {
+    return res.status(403).json({ error: '❌ ممنوع - السر غير صحيح' });
+  }
+
+  try {
+    console.log('🔄 بدء حذف الحسابات من endpoint...');
+
+    const Player = (await import('./core/Player.js')).default;
+    
+    // حذف اللاعبين
+    const playersResult = await Player.deleteMany({});
+    console.log(`✅ تم حذف ${playersResult.deletedCount} لاعب`);
+
+    // حذف المحظورين
+    let bannedCount = 0;
+    try {
+      const BannedPlayer = (await import('./core/models/BannedPlayer.js')).default;
+      const bannedResult = await BannedPlayer.deleteMany({});
+      bannedCount = bannedResult.deletedCount;
+      console.log(`✅ تم حذف ${bannedCount} محظور`);
+    } catch (e) {
+      console.log('⚠️ لا توجد مجموعة bannedplayers');
+    }
+
+    // حذف Custom Tasks
+    let tasksCount = 0;
+    try {
+      const db = mongoose.connection.db;
+      const tasksResult = await db.collection('customtasks').deleteMany({});
+      tasksCount = tasksResult.deletedCount;
+      console.log(`✅ تم حذف ${tasksCount} مهمة`);
+    } catch (e) {
+      console.log('⚠️ لا توجد مجموعة customtasks');
+    }
+
+    res.json({
+      success: true,
+      message: '✅ تم حذف جميع الحسابات بنجاح!',
+      deleted: {
+        players: playersResult.deletedCount,
+        banned: bannedCount,
+        tasks: tasksCount
+      },
+      next: 'يمكنك الآن إنشاء حسابات جديدة من البوتات'
+    });
+  } catch (error) {
+    console.error('❌ خطأ في الحذف:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // ===================================
