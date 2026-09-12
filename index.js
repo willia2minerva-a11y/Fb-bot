@@ -68,7 +68,7 @@ function startCleanupInterval() {
   console.log('🧹 تم تفعيل نظام تنظيف الملفات المؤقتة');
 }
 
-// إرسال رسالة نصية باستخدام Axios
+// إرسال رسالة نصية
 async function sendTextMessage(senderId, text) {
   try {
     await axios.post(
@@ -103,9 +103,7 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
     formData.append('message', JSON.stringify({
       attachment: {
         type: 'image',
-        payload: {
-          is_reusable: true,
-        }
+        payload: { is_reusable: true }
       }
     }));
 
@@ -114,9 +112,7 @@ async function sendImageMessage(senderId, imagePath, caption = '') {
       formData,
       {
         params: { access_token: PAGE_ACCESS_TOKEN },
-        headers: {
-          ...formData.getHeaders(),
-        },
+        headers: { ...formData.getHeaders() },
       }
     );
 
@@ -150,10 +146,15 @@ async function handleMessage(senderId, message) {
 
     const sender = {
       id: senderId,
-      name: `مغامر-${senderId.slice(-6)}`
+      name: `مغامر-${senderId.slice(-6)}`,
+      platform: 'facebook'
     };
 
     const response = await commandHandler.process(sender, message);
+
+    if (response === null || response === undefined) {
+      return;
+    }
 
     if (response && response.type === 'image') {
       await sendImageMessage(senderId, response.path, response.caption);
@@ -214,7 +215,7 @@ app.post('/webhook', async (req, res) => {
 app.get('/', (req, res) => {
   res.status(200).json({
     status: '✅ البوت يعمل',
-    name: 'مغارة غولد بوت',
+    name: 'مغارة ريو',
     version: '1.0.0'
   });
 });
@@ -231,7 +232,7 @@ process.on('uncaughtException', (error) => {
 
 // الدالة الرئيسية
 async function main() {
-  console.log('🚀 بدء تشغيل بوت مغارة ريو...');
+  console.log('🚀 بدء تشغيل مغارة ريو...');
 
   try {
     await connectDatabase();
@@ -244,13 +245,12 @@ async function main() {
     commandHandler = new CommandHandler();
     console.log('✅ تم تهيئة معالج الأوامر');
 
-    // ✅ استدعاء بوت تلغرام هنا (مرة واحدة فقط)
     if (process.env.TELEGRAM_BOT_TOKEN) {
       await import('./telegramBot.js');
     }
 
     app.listen(PORT, () => {
-      console.log(`✅ البوت يعمل على المنفذ ${PORT}`);
+      console.log(`✅ يعمل على المنفذ ${PORT}`);
       console.log('📱 جاهز لاستقبال الرسائل عبر webhook...');
     });
 
@@ -260,5 +260,4 @@ async function main() {
   }
 }
 
-// بدء التطبيق
 main().catch(console.error);
