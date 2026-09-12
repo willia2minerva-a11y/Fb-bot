@@ -27,7 +27,6 @@ export default class CommandHandler {
 
             this.adminProfileUrl = process.env.ADMIN_PROFILE_URL || 'https://www.facebook.com/';
             this.adminDisplayName = process.env.ADMIN_DISPLAY_NAME || 'المدير';
-            // ✅ رابط سوق ريو
             this.marketPageUrl = process.env.MARKET_PAGE_URL || 'https://facebook.com/souqrio';
 
             this.initCommandClasses();
@@ -101,25 +100,42 @@ export default class CommandHandler {
     async getSystem(systemName) {
         try {
             if (!this.systems[systemName]) {
-                console.log(`🔄 جاري تحميل النظام: ${systemName}`);
                 this.systems[systemName] = await SystemLoader.loadSystem(systemName);
-
-                if (!this.systems[systemName]) {
-                    console.error(`❌ فشل تحميل النظام: ${systemName}`);
-                    return null;
-                }
-
+                if (!this.systems[systemName]) return null;
                 if (typeof this.systems[systemName].setCommandHandler === 'function') {
                     this.systems[systemName].setCommandHandler(this);
                 }
-
-                console.log(`✅ تم تحميل النظام: ${systemName}`);
             }
             return this.systems[systemName];
         } catch (error) {
-            console.error(`❌ خطأ في تحميل النظام ${systemName}:`, error);
+            console.error(`❌ خطأ في تحميل ${systemName}:`, error);
             return null;
         }
+    }
+
+    // ✅ تطبيع الأمر (إزالة _ والمسافات)
+    normalizeCommand(command) {
+        if (!command) return command;
+        return command.replace(/[_\s]/g, '');
+    }
+
+    // ✅ محاولة أمر المدير بأشكاله
+    async tryAdminCommand(command, args, id) {
+        const isAdmin = await this.adminSystem.isAdminAsync(id);
+        if (!isAdmin) return null;
+
+        // 1. المحاولة المباشرة
+        let result = await this.handleAdminCommand(command, args, id);
+        if (result) return result;
+
+        // 2. بدون _ أو مسافات
+        const normalized = this.normalizeCommand(command);
+        if (normalized !== command) {
+            result = await this.handleAdminCommand(normalized, args, id);
+            if (result) return result;
+        }
+
+        return null;
     }
 
     getRegistrationMessage(player) {
@@ -175,27 +191,6 @@ ${player.playerId || player.userId}
         return this.getLimitedHelpMenu();
     }
 
-    normalizeCommand(command) {
-        if (!command) return command;
-        return command.replace(/[_\s]/g, '');
-    }
-
-    async tryAdminCommand(command, args, id) {
-        const isAdmin = await this.adminSystem.isAdminAsync(id);
-        if (!isAdmin) return null;
-
-        let result = await this.handleAdminCommand(command, args, id);
-        if (result) return result;
-
-        const normalized = this.normalizeCommand(command);
-        if (normalized !== command) {
-            result = await this.handleAdminCommand(normalized, args, id);
-            if (result) return result;
-        }
-
-        return null;
-    }
-
     async process(sender, message) {
         const { id, name, platform } = sender;
         const processedMessage = message.trim().toLowerCase();
@@ -225,11 +220,24 @@ ${player.playerId || player.userId}
 
         console.log(`📨 أمر: "${command}" من ${name} (${id})`);
 
+        // ✅ فحص قائمة المحظورين أولاً
+        const BannedPlayer = (await import('./models/BannedPlayer.js')).default;
+        const isBanned = await BannedPlayer.isBanned(id);
+        if (isBanned) {
+            return '🚫 أنت محظور من مغارة ريو.\n\n💡 تواصل مع الإدارة.';
+        }
+
         // ✅ جلب/إنشاء اللاعب
         let player = null;
         try {
             player = await Player.findOne({ userId: id });
             if (!player) {
+                // إذا كان محظوراً سابقاً، لا نسمح
+                const bannedCheck = await BannedPlayer.findOne({ userId: id });
+                if (bannedCheck) {
+                    return '🚫 أنت محظور من مغارة ريو.\n\n💡 تواصل مع الإدارة.';
+                }
+
                 player = await Player.createNew(id, name, platform || 'facebook');
                 console.log(`🎮 لاعب جديد: ${player.name}`);
             }
@@ -254,9 +262,9 @@ ${player.playerId || player.userId}
             return null;
         }
 
-        // ✅ فحص الحظر
+        // ✅ فحص الحظر (للاحتياط)
         if (player.banned) {
-            return '❌ تم حظرك من مغارة ريو.';
+            return '🚫 أنت محظور من مغارة ريو.';
         }
 
         // ✅ فحص المدير
@@ -299,22 +307,42 @@ ${player.playerId || player.userId}
 
     isCompoundCommand(fullCommand) {
         const compoundCommands = [
-            'اضف رد', 'ازل رد', 'عرض الردود',
-            'اضف مهمة', 'حذف مهمة', 'قائمة المهام',
+            // أوامر المدير
+            'موافقة لاعب', 'اعطاء مورد', 'اعطاء ذهب', 'تغيير اسم',
+            'زيادة صحة', 'زيادة مانا', 'اعادة بيانات', 'حظر لاعب',
+            'تغيير جنس', 'عرض الردود', 'حذف طلب سحب', 'نزع ادمن',
+            'قائمة المحظورين', 'حذف محظور', 'عرض لاعبين',
+            'اضف رد', 'ازل رد', 'اضف مهمة', 'حذف مهمة', 'قائمة المهام',
             'اضف سلاح', 'حذف سلاح', 'اضف وحش', 'حذف وحش',
             'اضف مورد', 'حذف مورد', 'عرض اسلحة', 'عرض وحوش',
-            'عرض مواقع', 'عرض موارد', 'اعطاء ادمن', 'ازالة ادمن',
-            'اعطاء صلاحية', 'ازالة صلاحية', 'قائمة الادمن',
-            'قائمة المسجونين', 'اضافة غولد'
+            'عرض مواقع', 'عرض موارد',
+            'اعطاء ادمن', 'ازالة ادمن', 'اعطاء صلاحية', 'ازالة صلاحية',
+            'قائمة الادمن', 'قائمة المسجونين',
+            // أوامر اللعبة
+            'صناعة كاملة', 'فرن كاملة'
         ];
         return compoundCommands.includes(fullCommand);
     }
 
     handleCompoundCommand(fullCommand) {
         const commandMap = {
+            'موافقة لاعب': 'موافقة_لاعب',
+            'اعطاء مورد': 'اعطاء_مورد',
+            'اعطاء ذهب': 'اعطاء_ذهب',
+            'تغيير اسم': 'تغيير_اسم',
+            'زيادة صحة': 'زيادة_صحة',
+            'زيادة مانا': 'زيادة_مانا',
+            'اعادة بيانات': 'اعادة_بيانات',
+            'حظر لاعب': 'حظر_لاعب',
+            'تغيير جنس': 'تغيير_جنس',
+            'عرض الردود': 'عرض_الردود',
+            'حذف طلب سحب': 'حذف_طلب_سحب',
+            'نزع ادمن': 'نزع_ادمن',
+            'قائمة المحظورين': 'قائمة_المحظورين',
+            'حذف محظور': 'حذف_محظور',
+            'عرض لاعبين': 'عرض_لاعبين',
             'اضف رد': 'اضف_رد',
             'ازل رد': 'ازل_رد',
-            'عرض الردود': 'عرض_الردود',
             'اضف مهمة': 'اضف_مهمة',
             'حذف مهمة': 'حذف_مهمة',
             'قائمة المهام': 'قائمة_المهام',
@@ -333,7 +361,9 @@ ${player.playerId || player.userId}
             'اعطاء صلاحية': 'اعطاء_صلاحية',
             'ازالة صلاحية': 'ازالة_صلاحية',
             'قائمة الادمن': 'قائمة_الادمن',
-            'قائمة المسجونين': 'قائمة_المسجونين'
+            'قائمة المسجونين': 'قائمة_المسجونين',
+            'صناعة كاملة': 'صناعة_كاملة',
+            'فرن كاملة': 'فرن_كاملة'
         };
 
         return {
@@ -383,4 +413,4 @@ ${player.playerId || player.userId}
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-                }
+}
