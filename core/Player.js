@@ -1,4 +1,4 @@
-// Player.js
+// core/Player.js
 import mongoose from 'mongoose';
 import { items } from '../data/items.js';
 
@@ -11,31 +11,29 @@ const inventoryItemSchema = new mongoose.Schema({
     quantity: { type: Number, required: true, min: 0, default: 1 }
 }, { _id: false });
 
-// ✅ تأثير مؤقت
 const activeEffectSchema = new mongoose.Schema({
-    type: { type: String, required: true }, // attack, defense, maxHealth, maxMana, maxStamina
+    type: { type: String, required: true },
     value: { type: Number, required: true },
     expiresAt: { type: Date, required: true },
     grantedBy: String,
     grantedAt: { type: Date, default: Date.now }
 }, { _id: false });
 
-// ✅ صلاحية
 const adminPermissionSchema = new mongoose.Schema({
-    type: { type: String, required: true }, // full_admin, approve, ban, economy, tasks, give, content, jail, modify
+    type: { type: String, required: true },
     grantedBy: String,
     grantedAt: { type: Date, default: Date.now },
-    expiresAt: { type: Date, default: null } // null = دائم
+    expiresAt: { type: Date, default: null }
 }, { _id: false });
 
 const playerSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     platform: { type: String, default: 'facebook' },
-    name: { type: String, required: true },
+    name: { type: String, required: true, unique: true },
     registrationStatus: { type: String, enum: ['pending', 'approved', 'completed'], default: 'pending' },
     gender: { type: String, enum: ['male', 'female'], default: null },
     playerId: { type: String, unique: true, sparse: true },
-    originalPlayerId: { type: String, default: null }, // ✅ للاحتفاظ بـ P الأصلي
+    originalPlayerId: { type: String, default: null },
     approvedAt: { type: Date, default: null },
     approvedBy: { type: String, default: null },
     level: { type: Number, default: 1, min: 1 },
@@ -95,14 +93,12 @@ const playerSchema = new mongoose.Schema({
         battle: { type: Date, default: null },
         craft: { type: Date, default: null }
     },
-    // ✅ المهام والإنجازات
     dailyTaskDate: { type: String, default: '' },
     dailyTasksList: { type: Array, default: [] },
     dailyTaskProgress: { type: Map, of: Number, default: {} },
     completedDailyTasks: { type: [String], default: [] },
     unlockedAchievements: { type: [String], default: [] },
     
-    // ✅ الإحالة والمكافآت
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: String, default: null },
     referredByName: { type: String, default: null },
@@ -115,7 +111,6 @@ const playerSchema = new mongoose.Schema({
     lastDailyReward: { type: Date, default: null },
     dailyStreak: { type: Number, default: 0 },
 
-    // ✅ جديد: البونص والإحصائيات
     bonusStats: {
         attack: { type: Number, default: 0 },
         defense: { type: Number, default: 0 },
@@ -124,35 +119,37 @@ const playerSchema = new mongoose.Schema({
         maxStamina: { type: Number, default: 0 }
     },
     activeEffects: [activeEffectSchema],
-
-    // ✅ جديد: الصلاحيات
     adminPermissions: [adminPermissionSchema],
 
-    // ✅ جديد: السجن
     jailedUntil: { type: Date, default: null },
     jailedReason: { type: String, default: null },
     jailedBy: { type: String, default: null },
-    jailNotified: { type: Boolean, default: false }, // هل أُخبر بالسجن؟
+    jailNotified: { type: Boolean, default: false },
 
     banned: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-// ✅ دالة البحث عن اللاعب
+// ✅ البحث عن اللاعب بأي معرف
 playerSchema.statics.findPlayerByIdentifier = async function(identifier) {
     if (!identifier) return null;
 
-    // البحث بـ userId
-    let player = await this.findOne({ userId: identifier });
+    const clean = identifier.trim();
+
+    let player = await this.findOne({ userId: clean });
     if (player) return player;
 
-    // البحث بـ playerId
-    player = await this.findOne({ playerId: identifier });
+    player = await this.findOne({ playerId: clean });
     if (player) return player;
 
-    // البحث بالاسم
-    player = await this.findOne({ name: { $regex: new RegExp(identifier, 'i') } });
+    player = await this.findOne({ playerId: clean.toUpperCase() });
+    if (player) return player;
+
+    player = await this.findOne({ name: new RegExp(`^${clean}$`, 'i') });
+    if (player) return player;
+
+    player = await this.findOne({ name: new RegExp(clean, 'i') });
     return player;
 };
 
@@ -164,14 +161,12 @@ playerSchema.pre('save', function(next) {
 
 // ========== دوال المثيل ==========
 
-// ✅ تنظيف التأثيرات المنتهية
 playerSchema.methods.cleanupEffects = function() {
     const now = new Date();
     this.activeEffects = (this.activeEffects || []).filter(e => e.expiresAt > now);
     return this.activeEffects;
 };
 
-// ✅ الحصول على مجموع التأثيرات المؤقتة
 playerSchema.methods.getActiveEffectsTotal = function(type) {
     this.cleanupEffects();
     return (this.activeEffects || [])
@@ -179,7 +174,6 @@ playerSchema.methods.getActiveEffectsTotal = function(type) {
         .reduce((sum, e) => sum + e.value, 0);
 };
 
-// ✅ إضافة تأثير مؤقت
 playerSchema.methods.addActiveEffect = function(type, value, durationMs, grantedBy) {
     this.activeEffects = this.activeEffects || [];
     this.activeEffects.push({
@@ -191,23 +185,20 @@ playerSchema.methods.addActiveEffect = function(type, value, durationMs, granted
     });
 };
 
-// ✅ فحص إذا كان مسجوناً
 playerSchema.methods.isJailed = function() {
     if (!this.jailedUntil) return false;
-    if (this.jailedUntil.getTime() === 0) return true; // سجن دائم (تاريخ = 0)
+    if (this.jailedUntil.getTime() === 0) return true;
     return this.jailedUntil > new Date();
 };
 
-// ✅ الحصول على الصلاحيات الفعالة (بدون منتهية)
 playerSchema.methods.getActivePermissions = function() {
     const now = new Date();
     return (this.adminPermissions || []).filter(p => {
-        if (!p.expiresAt) return true; // دائم
+        if (!p.expiresAt) return true;
         return p.expiresAt > now;
     });
 };
 
-// ✅ فحص صلاحية محددة
 playerSchema.methods.hasPermission = function(permissionType) {
     const perms = this.getActivePermissions();
     if (perms.some(p => p.type === 'full_admin')) return true;
@@ -243,23 +234,6 @@ playerSchema.methods.isRegistrationCompleted = function() {
     return this.registrationStatus === 'completed';
 };
 
-playerSchema.methods.getRegenerationStatus = function() {
-    const now = new Date();
-    const healthTimeUntilNext = Math.max(0, this.regenInterval - (now - this.lastHealthRegen));
-    const manaTimeUntilNext = Math.max(0, this.regenInterval - (now - this.lastManaRegen));
-
-    const healthMinutes = Math.floor(healthTimeUntilNext / 60000);
-    const healthSeconds = Math.floor((healthTimeUntilNext % 60000) / 1000);
-    const manaMinutes = Math.floor(manaTimeUntilNext / 60000);
-    const manaSeconds = Math.floor((manaTimeUntilNext % 60000) / 1000);
-
-    return {
-        health: `🕒 الصحة: ${healthMinutes}:${healthSeconds.toString().padStart(2, '0')}`,
-        mana: `⚡ المانا: ${manaMinutes}:${manaSeconds.toString().padStart(2, '0')}`,
-        rates: `📊 معدل الاستعادة: ${this.healthRegenRate} صحة | ${this.manaRegenRate} مانا كل 5 دقائق`
-    };
-};
-
 playerSchema.methods.getActualStamina = function() {
     const recoveryRate = 5;
     const maxStam = this.maxStamina || 100;
@@ -279,17 +253,9 @@ playerSchema.methods.requestWithdrawal = function(amount) {
     const MIN_WITHDRAWAL = 50;
     const MAX_WITHDRAWAL = 5000;
 
-    if (amount < MIN_WITHDRAWAL) {
-        return { error: `❌ الحد الأدنى للسحب: ${MIN_WITHDRAWAL} غولد` };
-    }
-
-    if (amount > MAX_WITHDRAWAL) {
-        return { error: `❌ الحد الأقصى للسحب: ${MAX_WITHDRAWAL} غولد` };
-    }
-
-    if (this.gold < amount) {
-        return { error: '❌ لا تملك رصيد كافٍ للسحب.' };
-    }
+    if (amount < MIN_WITHDRAWAL) return { error: `❌ الحد الأدنى: ${MIN_WITHDRAWAL} ريو` };
+    if (amount > MAX_WITHDRAWAL) return { error: `❌ الحد الأقصى: ${MAX_WITHDRAWAL} ريو` };
+    if (this.gold < amount) return { error: '❌ رصيد غير كافٍ.' };
 
     if (this.pendingWithdrawal?.status === 'pending') {
         this.gold += this.pendingWithdrawal.amount;
@@ -307,16 +273,10 @@ playerSchema.methods.requestWithdrawal = function(amount) {
         type: 'withdrawal',
         amount: amount,
         status: 'pending',
-        description: `طلب سحب ${amount} غولد`
+        description: `طلب سحب ${amount} ريو`
     });
 
     return { success: true, newBalance: this.gold };
-};
-
-playerSchema.methods.getTransactionHistory = function(limit = 10) {
-    return this.transactions
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, limit);
 };
 
 playerSchema.methods.useStamina = function(amount) {
@@ -327,11 +287,6 @@ playerSchema.methods.useStamina = function(amount) {
         return true;
     }
     return false;
-};
-
-playerSchema.methods.restoreStamina = function(amount) {
-    this.stamina = Math.min((this.stamina || 0) + amount, this.maxStamina || 100);
-    return this.stamina;
 };
 
 playerSchema.methods.isApproved = function() {
@@ -346,13 +301,8 @@ playerSchema.methods.isApprovedButNotCompleted = function() {
     return this.registrationStatus === 'approved';
 };
 
-playerSchema.methods.getCurrentLocation = function() {
-    return this.currentLocation || 'forest';
-};
-
 playerSchema.methods.addItem = function(id, name, type, quantity = 1) {
     if (!this.inventory) this.inventory = [];
-
     const itemName = name || id;
     const itemType = type || 'unknown';
     const existingItem = this.inventory.find(item => item.id === id);
@@ -438,10 +388,6 @@ playerSchema.methods.takeDamage = function(amount) {
     return this.health > 0;
 };
 
-playerSchema.methods.isAlive = function() {
-    return (this.health || 0) > 0;
-};
-
 playerSchema.methods.respawn = function() {
     this.health = this.maxHealth || 100;
     this.mana = this.maxMana || 50;
@@ -453,7 +399,6 @@ playerSchema.methods.respawn = function() {
 
     const goldLoss = Math.floor((this.gold || 0) * 0.1);
     this.gold = Math.max(0, (this.gold || 0) - goldLoss);
-
     return goldLoss;
 };
 
@@ -593,27 +538,13 @@ playerSchema.methods.getDefense = function(itemsData) {
     return Math.floor(totalStats.defense * multiplier);
 };
 
-playerSchema.methods.useMana = function(amount) {
-    this.regenerate();
-    const currentMana = this.mana || 0;
-    if (currentMana >= amount) {
-        this.mana = currentMana - amount;
-        return true;
-    }
-    return false;
-};
-
-playerSchema.methods.restoreMana = function(amount) {
-    this.mana = Math.min((this.mana || 0) + amount, this.maxMana || 50);
-};
-
 playerSchema.methods.getGatherEfficiency = function() {
     return (this.skills && this.skills.gathering) || 1;
 };
 
 // ========== دوال ثابتة ==========
 
-// ✅ الحصول على آخر معرف لاعب (P1100 إلى P9999)
+// ✅ آخر ID لاعب عادي (P1100 - P9999)
 playerSchema.statics.getLastPlayerNumericId = async function() {
     const lastPlayer = await this.findOne({
         playerId: { $regex: /^P\d+$/ }
@@ -623,10 +554,10 @@ playerSchema.statics.getLastPlayerNumericId = async function() {
         const lastId = parseInt(lastPlayer.playerId.substring(1), 10);
         if (!isNaN(lastId) && lastId >= 1100) return lastId;
     }
-    return 1099; // أول لاعب سيحصل على P1100
+    return 1099; // أول لاعب = P1100
 };
 
-// ✅ الحصول على آخر معرف مدير (1000 إلى 1099)
+// ✅ آخر ID مدير (1000 - 1099)
 playerSchema.statics.getLastAdminNumericId = async function() {
     const lastAdmin = await this.findOne({
         playerId: { $regex: /^\d+$/ }
@@ -636,15 +567,15 @@ playerSchema.statics.getLastAdminNumericId = async function() {
         const lastId = parseInt(lastAdmin.playerId, 10);
         if (!isNaN(lastId) && lastId >= 1000) return lastId;
     }
-    return 999; // أول مدير سيحصل على 1000
+    return 999; // أول مدير = 1000
 };
 
+// ✅ إنشاء لاعب جديد
 playerSchema.statics.createNew = async function(userId, name, platform = 'facebook') {
     try {
         const lastId = await this.getLastPlayerNumericId();
         const newPlayerId = `P${lastId + 1}`;
 
-        // التحقق من عدم تجاوز النطاق
         if (lastId + 1 > 9999) {
             throw new Error('تم الوصول للحد الأقصى من اللاعبين');
         }
@@ -713,19 +644,18 @@ playerSchema.statics.createNew = async function(userId, name, platform = 'facebo
     }
 };
 
-playerSchema.statics.findByUserId = async function(userId) {
-    return await this.findOne({ userId });
-};
-
 playerSchema.statics.getTopPlayers = async function(limit = 10) {
     return await this.find({ banned: false, registrationStatus: 'completed' })
         .sort({ level: -1, experience: -1, gold: -1 })
         .limit(limit);
 };
 
+// ✅ قائمة اللاعبين المنتظرين (بدون المحظورين)
 playerSchema.statics.getPendingPlayers = async function() {
-    return await this.find({ registrationStatus: 'pending' })
-        .select('userId name createdAt playerId');
+    return await this.find({
+        registrationStatus: 'pending',
+        banned: { $ne: true }
+    }).select('userId name playerId createdAt');
 };
 
 // ========== دوال افتراضية ==========
