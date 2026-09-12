@@ -3,7 +3,7 @@ import Player from '../../core/Player.js';
 
 export class PermissionSystem {
     constructor() {
-        // ✅ أنواع الصلاحيات المتاحة
+        // ✅ أنواع الصلاحيات
         this.PERMISSION_TYPES = {
             'full_admin': 'مدير كامل',
             'approve': 'موافقة على اللاعبين',
@@ -31,17 +31,10 @@ export class PermissionSystem {
             const player = await Player.findOne({ userId });
             if (!player) return false;
             
-            // إذا كان في ENV = مدير كامل
-            const ADMIN_PSID = process.env.ADMIN_PSID;
-            const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID;
-            const rootAdmins = [
-                ADMIN_PSID,
-                ADMIN_TELEGRAM_ID ? `tg_${ADMIN_TELEGRAM_ID}` : null
-            ].filter(Boolean);
-            
-            if (rootAdmins.includes(userId)) return true;
+            // الأدمن الرئيسي (من ENV)
+            if (this.isRootAdmin(userId)) return true;
 
-            // فحص من قاعدة البيانات
+            // فحص من DB
             return player.hasPermission(permissionType);
         } catch (error) {
             console.error('❌ خطأ في فحص الصلاحية:', error);
@@ -61,7 +54,19 @@ export class PermissionSystem {
         return nextId.toString();
     }
 
-    // ✅ إعطاء صلاحية
+    // ✅ الحصول على معرف لاعب جديد (P1100+)
+    async getNextPlayerId() {
+        const lastId = await Player.getLastPlayerNumericId();
+        const nextId = lastId + 1;
+
+        if (nextId > this.PLAYER_ID_MAX) {
+            throw new Error(`تم الوصول للحد الأقصى من اللاعبين (${this.PLAYER_ID_MAX})`);
+        }
+
+        return `P${nextId}`;
+    }
+
+    // ✅ منح صلاحية
     async grantPermission(targetUserId, permissionType, grantedBy, durationHours = null) {
         try {
             if (!this.PERMISSION_TYPES[permissionType]) {
@@ -71,16 +76,14 @@ export class PermissionSystem {
             const target = await Player.findOne({ userId: targetUserId });
             if (!target) return { error: '❌ اللاعب غير موجود.' };
 
-            // ✅ إذا كانت full_admin، حوّل ID إلى نطاق المديرين
+            // ✅ تحويل ID لمدير عند منح full_admin
             let idChanged = false;
             let oldId = target.playerId;
 
             if (permissionType === 'full_admin') {
-                // فحص إن كان لديه ID مدير بالفعل
                 const isAdminId = /^\d+$/.test(target.playerId);
                 
                 if (!isAdminId) {
-                    // نحتاج تحويله لمدير
                     const newAdminId = await this.getNextAdminId();
                     target.originalPlayerId = target.playerId;
                     target.playerId = newAdminId;
@@ -90,18 +93,21 @@ export class PermissionSystem {
 
             // فحص إن كانت الصلاحية موجودة
             const existingPerm = target.adminPermissions.find(p => p.type === permissionType);
+            
             if (existingPerm) {
-                // تحديث الصلاحية الموجودة
                 existingPerm.grantedBy = grantedBy;
                 existingPerm.grantedAt = new Date();
-                existingPerm.expiresAt = durationHours ? new Date(Date.now() + durationHours * 60 * 60 * 1000) : null;
+                existingPerm.expiresAt = durationHours 
+                    ? new Date(Date.now() + durationHours * 60 * 60 * 1000) 
+                    : null;
             } else {
-                // إضافة صلاحية جديدة
                 target.adminPermissions.push({
                     type: permissionType,
                     grantedBy,
                     grantedAt: new Date(),
-                    expiresAt: durationHours ? new Date(Date.now() + durationHours * 60 * 60 * 1000) : null
+                    expiresAt: durationHours 
+                        ? new Date(Date.now() + durationHours * 60 * 60 * 1000) 
+                        : null
                 });
             }
 
@@ -146,7 +152,7 @@ export class PermissionSystem {
         }
     }
 
-    // ✅ إزالة كل الصلاحيات
+    // ✅ إزالة كل الصلاحيات + إعادة ID جديد
     async revokeAllPermissions(targetUserId) {
         try {
             const target = await Player.findOne({ userId: targetUserId });
@@ -156,25 +162,27 @@ export class PermissionSystem {
                 return { error: '❌ اللاعب ليس لديه صلاحيات.' };
             }
 
-            const oldPlayerId = target.playerId;
-            const oldAdminId = target.originalPlayerId;
-
-            target.adminPermissions = [];
-
-            // ✅ إعادة ID الأصلي إن كان موجوداً
-            if (target.originalPlayerId) {
-                target.playerId = target.originalPlayerId;
-                target.originalPlayerId = null;
+            // لا يمكن نزع أدمن الرئيسي
+            if (this.isRootAdmin(targetUserId)) {
+                return { error: '❌ لا يمكن نزع صلاحيات الأدمن الرئيسي!' };
             }
+
+            const oldPlayerId = target.playerId;
+
+            // إزالة الصلاحيات
+            target.adminPermissions = [];
+            
+            // ✅ إعطاء ID لاعب عادي جديد
+            const newPlayerId = await this.getNextPlayerId();
+            target.playerId = newPlayerId;
+            target.originalPlayerId = null;
 
             await target.save();
 
-            let msg = `✅ تم إزالة كل الصلاحيات من ${target.name}.`;
-            if (oldAdminId) {
-                msg += `\n🎯 تم إعادة ID من ${oldPlayerId} إلى ${target.playerId}`;
-            }
-
-            return { success: true, message: msg };
+            return {
+                success: true,
+                message: `✅ تم نزع صلاحيات الأدمن\n\n👤 اللاعب: ${target.name}\n🆔 ID القديم: ${oldPlayerId}\n🆔 ID الجديد: ${target.playerId}\n\n💡 اللاعب الآن لاعب عادي.`
+            };
         } catch (error) {
             return { error: `❌ حدث خطأ: ${error.message}` };
         }
@@ -187,8 +195,9 @@ export class PermissionSystem {
             if (!target) return { error: '❌ اللاعب غير موجود.' };
 
             const activePerms = target.getActivePermissions();
+            const isRoot = this.isRootAdmin(targetUserId);
 
-            if (activePerms.length === 0) {
+            if (activePerms.length === 0 && !isRoot) {
                 return { message: `👤 ${target.name}\n\n❌ ليس لديه أي صلاحيات.` };
             }
 
@@ -199,13 +208,22 @@ export class PermissionSystem {
             }
             msg += `\n`;
 
-            activePerms.forEach(p => {
-                const typeName = this.PERMISSION_TYPES[p.type] || p.type;
-                const expires = p.expiresAt 
-                    ? `⏰ تنتهي: ${new Date(p.expiresAt).toLocaleString('ar-EG')}`
-                    : '♾️ دائمة';
-                msg += `• ${typeName}\n  ${expires}\n`;
-            });
+            if (isRoot) {
+                msg += `👑 الأدمن الرئيسي\n`;
+                msg += `• جميع الصلاحيات\n`;
+                msg += `• لا يمكن حظره أو نزعه\n\n`;
+            }
+
+            if (activePerms.length > 0) {
+                msg += `📋 الصلاحيات:\n`;
+                activePerms.forEach(p => {
+                    const typeName = this.PERMISSION_TYPES[p.type] || p.type;
+                    const expires = p.expiresAt 
+                        ? `⏰ تنتهي: ${new Date(p.expiresAt).toLocaleString('ar-EG')}`
+                        : '♾️ دائمة';
+                    msg += `• ${typeName}\n  ${expires}\n`;
+                });
+            }
 
             return { message: msg };
         } catch (error) {
@@ -220,36 +238,56 @@ export class PermissionSystem {
                 'adminPermissions.0': { $exists: true }
             }).select('name userId playerId originalPlayerId adminPermissions');
 
-            if (admins.length === 0) {
+            // فلترة الفعالين
+            const activeAdmins = admins.filter(a => a.getActivePermissions().length > 0);
+
+            // إضافة الأدمن الرئيسي
+            const rootAdminIds = [
+                process.env.ADMIN_PSID,
+                process.env.ADMIN_TELEGRAM_ID ? `tg_${process.env.ADMIN_TELEGRAM_ID}` : null
+            ].filter(Boolean);
+
+            let msg = `👑 قائمة المدراء\n\n`;
+            let count = 0;
+
+            // الأدمن الرئيسي
+            for (const rootId of rootAdminIds) {
+                const rootPlayer = await Player.findOne({ userId: rootId });
+                if (rootPlayer) {
+                    count++;
+                    msg += `${count}. 👑 ${rootPlayer.name}\n`;
+                    msg += `   🆔 ${rootPlayer.playerId || rootId}\n`;
+                    msg += `   📌 الأدمن الرئيسي\n\n`;
+                }
+            }
+
+            // المدراء المعيَّنون
+            for (const admin of activeAdmins) {
+                // تخطي الأدمن الرئيسي
+                if (rootAdminIds.includes(admin.userId)) continue;
+
+                count++;
+                const perms = admin.getActivePermissions();
+                const hasFullAdmin = perms.some(p => p.type === 'full_admin');
+                const icon = hasFullAdmin ? '🔐' : '⚙️';
+
+                msg += `${count}. ${icon} ${admin.name}\n`;
+                msg += `   🆔 ${admin.playerId}\n`;
+                msg += `   📊 ${perms.length} صلاحية\n\n`;
+            }
+
+            if (count === 0) {
                 return { message: '👑 لا يوجد مدراء حالياً.' };
             }
 
-            // فلترة المدراء الذين لديهم صلاحيات فعّالة
-            const activeAdmins = admins.filter(a => a.getActivePermissions().length > 0);
-
-            if (activeAdmins.length === 0) {
-                return { message: '👑 لا يوجد مدراء نشطون حالياً.' };
-            }
-
-            let msg = `👑 قائمة المدراء (${activeAdmins.length})\n\n`;
-
-            activeAdmins.forEach((admin, index) => {
-                const perms = admin.getActivePermissions();
-                const hasFullAdmin = perms.some(p => p.type === 'full_admin');
-                const icon = hasFullAdmin ? '👑' : '🔐';
-
-                msg += `${index + 1}. ${icon} ${admin.name}\n`;
-                msg += `   🆔 ${admin.playerId}\n`;
-                msg += `   📊 ${perms.length} صلاحية\n`;
-            });
-
+            msg = `👑 قائمة المدراء (${count})\n\n` + msg.split('\n\n').slice(1).join('\n\n');
             return { message: msg };
         } catch (error) {
             return { error: `❌ حدث خطأ: ${error.message}` };
         }
     }
 
-    // ✅ فحص إذا كان المستخدم جذري (من ENV)
+    // ✅ فحص الأدمن الرئيسي (من ENV)
     isRootAdmin(userId) {
         const ADMIN_PSID = process.env.ADMIN_PSID;
         const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID;
@@ -260,12 +298,12 @@ export class PermissionSystem {
         return rootAdmins.includes(userId);
     }
 
-    // ✅ الحصول على اسم الصلاحية بالعربية
+    // ✅ اسم الصلاحية بالعربية
     getPermissionName(type) {
         return this.PERMISSION_TYPES[type] || type;
     }
 
-    // ✅ الحصول على قائمة كل الصلاحيات
+    // ✅ كل الأنواع
     getAllPermissionTypes() {
         return Object.keys(this.PERMISSION_TYPES);
     }
