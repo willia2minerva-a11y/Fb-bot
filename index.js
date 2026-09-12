@@ -231,7 +231,7 @@ process.on('uncaughtException', (error) => {
 
 // الدالة الرئيسية
 async function main() {
-  console.log('🚀 بدء تشغيل بوت مغارة غولد...');
+  console.log('🚀 بدء تشغيل بوت مغارة ريو...');
 
   try {
     await connectDatabase();
