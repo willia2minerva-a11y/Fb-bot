@@ -1,6 +1,18 @@
 // core/utils/SystemLoader.js
+// الموقع: مشترك - يُنسخ في مغارة ريو + سوق ريو
 export class SystemLoader {
     static systems = {
+        // ✅ جديد - مشترك
+        'account': '../../systems/account/AccountSystem.js',
+        
+        // ✅ اقتصادي - مشترك
+        'economy': '../../systems/economy/EconomySystem.js',
+        'shop': '../../systems/economy/ShopSystem.js',
+        'settings': '../../systems/settings/SettingsSystem.js',
+        'giftcode': '../../systems/codes/GiftCodeSystem.js',
+        'discountcode': '../../systems/codes/DiscountCodeSystem.js',
+        
+        // ✅ لعبة فقط
         'battle': '../../systems/battle/BattleSystem.js',
         'world': '../../systems/world/WorldMap.js',
         'gathering': '../../systems/gathering/GatheringSystem.js',
@@ -14,7 +26,6 @@ export class SystemLoader {
         'gate': '../../systems/world/GateSystem.js',
         'achievement': '../../systems/achievements/AchievementSystem.js',
         'referral': '../../systems/referral/ReferralSystem.js',
-        'economy': '../../systems/economy/EconomySystem.js',
         'permission': '../../systems/permissions/PermissionSystem.js'
     };
 
