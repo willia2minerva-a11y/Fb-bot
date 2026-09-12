@@ -1,4 +1,4 @@
-// core/commands/commands/MenuCommands.js
+// core/commands/MenuCommands.js
 import { BaseCommand } from './BaseCommand.js';
 
 export class MenuCommands extends BaseCommand {
@@ -66,8 +66,10 @@ export class MenuCommands extends BaseCommand {
     }
 
     getMenu(type) {
+        const marketUrl = this.commandHandler?.marketPageUrl || 'https://facebook.com/souqrio';
+
         const menus = {
-            main: `🎮 قائمة الأوامر
+            main: `🎮 قائمة أوامر مغارة ريو
 
 📋 الأساسية
 • بدء | حالتي | معرفي | مساعدة
@@ -85,7 +87,10 @@ export class MenuCommands extends BaseCommand {
 • حالتي | بروفايل | حقيبة
 
 💰 الاقتصاد
-• رصيد | سحب | ايداع | معاملاتي
+• رصيد - عرض رصيدك
+
+🛒 للشراء والتحويل:
+${marketUrl}
 
 🚪 البوابات
 • بوابات | ادخل | استكشف | مغادرة
@@ -147,10 +152,14 @@ export class MenuCommands extends BaseCommand {
 
             economy: `💰 الاقتصاد
 
-• رصيد - عرض رصيدك
-• سحب [مبلغ] - سحب غولد
-• ايداع - طريقة الإيداع
-• معاملاتي - سجل المعاملات
+• رصيد - عرض رصيدك في سوق ريو
+
+🛒 لاستخدام رصيدك:
+${marketUrl}
+
+📋 أوامر السوق:
+• متجر | شراء | تحويل
+• هدية | خصم | بطاقة
 
 💡 رئيسية - العودة`,
 
@@ -173,9 +182,8 @@ export class MenuCommands extends BaseCommand {
 • سلسلة - عرض سلسلة الدخول
 
 💰 المكافآت:
-• دعوة صديق: 50 غولد لك + 20 غولد له
-• المكافأة اليومية: 5-30 غولد
-• مكافأة أسبوعية: سبيكة نادرة
+• دعوة صديق: 50 ريو لك + 20 ريو له
+• المكافأة اليومية: 5-30 ريو
 
 💡 رئيسية - العودة`
         };
