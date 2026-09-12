@@ -1,4 +1,4 @@
-// core/commands/commands/InfoCommands.js
+// core/commands/InfoCommands.js
 import { BaseCommand } from './BaseCommand.js';
 import { locations } from '../../data/locations.js';
 import { items } from '../../data/items.js';
@@ -54,7 +54,7 @@ export class InfoCommands extends BaseCommand {
 
             if (player.isPending()) {
                 msg += `⏳ حالة الحساب: قيد الانتظار\n`;
-                msg += `🆔 المعرف: ${player.userId}\n`;
+                msg += `🆔 المعرف: ${player.playerId || player.userId}\n`;
                 msg += `💡 أرسل المعرف للأدمن\n\n`;
             } else if (player.isApprovedButNotCompleted()) {
                 msg += `✅ تمت الموافقة - يحتاج إكمال\n`;
@@ -90,7 +90,7 @@ export class InfoCommands extends BaseCommand {
 • المعرف: ${player.playerId || player.userId}
 • المستوى: ${player.level}
 • الرانك: ${this._getRank(player.level)}
-• الذهب: ${player.gold}
+• الرصيد: ${player.gold} ريو
 • الموقع: ${locationName}
 
 💪 الإحصائيات
@@ -191,7 +191,7 @@ export class InfoCommands extends BaseCommand {
         if (approvalCheck.error) return approvalCheck.error;
 
         try {
-            if (!this.adminSystem.isAdmin(player.userId)) {
+            if (!this.commandHandler.adminSystem.isAdmin(player.userId)) {
                 return '❌ هذا الأمر خاص بالمدراء فقط.';
             }
 
@@ -199,8 +199,8 @@ export class InfoCommands extends BaseCommand {
                 registrationStatus: 'completed',
                 banned: false
             })
-            .sort({ level: -1, gold: -1 })
-            .select('name level gold currentLocation playerId userId')
+            .sort({ level: -1 })
+            .select('name level currentLocation playerId userId')
             .limit(20);
 
             let msg = `📋 اللاعبين النشطين (${activePlayers.length})\n\n`;
@@ -208,7 +208,7 @@ export class InfoCommands extends BaseCommand {
             activePlayers.forEach((p, index) => {
                 const locationName = this._getLocationName(p.currentLocation);
                 msg += `• ${index + 1}. ${p.name} (${p.playerId || p.userId})\n`;
-                msg += `  المستوى: ${p.level} | الذهب: ${p.gold}\n`;
+                msg += `  المستوى: ${p.level}\n`;
                 msg += `  الموقع: ${locationName}\n\n`;
             });
 
@@ -231,7 +231,7 @@ export class InfoCommands extends BaseCommand {
 
         if (!isNaN(args[args.length - 1])) {
             quantity = parseInt(args[args.length - 1]);
-            itemNameParts = args.slice(0, args.length - 1);
+            itemNameParts = args.slice(0, -1);
             if (quantity <= 0) return '❌ الكمية يجب أن تكون أكبر من الصفر.';
         }
 
@@ -278,4 +278,4 @@ export class InfoCommands extends BaseCommand {
 💡 للتجهيز: جهز [اسم العنصر]
 💡 للنزع: انزع [الخانة]`;
     }
-    }
+                }
