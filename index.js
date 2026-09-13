@@ -319,6 +319,7 @@ async function main() {
   console.log('🚀 بدء تشغيل مغارة ريو - MGARA Rio...');
 
   try {
+    await DataLoader.initialize();
     await connectDatabase();
     await migrateAllData();
     console.log('✅ تم تجهيز البيانات');
