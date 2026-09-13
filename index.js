@@ -128,7 +128,6 @@ async function handleAnnouncement(response, senderId) {
           failCount++;
         }
       }
-      // تأخير لتجنب rate limit
       await new Promise(r => setTimeout(r, 150));
     } catch (error) {
       failCount++;
@@ -161,24 +160,19 @@ async function handleMessage(senderId, message) {
 
     const response = await commandHandler.process(sender, message);
 
-    // ✅ لا رد
     if (response === null || response === undefined) return;
 
-    // ✅ إعلان
     if (response && response._announcement) {
       await handleAnnouncement(response, senderId);
       return;
     }
 
-    // ✅ صورة
     if (response && response.type === 'image') {
       await sendImageMessage(senderId, response.path, response.caption);
     }
-    // ✅ نص
     else if (typeof response === 'string') {
       await sendTextMessage(senderId, response);
     }
-    // ✅ رسالة
     else if (response && response.message) {
       await sendTextMessage(senderId, response.message);
     }
@@ -255,12 +249,9 @@ app.get('/admin/reset/:secret', async (req, res) => {
     console.log('🔄 بدء حذف الحسابات من endpoint...');
 
     const Player = (await import('./core/Player.js')).default;
-    
-    // حذف اللاعبين
     const playersResult = await Player.deleteMany({});
     console.log(`✅ تم حذف ${playersResult.deletedCount} لاعب`);
 
-    // حذف المحظورين
     let bannedCount = 0;
     try {
       const BannedPlayer = (await import('./core/models/BannedPlayer.js')).default;
@@ -271,7 +262,6 @@ app.get('/admin/reset/:secret', async (req, res) => {
       console.log('⚠️ لا توجد مجموعة bannedplayers');
     }
 
-    // حذف Custom Tasks
     let tasksCount = 0;
     try {
       const db = mongoose.connection.db;
@@ -294,10 +284,7 @@ app.get('/admin/reset/:secret', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ خطأ في الحذف:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -319,23 +306,31 @@ async function main() {
   console.log('🚀 بدء تشغيل مغارة ريو - MGARA Rio...');
 
   try {
-    await DataLoader.initialize();
+    // ✅ 1. الاتصال بقاعدة البيانات
     await connectDatabase();
+
+    // ✅ 2. تحميل البيانات من MongoDB
+    await DataLoader.initialize();
+
+    // ✅ 3. ترحيل (احتياطي - يمكن حذفه لاحقاً)
     await migrateAllData();
     console.log('✅ تم تجهيز البيانات');
 
+    // ✅ 4. تنظيف الملفات
     setInterval(() => cardGenerator.cleanupOldFiles(), 3600000);
     console.log('🧹 تم تفعيل تنظيف الملفات');
 
+    // ✅ 5. CommandHandler
     commandHandler = new CommandHandler();
     console.log('✅ تم تهيئة CommandHandler');
 
-    // بوت تلغرام
+    // ✅ 6. بوت تلغرام
     if (process.env.TELEGRAM_BOT_TOKEN) {
       const telegramModule = await import('./telegramBot.js');
       telegramBotInstance = telegramModule.default;
     }
 
+    // ✅ 7. الخادم
     app.listen(PORT, () => {
       console.log(`✅ يعمل على المنفذ ${PORT}`);
       console.log('📱 جاهز لاستقبال الرسائل');
