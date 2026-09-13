@@ -1,5 +1,5 @@
 // core/Player.js
-// الموقع: لعبة مغارة ريو (والسوق يستخدم نسخة مشابهة)
+// الموقع: مغارة ريو
 import mongoose from 'mongoose';
 import { DataLoader } from '../systems/data/DataLoader.js';
 
@@ -50,7 +50,6 @@ const linkedPlatformSchema = new mongoose.Schema({
 // Player Schema
 // ===================================
 const playerSchema = new mongoose.Schema({
-    // ✅ الحساب
     username: { 
         type: String, 
         unique: true, 
@@ -65,12 +64,11 @@ const playerSchema = new mongoose.Schema({
         default: null 
     },
     
-    // ✅ ربط المنصات
     linkedPlatforms: [linkedPlatformSchema],
     loggedOutPlatforms: { type: [String], default: [] },
     
-    // معلومات اللاعب
     playerId: { type: String, unique: true, sparse: true },
+    originalPlayerId: { type: String, default: null },
     name: { type: String, default: null },
     registrationStatus: { 
         type: String, 
@@ -483,19 +481,37 @@ playerSchema.statics.findByPlatform = async function(platformId) {
     return await this.findOne({ 'linkedPlatforms.platformId': platformId });
 };
 
+// ✅ محدّث: يقبل 1100 و P1100 و 1050 (أدمن)
 playerSchema.statics.findByIdentifier = async function(identifier) {
     if (!identifier) return null;
     const clean = identifier.trim();
 
+    // 1. بالاسم (username)
     let player = await this.findOne({ username: clean.toLowerCase() });
     if (player) return player;
 
+    // 2. بـ playerId كما هو (للأدمن: "1050")
     player = await this.findOne({ playerId: clean });
     if (player) return player;
 
+    // 3. بـ playerId uppercase
     player = await this.findOne({ playerId: clean.toUpperCase() });
     if (player) return player;
 
+    // ✅ 4. إذا كان أرقاماً فقط، جرّب P+النص (للاعب: "1100" → "P1100")
+    if (/^\d+$/.test(clean)) {
+        player = await this.findOne({ playerId: `P${clean}` });
+        if (player) return player;
+    }
+
+    // ✅ 5. إذا بدأ بـ P، جرّب الأرقام فقط (للأدمن: "P1050" → "1050")
+    if (/^P\d+$/i.test(clean)) {
+        const numericPart = clean.substring(1);
+        player = await this.findOne({ playerId: numericPart });
+        if (player) return player;
+    }
+
+    // 6. بـ platformId
     player = await this.findOne({ 'linkedPlatforms.platformId': clean });
     if (player) return player;
 
@@ -554,51 +570,43 @@ playerSchema.statics.createAccount = async function(username, passwordHash, gend
 const Player = mongoose.model('Player', playerSchema);
 
 // ===================================
-// ✅ إصلاح: حذف الفهارس القديمة (userId_1) من نسخة سابقة
+// ✅ إصلاح: حذف الفهارس القديمة (userId_1)
 // ===================================
-// هذا الكود يعمل تلقائياً عند تحميل الموديل
-// ويزيل الفهرس القديم `userId_1` الذي يسبب خطأ E11000
 (async () => {
     try {
-        // ننتظر حتى يتصل mongoose بقاعدة البيانات
         const waitForConnection = () => new Promise((resolve) => {
             if (mongoose.connection.readyState === 1) return resolve();
             mongoose.connection.once('connected', resolve);
-            // كحد أقصى 30 ثانية
             setTimeout(resolve, 30000);
         });
 
         await waitForConnection();
 
         if (mongoose.connection.readyState !== 1) {
-            console.log('ℹ️ لم يتم الاتصال بـ MongoDB، تم تخطي حذف الفهارس القديمة');
+            console.log('ℹ️ [مغارة ريو] لم يتم الاتصال بـ MongoDB، تخطي حذف الفهارس');
             return;
         }
 
         const collection = mongoose.connection.collection('players');
         const indexes = await collection.indexes();
 
-        // ✅ قائمة الفهارس القديمة التي يجب حذفها
-        const oldIndexes = [
-            'userId_1',          // ← الفهرس المسبب للخطأ
-            'userId_1_sparse'    // ← احتياطي
-        ];
+        const oldIndexes = ['userId_1', 'userId_1_sparse'];
 
         for (const idxName of oldIndexes) {
             const exists = indexes.find(i => i.name === idxName);
             if (exists) {
                 try {
                     await collection.dropIndex(idxName);
-                    console.log(`✅ تم حذف الفهرس القديم: ${idxName}`);
+                    console.log(`✅ [مغارة ريو] تم حذف الفهرس القديم: ${idxName}`);
                 } catch (err) {
-                    console.error(`⚠️ فشل حذف الفهرس ${idxName}:`, err.message);
+                    console.error(`⚠️ [مغارة ريو] فشل حذف ${idxName}:`, err.message);
                 }
             }
         }
 
-        console.log('✅ فحص الفهارس القديمة اكتمل');
+        console.log('✅ [مغارة ريو] فحص الفهارس القديمة اكتمل');
     } catch (error) {
-        console.error('⚠️ خطأ في فحص الفهارس القديمة:', error.message);
+        console.error('⚠️ [مغارة ريو] خطأ في فحص الفهارس:', error.message);
     }
 })();
 
