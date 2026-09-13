@@ -1,15 +1,14 @@
 // systems/battle/BattleSystem.js
-import { monsters } from '../../data/monsters.js';
-import { locations } from '../../data/locations.js';
-import { items } from '../../data/items.js';
+import { DataLoader } from '../data/DataLoader.js';
 
 export class BattleSystem {
     constructor() {
         console.log('⚔️ نظام المعارك تم تهيئته');
         this.activeBattles = new Map();
-        this.allMonsters = monsters || {};
-        this.allLocations = locations || {};
-        this.items = items || {};
+        this.allMonsters = DataLoader.getMonsters();
+        this.allLocations = DataLoader.getLocations();
+        this.items = DataLoader.getItems();
+    }
         this.commandHandler = null; // ✅ سيتم تعيينه لاحقاً
     }
 
