@@ -1,11 +1,10 @@
 // systems/gathering/GatheringSystem.js
-import { resources } from '../../data/resources.js';
-import { items as ITEMS_DATA } from '../../data/items.js';
+import { DataLoader } from './systems/data/DataLoader.js';
 
 export class GatheringSystem {
   constructor() {
-    this.allResources = resources;
-    this.ITEMS = ITEMS_DATA;
+    this.allResources = DataLoader.getResources();
+    this.ITEMS = DataLoader.getItems();
     this.gatheringCooldowns = new Map();
     this.commandHandler = null;
     console.log('🌿 نظام جمع الموارد تم تهيئته');
