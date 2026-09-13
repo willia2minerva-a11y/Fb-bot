@@ -5,14 +5,12 @@ import { BaseCommand } from './BaseCommand.js';
 export class RegistrationCommands extends BaseCommand {
     getCommands() {
         return {
-            // ===== بدء =====
             'بدء': this.handleStart.bind(this),
             'ابدأ': this.handleStart.bind(this),
             'ابدء': this.handleStart.bind(this),
             'ابد': this.handleStart.bind(this),
             'start': this.handleStart.bind(this),
 
-            // ===== تسجيل دخول =====
             'دخول': this.handleLoginStart.bind(this),
             'تسجيل دخول': this.handleLoginStart.bind(this),
             'تسجيل_دخول': this.handleLoginStart.bind(this),
@@ -21,7 +19,6 @@ export class RegistrationCommands extends BaseCommand {
             'لدي_حساب': this.handleLoginStart.bind(this),
             'لديحساب': this.handleLoginStart.bind(this),
 
-            // ===== إنشاء حساب =====
             'انشاء': this.handleRegisterStart.bind(this),
             'إنشاء': this.handleRegisterStart.bind(this),
             'تسجيل': this.handleRegisterStart.bind(this),
@@ -29,19 +26,16 @@ export class RegistrationCommands extends BaseCommand {
             'حساب_جديد': this.handleRegisterStart.bind(this),
             'حسابجديد': this.handleRegisterStart.bind(this),
 
-            // ===== إلغاء =====
             'الغاء': this.handleCancel.bind(this),
             'إلغاء': this.handleCancel.bind(this),
             'cancel': this.handleCancel.bind(this),
 
-            // ===== تسجيل خروج =====
             'تسجيل خروج': this.handleLogout.bind(this),
             'تسجيل_خروج': this.handleLogout.bind(this),
             'تسجيلخروج': this.handleLogout.bind(this),
             'خروج': this.handleLogout.bind(this),
             'logout': this.handleLogout.bind(this),
 
-            // ===== معرفي / حسابي =====
             'معرفي': this.handleGetId.bind(this),
             'معرف': this.handleGetId.bind(this),
             'حسابي': this.handleGetAccount.bind(this),
@@ -49,9 +43,6 @@ export class RegistrationCommands extends BaseCommand {
         };
     }
 
-    // ===================================
-    // بدء - عرض القائمة
-    // ===================================
     async handleStart(player, args, senderId) {
         return await this._handleStartFlow(player, senderId);
     }
@@ -77,12 +68,8 @@ export class RegistrationCommands extends BaseCommand {
         return accountSystem.getWelcomeMessage(player?.platform || 'facebook');
     }
 
-    // ===================================
-    // 🏔️ رسالة الترحيب بالعائد - مغارة ريو
-    // ===================================
     _getWelcomeBackMessage(player) {
         const locationName = this._getLocationName(player.currentLocation);
-        const gameUrl = process.env.GAME_PAGE_URL || 'https://facebook.com/MgaraRio';
         const marketUrl = process.env.MARKET_PAGE_URL || 'https://facebook.com/SouqRio';
 
         return `🏔️ مرحباً ${player.username} في مغارة ريو!
@@ -103,9 +90,6 @@ export class RegistrationCommands extends BaseCommand {
 🛒 للتسوق: ${marketUrl}`;
     }
 
-    // ===================================
-    // بدء تسجيل دخول
-    // ===================================
     async handleLoginStart(player, args, senderId) {
         const accountSystem = await this.getSystem('account');
         if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
@@ -123,9 +107,6 @@ export class RegistrationCommands extends BaseCommand {
         return result.message;
     }
 
-    // ===================================
-    // بدء إنشاء حساب
-    // ===================================
     async handleRegisterStart(player, args, senderId) {
         const accountSystem = await this.getSystem('account');
         if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
@@ -143,9 +124,6 @@ export class RegistrationCommands extends BaseCommand {
         return result.message;
     }
 
-    // ===================================
-    // إلغاء
-    // ===================================
     async handleCancel(player, args, senderId) {
         const accountSystem = await this.getSystem('account');
         if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
@@ -154,9 +132,7 @@ export class RegistrationCommands extends BaseCommand {
         return '❌ تم إلغاء العملية.\n\n💡 اكتب "بدء" للبدء من جديد.';
     }
 
-    // ===================================
-    // تسجيل خروج
-    // ===================================
+    // ✅ محدّث: بدون فحص root admin
     async handleLogout(player, args, senderId) {
         const accountSystem = await this.getSystem('account');
         if (!accountSystem) return '❌ نظام الحسابات غير متوفر.';
@@ -165,18 +141,11 @@ export class RegistrationCommands extends BaseCommand {
             return '❌ أنت غير مسجل دخول.\n\n💡 اكتب "بدء" للدخول أو إنشاء حساب.';
         }
 
-        if (this.commandHandler?.adminSystem?.isRootAdmin?.(senderId)) {
-            return '❌ لا يمكنك تسجيل الخروج كأدمن رئيسي.';
-        }
-
         const result = await accountSystem.logout(player, senderId);
 
         return result.message;
     }
 
-    // ===================================
-    // معرفي
-    // ===================================
     async handleGetId(player, args, senderId) {
         if (!player || !player.username) {
             return `🆔 معرفك في المنصة: ${senderId}\n\n💡 ليس لديك حساب بعد.`;
@@ -189,9 +158,6 @@ export class RegistrationCommands extends BaseCommand {
 📱 معرف المنصة: ${senderId}`;
     }
 
-    // ===================================
-    // 🏔️ حسابي - مغارة ريو
-    // ===================================
     async handleGetAccount(player, args, senderId) {
         if (!player || !player.username) {
             return `❌ ليس لديك حساب بعد.\n\n💡 اكتب "بدء" للإنشاء.`;
@@ -224,9 +190,6 @@ ${platforms || 'لا يوجد'}
 💡 لتسجيل الخروج: "تسجيل خروج"`;
     }
 
-    // ===================================
-    // أدوات مساعدة
-    // ===================================
     _getLocationName(locationId) {
         const names = {
             'forest': 'الغابة', 'desert': 'الصحراء',
