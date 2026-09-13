@@ -1,5 +1,6 @@
 // index.js
 // الموقع: مغارة ريو (اللعبة)
+import { DataLoader } from './systems/data/DataLoader.js';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 import express from 'express';
