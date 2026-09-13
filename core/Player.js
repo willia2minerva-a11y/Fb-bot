@@ -1,7 +1,7 @@
 // core/Player.js
 // الموقع: لعبة مغارة ريو (والسوق يستخدم نسخة مشابهة)
 import mongoose from 'mongoose';
-import { DataLoader } from '../systems/data/DataLoader.js';   // ✅ جديد
+import { DataLoader } from '../systems/data/DataLoader.js';
 
 // ✅ بدلاً من global.itemsData
 Object.defineProperty(global, 'itemsData', {
@@ -548,5 +548,58 @@ playerSchema.statics.createAccount = async function(username, passwordHash, gend
     return player;
 };
 
+// ===================================
+// إنشاء الموديل
+// ===================================
 const Player = mongoose.model('Player', playerSchema);
+
+// ===================================
+// ✅ إصلاح: حذف الفهارس القديمة (userId_1) من نسخة سابقة
+// ===================================
+// هذا الكود يعمل تلقائياً عند تحميل الموديل
+// ويزيل الفهرس القديم `userId_1` الذي يسبب خطأ E11000
+(async () => {
+    try {
+        // ننتظر حتى يتصل mongoose بقاعدة البيانات
+        const waitForConnection = () => new Promise((resolve) => {
+            if (mongoose.connection.readyState === 1) return resolve();
+            mongoose.connection.once('connected', resolve);
+            // كحد أقصى 30 ثانية
+            setTimeout(resolve, 30000);
+        });
+
+        await waitForConnection();
+
+        if (mongoose.connection.readyState !== 1) {
+            console.log('ℹ️ لم يتم الاتصال بـ MongoDB، تم تخطي حذف الفهارس القديمة');
+            return;
+        }
+
+        const collection = mongoose.connection.collection('players');
+        const indexes = await collection.indexes();
+
+        // ✅ قائمة الفهارس القديمة التي يجب حذفها
+        const oldIndexes = [
+            'userId_1',          // ← الفهرس المسبب للخطأ
+            'userId_1_sparse'    // ← احتياطي
+        ];
+
+        for (const idxName of oldIndexes) {
+            const exists = indexes.find(i => i.name === idxName);
+            if (exists) {
+                try {
+                    await collection.dropIndex(idxName);
+                    console.log(`✅ تم حذف الفهرس القديم: ${idxName}`);
+                } catch (err) {
+                    console.error(`⚠️ فشل حذف الفهرس ${idxName}:`, err.message);
+                }
+            }
+        }
+
+        console.log('✅ فحص الفهارس القديمة اكتمل');
+    } catch (error) {
+        console.error('⚠️ خطأ في فحص الفهارس القديمة:', error.message);
+    }
+})();
+
 export default Player;
