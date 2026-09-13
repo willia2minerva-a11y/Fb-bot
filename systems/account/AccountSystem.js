@@ -1,126 +1,106 @@
 // systems/account/AccountSystem.js
-// الموقع: مشترك - يُنسخ في مغارة ريو + سوق ريو
+// الموقع: مغارة ريو
 import bcrypt from 'bcryptjs';
 import Player from '../../core/Player.js';
 
 export class AccountSystem {
     constructor() {
-        // ✅ جلسات التسجيل المؤقتة (قبل إنشاء الحساب)
-        this.registrationSessions = new Map(); // platformId => { step, data, startedAt }
-        
-        // ✅ جلسات تسجيل الدخول
-        this.loginSessions = new Map(); // platformId => { step, username, startedAt }
-        
-        // ✅ محاولات الدخول الفاشلة
-        this.loginAttempts = new Map(); // platformId => { count, lockedUntil }
-        
-        // ✅ إعدادات
+        this.registrationSessions = new Map();
+        this.loginSessions = new Map();
+        this.loginAttempts = new Map();
+
         this.USERNAME_MIN = 3;
         this.USERNAME_MAX = 9;
         this.PASSWORD_MIN = 4;
         this.MAX_LOGIN_ATTEMPTS = 3;
         this.LOCK_DURATION_MINUTES = 5;
         this.SESSION_TIMEOUT_MINUTES = 10;
-        
-        console.log('👤 نظام الحسابات تم تهيئته');
+
+        console.log('👤 نظام الحسابات - مغارة ريو تم تهيئته');
     }
 
     // ===================================
     // فحص الحساب والجلسات
     // ===================================
-
-    // ✅ هل المستخدم لديه حساب مربوط بهذه المنصة؟
     async hasAccount(platformId) {
         const player = await Player.findByPlatform(platformId);
         if (!player) return false;
         return player.hasActiveSession(platformId);
     }
 
-    // ✅ هل المستخدم مرتبط (لكن مسجل خروج)؟
     async isLinkedButLoggedOut(platformId) {
         const player = await Player.findByPlatform(platformId);
         if (!player) return false;
         return !player.hasActiveSession(platformId);
     }
 
-    // ✅ فحص وجود جلسة تسجيل
     hasRegistrationSession(platformId) {
         return this.registrationSessions.has(platformId);
     }
 
-    // ✅ فحص وجود جلسة دخول
     hasLoginSession(platformId) {
         return this.loginSessions.has(platformId);
     }
 
-    // ✅ إلغاء كل الجلسات للمستخدم
     cancelAllSessions(platformId) {
         this.registrationSessions.delete(platformId);
         this.loginSessions.delete(platformId);
     }
 
-    // ✅ تنظيف الجلسات القديمة
     cleanupOldSessions() {
         const now = Date.now();
         const timeout = this.SESSION_TIMEOUT_MINUTES * 60 * 1000;
 
         for (const [id, session] of this.registrationSessions.entries()) {
-            if (now - session.startedAt > timeout) {
-                this.registrationSessions.delete(id);
-            }
+            if (now - session.startedAt > timeout) this.registrationSessions.delete(id);
         }
 
         for (const [id, session] of this.loginSessions.entries()) {
-            if (now - session.startedAt > timeout) {
-                this.loginSessions.delete(id);
-            }
+            if (now - session.startedAt > timeout) this.loginSessions.delete(id);
         }
     }
 
     // ===================================
-    // عرض قائمة البداية
+    // 🏔️ رسالة الترحيب - مغارة ريو (بدون أرقام)
     // ===================================
-
-    getWelcomeMessage(platform) {
+    getWelcomeMessage(platform = 'facebook') {
         const platformName = platform === 'telegram' ? 'تلغرام' : 'فيسبوك';
-        
-        return `🎮 مرحباً بك في مغارة ريو!
+
+        return `🏔️ مرحباً بك في مغارة ريو!
+Mgara Rio - عالم المغامرات
 
 👤 ليس لديك حساب بعد على ${platformName}.
 
-📋 اختر:
+📋 اختر أحد الخيارين:
 
-1️⃣ لدي حساب (تسجيل دخول)
-2️⃣ إنشاء حساب جديد
+🔹 لدي حساب بالفعل → اكتب:
+   • "دخول"
+   • "تسجيل دخول"
+   • "لدي حساب"
 
-💡 اكتب الرقم أو الكلمة:
-• "1" أو "دخول" أو "تسجيل دخول"
-• "2" أو "انشاء" أو "تسجيل"`;
+🔹 إنشاء حساب جديد → اكتب:
+   • "انشاء"
+   • "تسجيل"
+   • "حساب جديد"
+
+💡 اكتب الكلمة المناسبة الآن.`;
     }
 
     // ===================================
     // تدفق الإنشاء
     // ===================================
-
-    // ✅ بدء الإنشاء
     async startRegistration(platformId, platform, displayName) {
         this.registrationSessions.set(platformId, {
             step: 'username',
-            data: {
-                username: null,
-                gender: null,
-                password: null,
-                platform,
-                displayName
-            },
+            data: { username: null, gender: null, password: null, platform, displayName },
             startedAt: Date.now()
         });
 
         return {
             success: true,
-            message: `📝 إنشاء حساب جديد
+            message: `📝 إنشاء حساب جديد في مغارة ريو
 
-الخطوة 1/3: اسم المستخدم
+🔹 الخطوة 1 من 3: اسم المستخدم
 
 📋 الشروط:
 • من 3 إلى 9 أحرف إنجليزية
@@ -133,12 +113,9 @@ export class AccountSystem {
         };
     }
 
-    // ✅ معالجة خطوات الإنشاء
     async handleRegistrationStep(platformId, message) {
         const session = this.registrationSessions.get(platformId);
-        if (!session) {
-            return { error: '❌ لا توجد جلسة تسجيل.' };
-        }
+        if (!session) return { error: '❌ لا توجد جلسة تسجيل.' };
 
         const text = message.trim();
         const lower = text.toLowerCase();
@@ -154,28 +131,19 @@ export class AccountSystem {
 
         // ✅ Step 1: Username
         if (session.step === 'username') {
-            // فحص الشروط
             if (text.length < this.USERNAME_MIN || text.length > this.USERNAME_MAX) {
-                return {
-                    error: `❌ الاسم يجب أن يكون بين ${this.USERNAME_MIN} و ${this.USERNAME_MAX} أحرف.\n\n💡 جرب مرة أخرى:` 
-                };
+                return { error: `❌ الاسم يجب أن يكون بين ${this.USERNAME_MIN} و ${this.USERNAME_MAX} أحرف.\n\n💡 جرب مرة أخرى:` };
             }
 
             if (!/^[a-zA-Z0-9]+$/.test(text)) {
-                return {
-                    error: '❌ الاسم يجب أن يكون إنجليزي فقط (حروف وأرقام، بدون مسافات).\n\n💡 جرب مرة أخرى:'
-                };
+                return { error: '❌ الاسم يجب أن يكون إنجليزي فقط (حروف وأرقام، بدون مسافات).\n\n💡 جرب مرة أخرى:' };
             }
 
-            // فحص التوفر
             const existing = await Player.findByUsername(text);
             if (existing) {
-                return {
-                    error: `❌ الاسم "${text}" مستخدم بالفعل.\n\n💡 اختر اسماً آخر:`
-                };
+                return { error: `❌ الاسم "${text}" مستخدم بالفعل.\n\n💡 اختر اسماً آخر:` };
             }
 
-            // حفظ
             session.data.username = text;
             session.step = 'gender';
             session.startedAt = Date.now();
@@ -184,7 +152,7 @@ export class AccountSystem {
                 success: true,
                 message: `✅ الاسم متاح: ${text}
 
-الخطوة 2/3: الجنس
+🔹 الخطوة 2 من 3: الجنس
 
 📋 اختر جنس شخصيتك:
 • اكتب "ذكر" 👦
@@ -199,15 +167,9 @@ export class AccountSystem {
         // ✅ Step 2: Gender
         if (session.step === 'gender') {
             let gender = null;
-            if (lower === 'ذكر' || lower === 'male' || lower === 'رجل' || lower === 'ولد') {
-                gender = 'male';
-            } else if (lower === 'انثى' || lower === 'أنثى' || lower === 'female' || lower === 'بنت' || lower === 'فتاة') {
-                gender = 'female';
-            } else {
-                return {
-                    error: '❌ اختر "ذكر" أو "أنثى" فقط.\n\n💡 جرب مرة أخرى:'
-                };
-            }
+            if (['ذكر', 'male', 'رجل', 'ولد'].includes(lower)) gender = 'male';
+            else if (['انثى', 'أنثى', 'female', 'بنت', 'فتاة'].includes(lower)) gender = 'female';
+            else return { error: '❌ اختر "ذكر" أو "أنثى" فقط.\n\n💡 جرب مرة أخرى:' };
 
             session.data.gender = gender;
             session.step = 'password';
@@ -217,7 +179,7 @@ export class AccountSystem {
                 success: true,
                 message: `✅ الجنس: ${gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}
 
-الخطوة 3/3: كلمة السر
+🔹 الخطوة 3 من 3: كلمة السر
 
 📋 الشروط:
 • 4 أحرف على الأقل
@@ -233,15 +195,11 @@ export class AccountSystem {
         // ✅ Step 3: Password
         if (session.step === 'password') {
             if (text.length < this.PASSWORD_MIN) {
-                return {
-                    error: `❌ كلمة السر يجب أن تكون ${this.PASSWORD_MIN} أحرف على الأقل.\n\n💡 جرب مرة أخرى:`
-                };
+                return { error: `❌ كلمة السر يجب أن تكون ${this.PASSWORD_MIN} أحرف على الأقل.\n\n💡 جرب مرة أخرى:` };
             }
 
             if (text.length > 50) {
-                return {
-                    error: '❌ كلمة السر طويلة جداً (50 حرف كحد أقصى).\n\n💡 جرب مرة أخرى:'
-                };
+                return { error: '❌ كلمة السر طويلة جداً (50 حرف كحد أقصى).\n\n💡 جرب مرة أخرى:' };
             }
 
             session.data.password = text;
@@ -260,44 +218,37 @@ export class AccountSystem {
 
 ⚠️ هل أنت متأكد من صحة البيانات؟
 
-• اكتب "تأكيد" أو "1" → إنشاء الحساب
+• اكتب "تأكيد" أو "موافق" أو "نعم" → إنشاء الحساب
 • اكتب "الغاء" → إلغاء التسجيل
 • اكتب "رجوع" → إعادة إدخال كلمة السر`
             };
         }
 
-        // ✅ Step 4: Confirmation
+        // ✅ Step 4: Confirmation (كلمات فقط - بدون "1")
         if (session.step === 'confirmation') {
-            if (lower === 'تأكيد' || lower === '1' || lower === 'موافق' || lower === 'نعم' || lower === 'confirm') {
+            const confirmWords = ['تأكيد', 'موافق', 'نعم', 'confirm', 'yes', 'ok', 'تمام'];
+            if (confirmWords.includes(lower)) {
                 return await this._createAccount(platformId, session);
             }
 
-            if (lower === 'رجوع') {
+            if (lower === 'رجوع' || lower === 'back') {
                 session.step = 'password';
                 session.startedAt = Date.now();
-                return {
-                    success: true,
-                    message: '🔐 أعد كتابة كلمة السر:'
-                };
+                return { success: true, message: '🔐 أعد كتابة كلمة السر:' };
             }
 
-            return {
-                error: '❌ اكتب "تأكيد" أو "الغاء".'
-            };
+            return { error: '❌ اكتب "تأكيد" أو "موافق" أو "نعم"، أو "الغاء" أو "رجوع".' };
         }
 
         return { error: '❌ خطأ في الجلسة.' };
     }
 
-    // ✅ إنشاء الحساب فعلياً
+    // ✅ إنشاء الحساب فعلياً - مغارة ريو
     async _createAccount(platformId, session) {
         try {
             const data = session.data;
-
-            // تشفير كلمة السر
             const passwordHash = await bcrypt.hash(data.password, 10);
 
-            // إنشاء الحساب
             const player = await Player.createAccount(
                 data.username,
                 passwordHash,
@@ -307,51 +258,51 @@ export class AccountSystem {
                 data.displayName
             );
 
-            // حذف الجلسة
             this.registrationSessions.delete(platformId);
 
-            // إنشاء رمز إحالة
             const code = this._generateReferralCode(player.playerId);
             player.referralCode = code;
             await player.save();
 
+            const marketUrl = process.env.MARKET_PAGE_URL || 'https://facebook.com/SouqRio';
+
             return {
                 success: true,
                 player,
-                message: `🎉 تم إنشاء حسابك بنجاح!
+                message: `🎉 تم إنشاء حسابك في مغارة ريو بنجاح!
 
-📋 **معلومات حسابك:**
+📋 معلومات حسابك:
 
 👤 اسم المستخدم: ${data.username}
 ⚧️ الجنس: ${data.gender === 'male' ? 'ذكر 👦' : 'أنثى 👧'}
 🔐 كلمة السر: ${data.password}
 🆔 معرف اللاعب: ${player.playerId}
 
-⚠️ **احفظ هذه المعلومات جيداً!**
+⚠️ احفظ هذه المعلومات جيداً!
 ستحتاجها لتسجيل الدخول من أي منصة.
 لا يمكن استرجاع كلمة السر إذا فقدتها.
 
-🎮 يمكنك الآن:
-• اللعب في مغارة ريو
-• التسوق في سوق ريو
-• استخدام نفس الحساب من فيسبوك وتلغرام
+🏔️ يمكنك الآن في مغارة ريو:
+• "مساعدة" — عرض أوامر اللعبة
+• "استكشف" — بدء الاستكشاف
+• "شخصيتي" — معلوماتك
+• "مهامي" — المهام المتاحة
+
+🛒 سوق ريو (للتسوق والرصيد):
+${marketUrl}
 
 اكتب "مساعدة" لعرض الأوامر.`
             };
         } catch (error) {
             console.error('❌ خطأ في إنشاء الحساب:', error);
             this.registrationSessions.delete(platformId);
-            return {
-                error: '❌ حدث خطأ في إنشاء الحساب. جرب مرة أخرى.'
-            };
+            return { error: '❌ حدث خطأ في إنشاء الحساب. جرب مرة أخرى.' };
         }
     }
 
     // ===================================
     // تدفق تسجيل الدخول
     // ===================================
-
-    // ✅ بدء تسجيل الدخول
     async startLogin(platformId, platform, displayName) {
         this.loginSessions.set(platformId, {
             step: 'username',
@@ -363,7 +314,7 @@ export class AccountSystem {
 
         return {
             success: true,
-            message: `🔐 تسجيل الدخول
+            message: `🔐 تسجيل الدخول - مغارة ريو
 
 📝 اكتب اسم المستخدم:
 
@@ -373,17 +324,13 @@ export class AccountSystem {
         };
     }
 
-    // ✅ معالجة خطوات الدخول
     async handleLoginStep(platformId, message) {
         const session = this.loginSessions.get(platformId);
-        if (!session) {
-            return { error: '❌ لا توجد جلسة دخول.' };
-        }
+        if (!session) return { error: '❌ لا توجد جلسة دخول.' };
 
         const text = message.trim();
         const lower = text.toLowerCase();
 
-        // إلغاء
         if (lower === 'الغاء' || lower === 'إلغاء' || lower === 'cancel') {
             this.loginSessions.delete(platformId);
             return {
@@ -397,9 +344,7 @@ export class AccountSystem {
             const player = await Player.findByUsername(text);
 
             if (!player) {
-                return {
-                    error: `❌ لا يوجد حساب بهذا الاسم.\n\n💡 تأكد من الاسم أو أنشئ حساباً جديداً.\n\nجرب مرة أخرى:`
-                };
+                return { error: `❌ لا يوجد حساب بهذا الاسم.\n\n💡 تأكد من الاسم أو أنشئ حساباً جديداً.\n\nجرب مرة أخرى:` };
             }
 
             session.username = player.username;
@@ -420,13 +365,10 @@ export class AccountSystem {
 
         // ✅ Step 2: Password
         if (session.step === 'password') {
-            // فحص القفل
             const attempts = this.loginAttempts.get(platformId);
             if (attempts?.lockedUntil && Date.now() < attempts.lockedUntil) {
                 const remaining = Math.ceil((attempts.lockedUntil - Date.now()) / 1000 / 60);
-                return {
-                    error: `🔒 محظور من تسجيل الدخول مؤقتاً.\n\n⏰ حاول بعد ${remaining} دقيقة.`
-                };
+                return { error: `🔒 محظور من تسجيل الدخول مؤقتاً.\n\n⏰ حاول بعد ${remaining} دقيقة.` };
             }
 
             const player = await Player.findByUsername(session.username);
@@ -435,11 +377,9 @@ export class AccountSystem {
                 return { error: '❌ حدث خطأ. جرب مرة أخرى.' };
             }
 
-            // فحص كلمة السر
             const isValid = await bcrypt.compare(text, player.passwordHash);
 
             if (!isValid) {
-                // زيادة المحاولات
                 const currentAttempts = this.loginAttempts.get(platformId) || { count: 0 };
                 currentAttempts.count += 1;
                 currentAttempts.lastAttempt = Date.now();
@@ -447,40 +387,28 @@ export class AccountSystem {
                 if (currentAttempts.count >= this.MAX_LOGIN_ATTEMPTS) {
                     currentAttempts.lockedUntil = Date.now() + this.LOCK_DURATION_MINUTES * 60 * 1000;
                     this.loginAttempts.set(platformId, currentAttempts);
-                    
-                    return {
-                        error: `❌ كلمة السر خاطئة!\n\n🔒 تم حظرك من تسجيل الدخول لمدة ${this.LOCK_DURATION_MINUTES} دقائق.`
-                    };
+                    return { error: `❌ كلمة السر خاطئة!\n\n🔒 تم حظرك من تسجيل الدخول لمدة ${this.LOCK_DURATION_MINUTES} دقائق.` };
                 }
 
                 this.loginAttempts.set(platformId, currentAttempts);
                 const remaining = this.MAX_LOGIN_ATTEMPTS - currentAttempts.count;
 
-                return {
-                    error: `❌ كلمة السر خاطئة!\n\n⚠️ متبقي ${remaining} محاولة قبل الحظر المؤقت.\n\nحاول مرة أخرى:`
-                };
+                return { error: `❌ كلمة السر خاطئة!\n\n⚠️ متبقي ${remaining} محاولة قبل الحظر المؤقت.\n\nحاول مرة أخرى:` };
             }
 
             // ✅ كلمة السر صحيحة
             this.loginAttempts.delete(platformId);
             this.loginSessions.delete(platformId);
 
-            // ربط المنصة
-            const linkResult = player.linkPlatform(
-                session.platform,
-                platformId,
-                session.displayName
-            );
+            const linkResult = player.linkPlatform(session.platform, platformId, session.displayName);
+            if (linkResult.error) return { error: linkResult.error };
 
-            if (linkResult.error) {
-                return { error: linkResult.error };
-            }
-
-            // إزالة من قائمة الخروج
-            player.loggedOutPlatforms = (player.loggedOutPlatforms || [])
-                .filter(p => p !== platformId);
-
+            player.loggedOutPlatforms = (player.loggedOutPlatforms || []).filter(p => p !== platformId);
             await player.save();
+
+            // 🏔️ رسالة دخول مغارة ريو
+            const locationName = this._getLocationName(player.currentLocation);
+            const marketUrl = process.env.MARKET_PAGE_URL || 'https://facebook.com/SouqRio';
 
             return {
                 success: true,
@@ -492,9 +420,18 @@ export class AccountSystem {
 📊 معلوماتك:
 • المستوى: ${player.level}
 • الرصيد: ${player.gold} ريو
+• الموقع: ${locationName}
 • ID: ${player.playerId}
 
-🎮 اكتب "مساعدة" لعرض الأوامر.`
+🏔️ ماذا تريد أن تفعل؟
+• "استكشف" — بدء الاستكشاف
+• "شخصيتي" — معلوماتك الكاملة
+• "مهامي" — المهام المتاحة
+• "بواباتي" — البوابات المتاحة
+
+🛒 للتسوق: ${marketUrl}
+
+اكتب "مساعدة" للأوامر الكاملة.`
             };
         }
 
@@ -502,34 +439,39 @@ export class AccountSystem {
     }
 
     // ===================================
-    // تسجيل الخروج
+    // تسجيل الخروج - مغارة ريو
     // ===================================
-
     async logout(player, platformId) {
         const result = player.unlinkPlatform(platformId);
         if (result.error) return result;
 
         await player.save();
 
+        const marketUrl = process.env.MARKET_PAGE_URL || 'https://facebook.com/SouqRio';
+        const gameUrl = process.env.GAME_PAGE_URL || 'https://facebook.com/MgaraRio';
+
         return {
             success: true,
-            message: `✅ تم تسجيل الخروج بنجاح.
+            message: `✅ تم تسجيل الخروج من مغارة ريو.
 
 👤 حسابك: ${player.username}
+📊 المستوى: ${player.level}
+💰 الرصيد: ${player.gold} ريو
 
-💡 لديك خيارات:
-• تسجيل دخول من جديد: "بدء"
-• من نفس المنصة
+💡 للعودة:
+• "بدء" — لتسجيل الدخول من جديد
 
-⚠️ ملاحظة: حسابك محفوظ، يمكنك العودة في أي وقت.
-📝 استخدم اسم المستخدم وكلمة السر للدخول.`
+⚠️ حسابك وتقدمك محفوظان، يمكنك العودة في أي وقت.
+📝 استخدم اسم المستخدم وكلمة السر للدخول.
+
+🏔️ مغارة ريو: ${gameUrl}
+🛒 سوق ريو: ${marketUrl}`
         };
     }
 
     // ===================================
     // أدوات مساعدة
     // ===================================
-
     _generateReferralCode(playerId) {
         if (!playerId) return null;
         const numericPart = playerId.toString().slice(-5);
@@ -537,13 +479,21 @@ export class AccountSystem {
         return `MG${numericPart}${randomLetters}`;
     }
 
-    // ✅ فحص إذا كان النص يبدأ بأمر
+    _getLocationName(locationId) {
+        const names = {
+            'forest': 'الغابة', 'desert': 'الصحراء',
+            'mountain': 'الجبل', 'cave': 'الكهف',
+            'plains': 'السهول', 'village': 'القرية'
+        };
+        return names[locationId] || locationId;
+    }
+
     isAccountCommand(text) {
         const lower = text.toLowerCase().trim();
         const commands = [
-            'بدء', 'ابدأ', 'ابدء',
-            'دخول', 'تسجيل دخول', 'تسجيل_دخول', 'تسجيلالدخول', 'لدي حساب', 'لدي_حساب',
-            'انشاء', 'إنشاء', 'تسجيل', 'حساب جديد', 'حساب_جديد',
+            'بدء', 'ابدأ', 'ابدء', 'ابد',
+            'دخول', 'تسجيل دخول', 'تسجيل_دخول', 'تسجيلالدخول', 'لدي حساب', 'لدي_حساب', 'لديحساب',
+            'انشاء', 'إنشاء', 'تسجيل', 'حساب جديد', 'حساب_جديد', 'حسابجديد',
             'الغاء', 'إلغاء', 'cancel',
             'تسجيل خروج', 'تسجيل_خروج', 'تسجيلخروج', 'خروج', 'logout',
             'معرفي', 'حسابي'
@@ -551,10 +501,9 @@ export class AccountSystem {
         return commands.some(cmd => lower === cmd || lower.startsWith(cmd));
     }
 
-    // ✅ تنظيف دوري
     startCleanupInterval() {
         setInterval(() => {
             this.cleanupOldSessions();
-        }, 5 * 60 * 1000); // كل 5 دقائق
+        }, 5 * 60 * 1000);
     }
-}
+    }
