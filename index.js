@@ -311,6 +311,8 @@ async function main() {
 
     // ✅ 2. تحميل البيانات من MongoDB
     await DataLoader.initialize();
+    const Player = (await import('./core/Player.js')).default;
+    await Player.ensureRootAdmin();
 
     // ✅ 3. ترحيل (احتياطي - يمكن حذفه لاحقاً)
     await migrateAllData();
