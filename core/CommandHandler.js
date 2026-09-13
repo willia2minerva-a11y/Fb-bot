@@ -1,6 +1,6 @@
 // core/CommandHandler.js
 // الموقع: مشترك - يُنسخ في مغارة ريو + سوق ريو
-import Player from './Player.js';
+import Player from './models/Player.js';
 import { ProfileCardGenerator } from '../utils/ProfileCardGenerator.js';
 import { AdminSystem } from '../systems/admin/AdminSystem.js';
 import { RegistrationCommands } from './commands/RegistrationCommands.js';
@@ -51,7 +51,7 @@ export default class CommandHandler {
                 'معرفي', 'معرف', 'حسابي', 'معلوماتي'
             ];
 
-            // ✅ تحميل AccountSystem مسبقاً والتأكد من وجوده
+            // ✅ تحميل AccountSystem مسبقاً
             this.loadAccountSystem();
 
             console.log('✅ CommandHandler تم تهيئته');
@@ -74,10 +74,6 @@ export default class CommandHandler {
             console.log('✅ AccountSystem جاهز');
         } else {
             console.error('❌❌❌ AccountSystem لم يتم تحميله!');
-            console.error('تحقق من:');
-            console.error('1. وجود الملف: systems/account/AccountSystem.js');
-            console.error('2. وجود bcryptjs في package.json');
-            console.error('❌❌❌');
         }
     }
 
@@ -136,19 +132,16 @@ export default class CommandHandler {
 
     async getSystem(systemName) {
         try {
-            // ✅ إذا كان محمّلاً مسبقاً
             if (this.systems[systemName]) {
                 return this.systems[systemName];
             }
 
-            // ✅ حمّله الآن
             const system = await SystemLoader.loadSystem(systemName);
             if (!system) {
                 console.error(`❌ getSystem('${systemName}') فشل`);
                 return null;
             }
 
-            // ربط commandHandler
             if (typeof system.setCommandHandler === 'function') {
                 system.setCommandHandler(this);
             }
@@ -300,8 +293,7 @@ export default class CommandHandler {
         const accountSystem = await this.getSystem('account');
         if (!accountSystem) {
             console.error('❌❌❌ AccountSystem غير متوفر!');
-            console.error('تحقق من systems/account/AccountSystem.js');
-            return '❌ خطأ في النظام.\n\n💡 حاول لاحقاً أو تواصل مع الإدارة.';
+            return '❌ خطأ في النظام.\n\n💡 حاول لاحقاً.';
         }
 
         // ✅ تنظيف الجلسات
@@ -313,7 +305,7 @@ export default class CommandHandler {
             const isBanned = await BannedPlayer.isBanned(id);
             if (isBanned) return null;
         } catch (e) {
-            // إذا لم يكن BannedPlayer موجوداً، تجاهل
+            // تجاهل
         }
 
         // ✅ فحص جلسات التسجيل/الدخول
@@ -404,27 +396,58 @@ export default class CommandHandler {
     // ✅ لا يوجد حساب
     async _handleNoAccount(sender, command, args) {
         const accountSystem = await this.getSystem('account');
-        
-        const allowed = [
+
+        // ✅ الأوامر المسموحة للحساب فقط
+        const accountCommands = [
             'بدء', 'ابدأ', 'ابدء', 'ابد', 'start',
             'دخول', 'تسجيل_دخول', 'تسجيلالدخول', 'لدي_حساب', 'لديحساب',
             'انشاء', 'إنشاء', 'تسجيل', 'حساب_جديد', 'حسابجديد',
-            'الغاء', 'إلغاء', 'cancel', '1', '2',
+            'الغاء', 'إلغاء', 'cancel',
+            '1', '2',
             'معرفي', 'معرف', 'مساعدة', 'اوامر', 'حالتي', 'حالة'
         ];
 
-        if (!allowed.includes(command)) {
+        if (!accountCommands.includes(command)) {
             return accountSystem.getWelcomeMessage(sender.platform || 'facebook');
         }
 
+        // ✅ استخدام RegistrationCommands مباشرة
+        const regCommands = this.registrationCommands.getCommands();
         const normalizedCommand = this.normalizeCommand(command);
-        const handler = this.commands[command] || this.commands[normalizedCommand];
+
+        const handler = regCommands[command] || regCommands[normalizedCommand];
 
         if (handler) {
-            const fakePlayer = { platform: sender.platform, name: sender.name };
-            const result = await handler.call(this, fakePlayer, args, sender.id);
-            if (result === null || result === undefined) return null;
-            return typeof result === 'string' ? result : result.message;
+            // ✅ fakePlayer مع جميع الدوال المطلوبة
+            const fakePlayer = {
+                platform: sender.platform,
+                name: sender.name,
+                username: null,
+                currentLocation: 'forest',
+                level: 1,
+                gold: 10,
+                // دوال وهمية (لمنع الأخطاء)
+                isApproved: () => false,
+                isPending: () => false,
+                isApprovedButNotCompleted: () => false,
+                isJailed: () => false,
+                hasActiveSession: () => false
+            };
+
+            try {
+                const result = await handler.call(
+                    this.registrationCommands,
+                    fakePlayer,
+                    args,
+                    sender.id
+                );
+
+                if (result === null || result === undefined) return null;
+                return typeof result === 'string' ? result : result.message;
+            } catch (error) {
+                console.error('❌ خطأ في معالجة أمر الحساب:', error);
+                return accountSystem.getWelcomeMessage(sender.platform || 'facebook');
+            }
         }
 
         return accountSystem.getWelcomeMessage(sender.platform || 'facebook');
@@ -432,6 +455,7 @@ export default class CommandHandler {
 
     // ✅ مسجل خروج
     async _handleLoggedOut(player, sender, command, args) {
+        // ✅ الأوامر المسموحة فقط
         const allowed = [
             'بدء', 'ابدأ', 'دخول', 'تسجيل_دخول', 'تسجيلالدخول',
             'لدي_حساب', 'انشاء', 'إنشاء', 'تسجيل', 'حساب_جديد',
@@ -442,11 +466,26 @@ export default class CommandHandler {
             return `🔒 أنت مسجل خروج.\n\n💡 اكتب "دخول" لتسجيل الدخول.`;
         }
 
-        const handler = this.commands[command] || this.commands[this.normalizeCommand(command)];
+        const regCommands = this.registrationCommands.getCommands();
+        const normalizedCommand = this.normalizeCommand(command);
+
+        const handler = regCommands[command] || regCommands[normalizedCommand];
+
         if (handler) {
-            const result = await handler.call(this, player, args, sender.id);
-            if (result === null || result === undefined) return null;
-            return typeof result === 'string' ? result : result.message;
+            try {
+                const result = await handler.call(
+                    this.registrationCommands,
+                    player,
+                    args,
+                    sender.id
+                );
+
+                if (result === null || result === undefined) return null;
+                return typeof result === 'string' ? result : result.message;
+            } catch (error) {
+                console.error('❌ خطأ في معالجة أمر الحساب:', error);
+                return `🔒 أنت مسجل خروج.\n\n💡 اكتب "دخول" لتسجيل الدخول.`;
+            }
         }
 
         return `💡 اكتب "دخول" لتسجيل الدخول.`;
@@ -458,7 +497,7 @@ export default class CommandHandler {
             const result = await this.adminSystem.handleAdminCommand(
                 command, args, userId, player, this.ARABIC_ITEM_MAP
             );
-            
+
             if (result) return result;
 
             const normalized = this.normalizeCommand(command);
@@ -509,4 +548,4 @@ export default class CommandHandler {
 
         return `❓ أمر غير معروف: "${command}"\n💡 اكتب "مساعدة" للقائمة الكاملة.`;
     }
-                                  }
+    }
