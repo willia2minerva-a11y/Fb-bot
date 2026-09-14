@@ -174,17 +174,9 @@ export class MessageGateway {
     // ⏱️ تطبيق الفاصل الزمني + Jitter
     // ============================================
     async _applyDelay() {
-        const now = Date.now();
-        const baseInterval = this.minIntervalMs;
         const jitter = Math.floor(Math.random() * this.jitterMs);
-        const requiredInterval = baseInterval + jitter;
-
-        const timeSinceLastSend = now - this.lastSendTime;
-
-        if (timeSinceLastSend < requiredInterval) {
-            const wait = requiredInterval - timeSinceLastSend;
-            await new Promise(r => setTimeout(r, wait));
-        }
+        const wait = this.minIntervalMs + jitter;
+        await new Promise(r => setTimeout(r, wait));
     }
 
     // ============================================
